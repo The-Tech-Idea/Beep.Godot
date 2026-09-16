@@ -48,7 +48,8 @@ func escort_selection() -> void:
 		command.Recipients = [id]
 		command.Action = 5
 		command.TargetActorId = preceding
-		command.FollowDistance = maxf($Grid.TileSize.x, $Grid.TileSize.y) * 1.5
+		var cell_size: Vector2 = $Grid.EffectiveTileSize
+		command.FollowDistance = maxf(cell_size.x, cell_size.y) * 1.5
 		if $Registry.Submit(command) == 1:
 			assigned += 1
 			preceding = id
@@ -125,10 +126,13 @@ func load_snapshot() -> void:
 
 func fit_view() -> void:
 	if not ready_to_play: return
-	var extent: Vector2 = Vector2($World.BuiltSize) * $Grid.TileSize
-	$Camera2D/Controller.FocusWorld(extent * 0.5, true)
+	# The world owns its framing (origin, projection, renderer transform); re-deriving it from
+	# the grid's manual TileSize framed a 64-pixel map whatever the surface drew.
+	var extent: Rect2 = $World.WorldExtent()
+	if extent.size.x <= 0.0 or extent.size.y <= 0.0: return
+	$Camera2D/Controller.FocusWorld(extent.get_center(), true)
 	var viewport := get_viewport_rect().size - Vector2(40, 150)
-	var fit := minf(viewport.x / extent.x, viewport.y / extent.y)
+	var fit := minf(viewport.x / extent.size.x, viewport.y / extent.size.y)
 	$Camera2D/Controller.SetZoomLevel(fit, true)
 
 func update_status() -> void:

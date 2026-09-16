@@ -20,6 +20,16 @@ New square packs use 64x64 cells without the legacy half-cell offset. Isometric
 packs use 64x32 diamonds and Godot's native map transforms. The renderer rejects a
 pack for the other projection. Source artwork must be authored for its projection.
 
+## Water under a pack
+
+A pack build clears the renderer's shader sea. A pack brings its own shoreline tiles, so the
+shader sea would draw a second one over them. `Tiles` has behaved this way since packs were
+introduced; `IsometricAutotile` gained a sea in VIEW-04 (2026-09-16) and applies the same rule.
+Both keep `WaterShaderPath` and their [`TerrainWaterLook`](../terrain-engine/TerrainWaterLook.md)
+assignment — clearing the pack and rebuilding brings the shader sea back; a pack does not
+reconfigure them. Pack water tiles themselves remain part of the terrain art library's scope, not
+this renderer's.
+
 The current real-art candidate is:
 
 `res://addons/beep_game_builder_cs/generated/dev/cartoon/water/staging/godot/grass_dirt_library_pack.tres`
@@ -45,7 +55,10 @@ directly in a native TileMapLayer when no C# engine is required.
   Full multi-pack/layer composition is a later milestone.
 
 Full builds prepare off-screen and publish only after all requested logical cells
-are represented. Individual live-cell edits update affected neighbors with a
+are represented. A pack that fails validation or cannot draw a cell keeps the
+previously published display, and both renderers report why through
+`GetPaintDiagnostics()` (`valid`, `reason`). `TerrainWorldComponent` shows that
+reason as `View incomplete: …` in its status line and fails generation with it. Individual live-cell edits update affected neighbors with a
 context margin. Bulk changes still rebuild. Widely separated edits currently
 share a bounding context rectangle; chunk-based performance tuning remains pending.
 `LibraryCellsUpdated` reports published cells, not all context work or render cost.

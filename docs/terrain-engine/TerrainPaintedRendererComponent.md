@@ -96,6 +96,11 @@ they do not change map size or sharpen an image filter. `WaterTextureTiles`
 The obsolete combined `TextureTiles` property is removed, with no compatibility
 alias. The lab and standalone painted demo use the new properties.
 
+Both are dials on [`TerrainWaterLook`](TerrainWaterLook.md) since VIEW-04 (2026-09-16), not
+exports on this renderer: this view and the two tile/block views each carried their own copy,
+and the tile view's differed. The defaults quoted above are the look's, which are what this view
+already drew.
+
 Mipmaps and explicit material UV gradients remain enabled. The shared water
 shader samples stationary seabed sand at the ground scale, keeping it aligned
 with beach sand while the water surface uses its own scale. Isometric water
@@ -229,30 +234,72 @@ TileMapLayer using GPU pixel readback, live cell edits and unchanged ID/coast da
 - `[Export] NodePath TerrainGeneratorPath` — path to the `TerrainGeneratorComponent` this renderer reads.
 - `[Export] Vector2I BoundsSize = (96, 60)` — map dimensions in tiles rendered.
 - `[Export(Range 1,256,1)] int TileSize = 64` — pixel size of one tile.
-- `[Export(Range 1,32,0.5)] float GroundTextureTiles = 12.0f` - tiles per land/seabed texture repeat.
-- `[Export(Range 1,32,0.5)] float WaterTextureTiles = 6.0f` - tiles per animated water texture repeat.
+- `[Export] TerrainWaterLook? WaterLook` — how the sea looks: the thirteen shared dials (including `GroundTextureTiles` and `WaterTextureTiles`, which this composite reads for its land and water repeats) and the four water texture paths, for every view of this world at once (VIEW-04, 2026-09-16). This view exposed thirteen of them, the tile view the same thirteen with three different defaults, and the block view a third copy. `TerrainWorldComponent.Draw()` pushes the world's look here on every build, so assign it on the world; unassigned, `TerrainWaterLook.Shared` (the shipped defaults, which are the values this view carried) is used. A private `Water` property reads whichever applies. See [TerrainWaterLook](TerrainWaterLook.md).
 - `[Export(Range 0,0.9,0.01)] float BlendWidth = 0.42f` — width of the blend band between adjacent materials, passed to the shader.
 - `[Export(Range 1,8,0.25)] float BlendSharpness = 4.0f` - concentration of the geometric transition.
 - `[Export(Range 0,1,0.05)] float MaterialEdgeDetail = 0.75f` - texture-brightness influence on material transition weights.
 - `[Export(Range 0,1,0.01)] float EdgeNoise = 0.55f` — how much noise perturbs blend edges (breaks up straight seams).
 - `[Export(Range 0.5,24,0.5)] float NoiseScale = 5.0f` — frequency of that edge noise.
 - `[Export(Range 0,2,0.05)] float ShadeStrength = 0.35f` - hillshade contrast multiplier.
-- `[Export(Range 1,16,0.5)] float CoastRangeTiles = 5.0f` — how many tiles of coast distance the shader can see (clamp range of the distance field).
-- `[Export(Range 1,8,1)] int CoastDetail = 4` — sub-tile resolution of the coast distance field; at 1 the field is one value per tile (square contours), higher values give smoother/curved shoreline contours for surf.
-- `[Export(File *.png,*.webp)] string FoamSheetPath = ""` — authored foam strip (equal frames, sampled by distance from waterline); empty falls back to procedurally generated crests.
-- `[Export(Range 0,2,0.05)] float WaveIntensity = 1.0f` — single "sea state" dial (0 calm, 1 normal, 2 storm) that jointly scales surf reach, crest width, and wash-up distance.
-- `[Export(Range 1,48,0.5)] float FoamTilesAlong = 11.0f` — tiles covered by one repeat of the foam texture along the shore.
-- `[Export(Range 0.3,8,0.1)] float FoamTilesAcross = 7.0f` — tiles covered by one repeat across the shore.
-- `[Export(Range 0,4,0.01)] float FoamScroll = 0.055f` — speed authored crests advance onto the beach.
-- `[Export(Range 0,1,0.05)] float FoamPulse = 0.34f` — how strongly surf pulses as crests arrive (0 = steady band).
-- `[Export(Range 0,4,0.05)] float FoamArrivalRate = 0.9f` — how fast crests follow one another.
-- `[Export(File *.png,*.webp)] string GrassTexturePath`, `DryGrassTexturePath`, `SandTexturePath`, `DirtTexturePath`, `SnowTexturePath`, `MudTexturePath`, `GravelTexturePath`, `RockTexturePath`, `LavaTexturePath`, `ShallowWaterTexturePath`, `DeepWaterTexturePath` - material texture sources for the eleven shader material slots; empty paths leave that shader parameter unchanged/unset.
+- `[Export(Range 5,16,0.5)] float CoastRangeTiles = TerrainCoastField.DefaultRangeTiles (5.0)` — how many tiles of coast distance the shader can see (clamp range of the distance field). `Rebuild` floors it at 5 when writing `coast_range`, because the uniform must agree with the range the field was actually built with.
+- `[Export(Range 1,16,1)] int CoastDetail = 12` — sub-tile resolution of the coast distance field; at 1 the field is one value per tile (square contours), higher values give smoother/curved shoreline contours for surf.
+- The surf and swell dials (`WaveIntensity`, `FoamStrength`, `ShallowTiles`, `DeepTiles`, `FoamTilesAlong`, `FoamTilesAcross`, `FoamScroll`, `FoamPulse`, `FoamArrivalRate`, `SwellDirectionDegrees`, `SwellDirectionality`) and `FoamSheetPath` moved to `WaterLook` above; they are no longer exports here. This view binds the look's foam sheet through `TerrainWaterMaterial.BindFoamSheet` and the rest through `TerrainWaterMaterial.Apply`. It does **not** read the look's three water-bed textures: it composites its own seabed from the LAND materials below.
+- `[Export(File *.png,*.webp)] string GrassTexturePath`, `DryGrassTexturePath`, `SandTexturePath`, `DirtTexturePath`, `SnowTexturePath`, `MudTexturePath`, `GravelTexturePath`, `RockTexturePath`, `LavaTexturePath`, `ShallowWaterTexturePath`, `DeepWaterTexturePath` - material texture sources for the eleven shader material slots; empty paths leave that shader parameter unchanged/unset. These are this view's own LAND materials and stay here — its `SandTexturePath` is the beach a unit walks on (`textures/terrain/sand.png`, authored in four shipped scenes), not the seabed the look's `SeabedSandTexturePath` names. Both bind the same shader uniform from different views, which is why the look's is spelled differently.
 - `[Export] bool RefreshOnReady = true` — when true and not running in the editor, `_Ready()` defers a call to `Rebuild()`; set false when an external controller drives generation first and calls `Rebuild()` itself, to avoid building twice.
 - `void Rebuild()` - resolves the configured live-cell or generator source, uploads ID/shade/coast maps, ensures the native layer/material, and binds map, ground/water texture scale, blend, shading and surf settings. Live-cell beaches are explicit terrain; generated beaches use the generator's width. A missing explicit source clears the surface and reports a warning.
 - `override string[] _GetConfigurationWarnings()` — warns when `TerrainGeneratorPath` is empty.
 - `override void _Ready()` — calls `CallDeferred(nameof(Rebuild))` if `RefreshOnReady` and not in the editor.
 
-Private helpers worth noting for behaviour: `BuildIdMap` writes one texel per tile (red = terrain-id from a fixed `TerrainIds` dictionary contract with `terrain_splat.gdshader`, green = hillshade halved to fit 0..1) by calling `_generator.TerrainKindAt(cell)` and `_generator.ShadeAtCell(cell)` per cell; `BuildCoastMap` delegates to `TerrainCoastField.Build`; `EnsureSurface` creates/reuses a `TileMapLayer` named `"SplatSurface"` via `TerrainAuthoring.EnsureLayer`, assigns it a tileset sized to `TileSize` via `TerrainShaderSurface.BuildTileSet`, fills it via `TerrainShaderSurface.Fill`, and sets its `ZIndex` to `TerrainLayers.ZForFloor()`.
+Private helpers worth noting for behaviour: `BuildMaps` walks the view once per texel writer — `WriteCellTexels` for the id/lake-width texels (red = terrain-id from a fixed `TerrainIds` dictionary contract with `terrain_splat.gdshader`, blue = the inland terrain id, alpha = beach width) and `WriteShadeTexel` for lighting (green = hillshade halved to fit 0..1), reading the generated field's `TerrainAtCell`/`ShadeAtPosition` when there are no live cells; `UpdateMaps` rewrites only the changed chunks' texels plus a one-cell shade halo; `BuildCoastMap` delegates to `TerrainCoastField.Build`; `EnsureSurface` creates/reuses a `TileMapLayer` named `"SplatSurface"` via `TerrainAuthoring.EnsureLayer`, assigns it a tileset sized to `TileSize` via `TerrainShaderSurface.BuildTileSet`, fills it via `TerrainShaderSurface.Fill`, and sets its `ZIndex` to `TerrainLayers.ZForFloor()`.
+
+## The beach and the lake bank
+
+How wide a beach is, how wide a lake bank is, and what lies inland of either are
+[`TerrainShorelineStage`](TerrainShorelineStage.md)'s numbers, not this view's (VIEW-07,
+2026-09-16). `WriteCellTexels` carries them into two texels per cell: the ocean beach width in the
+id map's alpha (`shore.Width / 4`, decoded in the shader as `texture(id_map, map_uv).a * 4.0`) and
+the lake shore width in `lake_width_map`'s red (`shore.LakeWidth / 3`, decoded as `* 3.0`), beside
+the inland terrain id in the id map's blue. The shader composites its band from those against the
+coast field's ocean distance and the lake field's distance. It renders the stage's decision; it
+does not make one. There is no shader-side default width left to fall back to either — a zero
+texel draws no beach at all.
+
+**The lake width fallback is no longer gated on flat ground** (FIX-14, 2026-09-16). Without live
+cells this view reads the generated field directly, and that path used to pass the lake width
+through only where the cell's relief was `TerrainRelief.Flat` — one of three copies of the same
+gate, so a lake against rising land drew no bank here either. The fallback now takes
+`field.LakeShoreWidth` for every cell, matching the stage and the generation handoff.
+
+**A lake's waterline is about five times crisper than the sea's** (FIX-14, 2026-09-16).
+`terrain_splat.gdshader` used one softness for both — `shore_blend_tiles` either side of the
+waterline. The open sea's edge is soft on purpose (a beach, a wash and surf carry that transition),
+but a lake has none of them, so the same blend read as the lake's water smeared into the ground.
+The shader now takes the softness from `open_sea`, the coast field's own flag that already keeps
+surf off a lake: `shore_softness = mix(shore_blend_tiles * 0.2, shore_blend_tiles, open_sea)`. The
+sea's edge is unchanged. Only the Original style is affected: the two stylised paths override the
+mask outright and are untouched — Cartoon (`art_style` 1) keeps its fixed
+`smoothstep(-0.06, 0.06, sd)` and Pixel Art (`art_style` 2) its hard `step(0.0, sd)`. The
+transparent surface the tile and isometric views draw applies the same lake/sea rule in
+`iso_water.gdshader`; see [TerrainSeaSurface](TerrainSeaSurface.md).
+
+**Open defect: a cell the map calls sand can still be painted otherwise at its centre.** The stage's
+cell kind is the majority of that cell's samples; this view's band is a per-fragment test against a
+distance field at a different resolution. The two can disagree in both directions, at the very pixel
+a unit stands on. This is the sand counterpart of the water-centre discrepancy recorded at seed
+31415, cell (21,3).
+
+VIEW-07 proposed closing it with a cell-centre contract in the shader: inside the central half of a
+cell, force `beach` to the id texel's verdict. It was built, shown to the owner, **rejected on sight
+and reverted the same session** (2026-09-16). Forcing the verdict per cell makes the beach decision
+piecewise constant, so the smooth band becomes cell-square cores with a thin transition ring, and
+where a cell the stage did not call sand sat inside the band, the sand was pulled out from between
+the grass and the waterline — the tile staircase this shader's own comments record fighting off.
+The defect is therefore **open, with no guard**: what fixes it must not quantise the band per cell.
+
+`tests/terrain_beach_centre_probe.gd` reproduces the disagreement — authored cells, a deliberately
+over-wide width texel, flat material colours, and a count of the cells whose centre disagrees with
+their own kind. It is deliberately **registered in no runner**: it reports the open defect rather
+than asserting it away. With the rejected rule in place it read 0 disagreements; without it, 32.
 
 ## Dependencies
 
@@ -261,7 +308,8 @@ Private helpers worth noting for behaviour: `BuildIdMap` writes one texel per ti
 - Calls `TerrainAuthoring.EnsureLayer(this, "SplatSurface")` to get/create the backing `TileMapLayer`.
 - Calls `TerrainShaderSurface.BuildTileSet(cell, isometric: false)` and `TerrainShaderSurface.Fill(surface, size)` to set up and populate that layer.
 - Reads `TerrainLayers.ZForFloor()` for draw order.
-- Calls `TerrainTextures.Load(path, Name, description)` for every optional texture path (foam sheet + eleven material textures).
+- Calls `TerrainTextures.Load(path, Name, description)` for every optional material texture path (the eleven slots); the foam sheet is loaded by `TerrainWaterMaterial.BindFoamSheet` from the look's `FoamSheetPath`.
+- Calls `TerrainWaterMaterial.Apply(_material, Water.Settings(size, BoundsOrigin, max(5, CoastRangeTiles)))` — the one writer of the shared water uniforms — and `TerrainWaterMaterial.BindFoamSheet(_material, Water.FoamSheetPath, Name)`. The coast range keeps this view's own floor of 5 tiles, because it must agree with the range `TerrainPaintedCoastJob` actually built the field with, not with the export alone. It is not a caller of `TerrainSeaSurface`: it has no water surface, only a composite.
 - Loads `res://addons/beep_game_builder_cs/shaders/terrain_splat.gdshader` directly (not another C# file in this directory, but the shader this class is the sole owner/uploader for).
 - Writes nothing back into the generator; all data flow is generator → this renderer → shader material.
 
@@ -285,7 +333,7 @@ Private helpers worth noting for behaviour: `BuildIdMap` writes one texel per ti
   replaces the edited cell's patch; ordinary flag/crop edits preserve it.
   Keep `CellDataPath` bound so the renderer reflects those edits and restored masks.
 - The `TerrainIds` dictionary is an explicit, code-commented contract with `terrain_splat.gdshader`'s material indices; both `"swamp"` and `"mud"` map to id `8`, so the shader cannot visually distinguish those two terrain kinds — deliberate collapsing to one material slot, not a bug, but worth knowing if a swamp/mud visual split is ever wanted.
-- A code comment on the `beach_tiles` shader parameter explicitly documents a known duplication defect: this renderer composites its own sand/beach band from the coast distance field using `_generator.BeachWidth`, while the tile and isometric renderers instead draw whatever sand *biome* the beach stage already assigned per-cell. Two independent sources for "how wide is the beach," and the comment records a real incident where they drifted (`BeachWidth = 0.028` produced no beach in the generator/tile/isometric views but this shader kept its own hardcoded default). This is exactly the class of defect flagged by the project's duplication rule — one fact, two owners — and is still present in the code as of this read, only worked around by this renderer now reading `BeachWidth` at least for its own contribution.
+- The beach used to have two owners, and the shader's own comments record the incident: this renderer composited its band from a `beach_tiles` dial of its own while the tile and isometric renderers drew whatever sand *biome* the beach stage had assigned per cell, so `BeachWidth = 0.028` produced no beach in the generator and two views while this shader kept drawing the 1.15 tiles it defaulted to. There is no `beach_tiles` uniform now: the width is the stage's number, uploaded per cell in the id map's alpha, and VIEW-07 states the stage as the owner (see [The beach and the lake bank](#the-beach-and-the-lake-bank) above). What survives of the defect is narrower and still open — the band and the cell kind can disagree at a cell's centre because they are decided at different resolutions.
 - No z-index export by design — a comment explains this is deliberate so `TerrainLayers` remains the single owner of draw order, citing a past bug where the feature renderer drew trees underneath the map because it had its own z dial.
-- `FoamSheetPath` gets an extra, renderer-specific warning on top of the one `TerrainTextures.Load` already pushes: if the path is non-empty but fails to load, `Rebuild` additionally pushes "falling back to generated crests" and sets `use_foam_sheet = false` on the shader. The ten material textures rely solely on `TerrainTextures.Load`'s own warning (`Assign` just returns early on a null result) — both paths are reported, just at different granularity.
+- The foam sheet gets an extra warning on top of the one `TerrainTextures.Load` already pushes: if the look's path is non-empty but fails to load, `TerrainWaterMaterial.BindFoamSheet` additionally pushes "falling back to generated crests" and sets `use_foam_sheet = false`. The material textures rely solely on `TerrainTextures.Load`'s own warning (`Assign` just returns early on a null result) — both paths are reported, just at different granularity.
 - `TerrainTextures.Load`'s own doc comment records a past duplication defect worth knowing when touching this file: texture loading (res:// vs. absolute-path handling, mipmap generation) used to be reimplemented per renderer, and one of the four copies (the tile renderer's water) was wrong, so that view alone drew unmipped/unimported art. This renderer is one of the three copies that were consolidated onto the shared helper; it is not exhibiting the defect itself.

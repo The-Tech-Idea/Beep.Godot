@@ -89,6 +89,18 @@ namespace Beep.ECS
         // Every optional layer is a dial rather than a separate on/off flag, so
         // there is one owner per setting: zero means the layer is not generated.
         [Export(PropertyHint.Range, "0,24,1")] public int StartPositionCount { get; set; } = 6;
+
+        /// <summary>
+        /// Cells reserved around each start as that player's area, 0 to 32. Zero generates no
+        /// start areas and leaves start selection exactly as it was. Above zero a start must
+        /// hold the kit's headquarters footprint, and each start gets a validated, kitted area
+        /// (see TerrainStartAreaStage and GetStartAreaReports). Not derived by ApplyMapSetup.
+        /// </summary>
+        [Export(PropertyHint.Range, "0,32,1")] public int StartAreaRadius { get; set; }
+
+        /// <summary>What every start area must provide. Empty uses the kit defaults with no resources.</summary>
+        [Export] public TerrainStartKit? StartKit { get; set; }
+
         [Export(PropertyHint.Range, "0,4,0.05")] public float ResourceDensity { get; set; } = 1.0f;
 
         /// <summary>
@@ -261,7 +273,7 @@ namespace Beep.ECS
 
         // Stream the typed handoff: retaining a second map-sized list is not
         // necessary when the cell store consumes every record exactly once.
-        private static IEnumerable<(Vector2I Cell, string Terrain, string Feature, int Relief, float Shade, float Elevation, string WaterSource, GridTerrainWaterPatch WaterPatch, string InlandTerrain, float BeachWidth, GridTerrainWaterPatch? LakePatch, float LakeWidth)> GeneratedCells(
+        private static IEnumerable<(Vector2I Cell, string Terrain, string Feature, int Relief, float Shade, float Elevation, string WaterSource, GridTerrainWaterPatch WaterPatch, string InlandTerrain, float BeachWidth, GridTerrainWaterPatch? LakePatch, float LakeWidth, int StartArea)> GeneratedCells(
             TerrainGenerationSettings settings, GeneratedTerrainField field)
         {
             for (int y = 0; y < settings.Size.Y; y++)
@@ -279,7 +291,11 @@ namespace Beep.ECS
                         field.WaterPatchAtCell(new Vector2I(x, y)),
                         field.InlandTerrainAtCell(new Vector2I(x, y)), field.BeachWidth,
                         field.LakeShoreWidth > 0f ? field.LakePatchAtCell(new Vector2I(x, y)) : null,
-                        field.ReliefAtCell(new Vector2I(x, y)) == TerrainRelief.Flat ? field.LakeShoreWidth : 0f);
+                        // Every shore, not only the flat ones: the shoreline stage banks a lake
+                        // whatever the ground behind it does, and this width is what the painted
+                        // view draws that bank with.
+                        field.LakeShoreWidth,
+                        field.StartAreaAtCell(new Vector2I(x, y)));
                 }
             }
 
@@ -457,6 +473,23 @@ namespace Beep.ECS
             return positions;
         }
 
+        /// <summary>Which start's reserved area a cell is in: 0 none, k+1 start k (StartAreaRadius above zero).</summary>
+        public int StartAreaAt(Vector2I localCell)
+            => FieldFor(CurrentSettings()).StartAreaAtCell(localCell);
+
+        /// <summary>
+        /// One Dictionary per start, in start order - index, origin, footprint, cell_count, exits,
+        /// placements (resource, cell, relaxation), problems and usable. Empty without start areas.
+        /// Cells are generator-local, as GetStartPositions returns them.
+        /// </summary>
+        public Godot.Collections.Array<Godot.Collections.Dictionary> GetStartAreaReports()
+        {
+            var reports = new Godot.Collections.Array<Godot.Collections.Dictionary>();
+            foreach (TerrainStartAreaReport report in FieldFor(CurrentSettings()).StartAreas)
+                reports.Add(report.ToDictionary());
+            return reports;
+        }
+
         /// <summary>
         /// Configures the generator from a map type and the five climate axes.
         ///
@@ -623,6 +656,7 @@ namespace Beep.ECS
                 Mathf.Max(0.02f, FeatureFrequencyMultiplier),
                 Mathf.Clamp(LakeCoverage, 0.0f, 0.35f), Mathf.Max(0.02f, LakeFrequencyMultiplier), Mathf.Clamp(LakeShoreWidth, 0.0f, 3.0f),
                 Mathf.Clamp(RiverDensity, 0.0f, 4.0f), Mathf.Clamp(StartPositionCount, 0, 24),
+                Mathf.Clamp(StartAreaRadius, 0, 32), StartKit,
                 Mathf.Clamp(ResourceDensity, 0.0f, 4.0f), ResourceSet, Resources, Mathf.Clamp(HillsFraction, 0.0f, 0.9f),
                 Mathf.Clamp(MountainsFraction, 0.0f, 0.9f), Mathf.Clamp(HillshadeStrength, 0.0f, 3.0f),
                 Mathf.Clamp(FeatureDensity, 0.0f, 4.0f),

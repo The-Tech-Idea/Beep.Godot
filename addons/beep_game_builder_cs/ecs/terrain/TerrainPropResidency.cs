@@ -123,7 +123,9 @@ internal sealed class TerrainPropResidency<T>
     {
         if (_cellPixels is not null) return _cellPixels();
         Transform2D transform = (_grid as Node2D ?? _owner).GetGlobalTransformWithCanvas();
-        Vector2 size = _grid?.TileSize ?? Vector2.One * _tile;
+        // The cell the grid binds, in grid-local units - not its manual TileSize export, which
+        // measured a 96x48 layer at 64x64 and hid props that were drawn large enough to see.
+        Vector2 size = _grid?.EffectiveTileSize ?? Vector2.One * _tile;
         return Mathf.Max((transform.X * size.X).Length(), (transform.Y * size.Y).Length());
     }
 }

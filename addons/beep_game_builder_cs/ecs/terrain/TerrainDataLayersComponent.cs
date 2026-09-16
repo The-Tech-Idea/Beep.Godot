@@ -20,10 +20,11 @@ namespace Beep.ECS
     /// an explicit native TileData view for authoring/export and direct TileSet
     /// inspection. Those optional layers are invisible and physically inert.
     ///
-    /// EIGHT layers, not one, because the facts vary independently: a cell's
+    /// NINE layers, not one, because the facts vary independently: a cell's
     /// terrain, the resource on it, what swims in its water, what lies under
     /// it, the feature standing on it, its relief band, the continent it
-    /// belongs to and whether it is a recommended start are separate choices,
+    /// belongs to, whether it is a recommended start and which start's area
+    /// it is reserved for are separate choices,
     /// and one tile can only carry one set of values. Split this way each
     /// layer holds one tile per distinct value; combined, it would need a
     /// tile per combination.
@@ -51,6 +52,10 @@ namespace Beep.ECS
         private Vector2I _publishedOrigin;
         private Vector2I _publishedSize;
         private readonly HashSet<Vector2I> _publishedStarts = new();
+        // The same starts in the generator's order, so StartCells()[k] is start k. The set above
+        // answers IsStartPositionAt; a set alone lost the order, and the index is what a start
+        // area, a faction assignment and the camera's framing all key on.
+        private readonly List<Vector2I> _publishedStartOrder = new();
         private bool _materialized;
 
         private TerrainGeneratorComponent? _generator;
@@ -64,6 +69,7 @@ namespace Beep.ECS
         private TileMapLayer? _starts;
         private TileMapLayer? _liquid;
         private TileMapLayer? _underground;
+        private TileMapLayer? _startAreas;
 
         /// <summary>Value to tile column, per layer, so a fill is a lookup.</summary>
         private readonly Dictionary<string, int> _terrainTiles = new();
@@ -74,6 +80,7 @@ namespace Beep.ECS
         private readonly Dictionary<string, int> _startTiles = new();
         private readonly Dictionary<string, int> _liquidTiles = new();
         private readonly Dictionary<string, int> _undergroundTiles = new();
+        private readonly Dictionary<string, int> _startAreaTiles = new();
 
         public override void _Ready()
         {
@@ -96,6 +103,7 @@ namespace Beep.ECS
             {
                 _field = null;
                 _publishedStarts.Clear();
+                _publishedStartOrder.Clear();
                 ClearLayers();
                 GD.PushWarning($"[{Name}] no generator at TerrainGeneratorPath; no cell data was written.");
                 return;
@@ -111,9 +119,13 @@ namespace Beep.ECS
             _publishedOrigin = BoundsOrigin;
             _publishedSize = size;
             _publishedStarts.Clear();
+            _publishedStartOrder.Clear();
             foreach (Vector2I start in field.StartPositions)
                 if (start.X >= 0 && start.Y >= 0 && start.X < size.X && start.Y < size.Y)
+                {
                     _publishedStarts.Add(BoundsOrigin + start);
+                    _publishedStartOrder.Add(BoundsOrigin + start);
+                }
             _materialized = MaterializeTileLayers;
             if (!_materialized)
             {
@@ -132,6 +144,7 @@ namespace Beep.ECS
             var undergrounds = new SortedSet<string>();
             // Numeric so 2 sorts before 10; painted as strings like the rest.
             var continentIds = new SortedSet<int>();
+            var startAreaIds = new SortedSet<int>();
             for (int y = 0; y < size.Y; y++)
             {
                 for (int x = 0; x < size.X; x++)
@@ -153,6 +166,10 @@ namespace Beep.ECS
                     if (continent > 0)
                         continentIds.Add(continent);
 
+                    int startArea = field.StartAreaAtCell(at);
+                    if (startArea > 0)
+                        startAreaIds.Add(startArea);
+
                     string liquid = field.LiquidResourceAtCell(at);
                     if (liquid.Length > 0)
                         liquids.Add(liquid);
@@ -172,6 +189,12 @@ namespace Beep.ECS
             var continents = new List<string>();
             foreach (int id in continentIds)
                 continents.Add(id.ToString());
+            var startAreas = new List<string>();
+            foreach (int id in startAreaIds)
+                startAreas.Add(id.ToString());
+            var startIndices = new List<string>();
+            for (int index = 0; index < _publishedStartOrder.Count; index++)
+                startIndices.Add(index.ToString());
 
             // The kinds this map HAS, from the engine - not every kind the
             // catalogue knows. A tile per absent biome is a tile nothing ever
@@ -186,8 +209,11 @@ namespace Beep.ECS
                 (data, value) => TerrainTileSets.DescribeRelief(data, int.Parse(value)));
             _continents = EnsureLayer("ContinentData", _continents, cell, continents, _continentTiles,
                 (data, value) => TerrainTileSets.DescribeContinent(data, int.Parse(value)));
-            _starts = EnsureLayer("StartData", _starts, cell, new List<string> { "start" }, _startTiles,
-                (data, _) => TerrainTileSets.DescribeStart(data));
+            // One tile per start index, so a materialised start cell says WHICH start it is.
+            _starts = EnsureLayer("StartData", _starts, cell, startIndices, _startTiles,
+                (data, value) => TerrainTileSets.DescribeStart(data, int.Parse(value)));
+            _startAreas = EnsureLayer("StartAreaData", _startAreas, cell, startAreas, _startAreaTiles,
+                (data, value) => TerrainTileSets.DescribeStartArea(data, int.Parse(value)));
             _liquid = EnsureLayer("LiquidData", _liquid, cell, new List<string>(liquids), _liquidTiles,
                 (data, value) => TerrainTileSets.DescribeLiquid(data, value));
             _underground = EnsureLayer("UndergroundData", _underground, cell, new List<string>(undergrounds), _undergroundTiles,
@@ -213,6 +239,10 @@ namespace Beep.ECS
                     if (continent > 0)
                         Paint(_continents, _continentTiles, at, continent.ToString());
 
+                    int startArea = field.StartAreaAtCell(at);
+                    if (startArea > 0)
+                        Paint(_startAreas, _startAreaTiles, at, startArea.ToString());
+
                     Paint(_liquid, _liquidTiles, at, field.LiquidResourceAtCell(at));
 
                     string undergroundId = field.UndergroundResourceAtCell(at);
@@ -225,11 +255,8 @@ namespace Beep.ECS
             }
             UpdateUndergroundIdentity(field, size);
 
-            foreach (Vector2I start in field.StartPositions)
-            {
-                if (start.X >= 0 && start.Y >= 0 && start.X < size.X && start.Y < size.Y)
-                    Paint(_starts, _startTiles, start, "start");
-            }
+            for (int index = 0; index < _publishedStartOrder.Count; index++)
+                Paint(_starts, _startTiles, _publishedStartOrder[index] - BoundsOrigin, index.ToString());
         }
 
         private void Paint(
@@ -242,22 +269,22 @@ namespace Beep.ECS
         private void ClearLayers()
         {
             UndergroundIdentity = "";
-            foreach (var layer in new[] { _terrain, _resources, _features, _relief, _continents, _starts, _liquid, _underground })
+            foreach (var layer in new[] { _terrain, _resources, _features, _relief, _continents, _starts, _liquid, _underground, _startAreas })
                 if (GodotObject.IsInstanceValid(layer)) layer!.Clear();
         }
 
         private void ReleaseLayers()
         {
             foreach (string name in new[] { "TerrainData", "ResourceData", "FeatureData", "ReliefData",
-                         "ContinentData", "StartData", "LiquidData", "UndergroundData" })
+                         "ContinentData", "StartData", "LiquidData", "UndergroundData", "StartAreaData" })
                 if (GetNodeOrNull<TileMapLayer>(name) is { } layer)
                 {
                     RemoveChild(layer);
                     layer.QueueFree();
                 }
-            _terrain = _resources = _features = _relief = _continents = _starts = _liquid = _underground = null;
+            _terrain = _resources = _features = _relief = _continents = _starts = _liquid = _underground = _startAreas = null;
             foreach (var table in new[] { _terrainTiles, _resourceTiles, _featureTiles, _reliefTiles,
-                         _continentTiles, _startTiles, _liquidTiles, _undergroundTiles }) table.Clear();
+                         _continentTiles, _startTiles, _liquidTiles, _undergroundTiles, _startAreaTiles }) table.Clear();
         }
 
         private void UpdateUndergroundIdentity(GeneratedTerrainField field, Vector2I size)
@@ -386,13 +413,31 @@ namespace Beep.ECS
             ? Read(_starts, cell, TerrainTileSets.Cell.StartPosition).AsBool() : _publishedStarts.Contains(cell);
 
         /// <summary>
-        /// Every recommended start cell in absolute map coordinates.
+        /// Every recommended start cell in absolute map coordinates, IN START ORDER: element k is
+        /// start k in both modes (the materialised layer's tiles carry their start index). The
+        /// order used to be a HashSet's in the runtime mode and GetUsedCells' in the materialised
+        /// one - neither is the generator's - so "the second player's start" had no stable answer.
         /// </summary>
         public Godot.Collections.Array<Vector2I> StartCells()
-            => !_materialized ? new Godot.Collections.Array<Vector2I>(_publishedStarts)
-                : _starts is not null && GodotObject.IsInstanceValid(_starts)
-                ? _starts.GetUsedCells()
-                : new Godot.Collections.Array<Vector2I>();
+        {
+            if (!_materialized) return new Godot.Collections.Array<Vector2I>(_publishedStartOrder);
+            var ordered = new Godot.Collections.Array<Vector2I>();
+            if (_starts is null || !GodotObject.IsInstanceValid(_starts)) return ordered;
+            var byIndex = new SortedDictionary<int, Vector2I>();
+            foreach (Vector2I cell in _starts.GetUsedCells())
+                byIndex[Read(_starts, cell, TerrainTileSets.Cell.StartIndex).AsInt32()] = cell;
+            foreach (Vector2I cell in byIndex.Values) ordered.Add(cell);
+            return ordered;
+        }
+
+        /// <summary>
+        /// Which start's generated area a cell is reserved for: 0 none (or no start areas),
+        /// k+1 start k. The recipe's reservation, as GridCellDataComponent.GetStartArea carries it
+        /// on the live cells.
+        /// </summary>
+        public int StartAreaAt(Vector2I cell) => _materialized
+            ? Read(_startAreas, cell, TerrainTileSets.Cell.StartArea).AsInt32()
+            : HasPublishedCell(cell) ? _field!.StartAreaAtCell(cell - _publishedOrigin) : 0;
 
         /// <summary>The liquid-stratum resource in a water cell - fish and kin - or empty.</summary>
         public string LiquidResourceAt(Vector2I cell) => _materialized

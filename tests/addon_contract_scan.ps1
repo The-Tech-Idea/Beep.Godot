@@ -1443,18 +1443,20 @@ if ($gridCellRulesSource -notmatch [regex]::Escape("public static string Terrain
     $gridCellRulesSource -match 'DataLayers|TerrainDataLayersComponent') {
     Fail "GridCellRules.TerrainKindAt must read cells only; the data layers are the generated world's projection, not the live map."
 }
-# The four grid readers that legitimately reach the layers read resource,
-# liquid and underground facts - things only the generated field holds. Nothing
-# else under ecs/grid may reference the layers at all, and nobody may read a
-# terrain kind from them.
-$layerReaders = @("GridResourceScatterComponent.cs", "GridProspectingComponent.cs", "GridExtractorComponent.cs", "GridSubsurfaceStoreComponent.cs")
+# The grid readers that legitimately reach the layers read resource, liquid and
+# underground facts - things only the generated field holds - and, since FEAT-09,
+# GridStartAreaComponent reads the start ORDER (StartCells): the cells carry each
+# cell's area id, but where start k stands is recipe data the live map never
+# saves. Nothing else under ecs/grid may reference the layers at all, and nobody
+# may read a terrain kind from them.
+$layerReaders = @("GridResourceScatterComponent.cs", "GridProspectingComponent.cs", "GridExtractorComponent.cs", "GridSubsurfaceStoreComponent.cs", "GridStartAreaComponent.cs")
 foreach ($file in Get-ChildItem -Path (Join-Path $root "addons/beep_game_builder_cs/ecs/grid") -Filter "*.cs" -File -Recurse) {
     $source = Get-Content -LiteralPath $file.FullName -Raw
     if ($source -match 'GeneratedTerrainAt\(|(?<![A-Za-z])TerrainAt\(') {
         Fail "$($file.Name) reads a terrain kind from TerrainDataLayersComponent; the live kind is GridCellDataComponent's alone."
     }
     if ($layerReaders -notcontains $file.Name -and $source -match 'TerrainDataLayersComponent|DataLayersPath') {
-        Fail "$($file.Name) references the terrain data layers; only the resource/liquid/underground readers ($($layerReaders -join ', ')) may."
+        Fail "$($file.Name) references the terrain data layers; only the resource/liquid/underground and start-order readers ($($layerReaders -join ', ')) may."
     }
 }
 $gridRoad = Read "addons/beep_game_builder_cs/ecs/grid/GridRoadComponent.cs"
@@ -2035,11 +2037,33 @@ if ($gridHauler -match 'DeliveryRetryTurns') {
     Fail "GridHaulerComponent's delivery retry must not become a turn duration; a full depot is a wait for someone else, not work this hauler is doing."
 }
 $terrainDataLayers = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainDataLayersComponent.cs"
-foreach ($required in @("GeneratedTerrainAt(", "ResourceAt(", "FeatureAt(", "ReliefAt(", "IsWaterAt(", "PassableAt(", "ContinentAt(", "IsStartPositionAt(", "StartCells()", "DescribeContinent", "DescribeStart", "LiquidResourceAt(", "UndergroundResourceAt(", "UndergroundRichnessAt(", "UndergroundDepthAt(", "DescribeLiquid", "DescribeUnderground")) {
+foreach ($required in @("GeneratedTerrainAt(", "ResourceAt(", "FeatureAt(", "ReliefAt(", "IsWaterAt(", "PassableAt(", "ContinentAt(", "IsStartPositionAt(", "StartCells()", "DescribeContinent", "DescribeStart", "LiquidResourceAt(", "UndergroundResourceAt(", "UndergroundRichnessAt(", "UndergroundDepthAt(", "DescribeLiquid", "DescribeUnderground", "StartAreaAt(", "DescribeStartArea", "_publishedStartOrder")) {
     if ($terrainDataLayers -notmatch [regex]::Escape($required)) {
-        Fail "TerrainDataLayersComponent must publish terrain, resource, feature, relief, water, passability, continent, start-position, liquid, and underground data layers: $required."
+        Fail "TerrainDataLayersComponent must publish terrain, resource, feature, relief, water, passability, continent, start-position, start-area, liquid, and underground data layers: $required."
     }
 }
+# FEAT-09: StartCells()[k] is start k. The runtime mode returned a HashSet's order; forbid it regrowing.
+if ($terrainDataLayers -match [regex]::Escape('new Godot.Collections.Array<Vector2I>(_publishedStarts)')) {
+    Fail "TerrainDataLayersComponent.StartCells returns the start SET again; it must return the generator's start order (_publishedStartOrder)."
+}
+# FEAT-12: the spawn-marker names and metadata keys are a published contract - a designer's
+# authored map and BGB-13's publisher both write them, and GridStartAreaComponent reads them -
+# so they are pinned as literals here and specified in docs/game-builder/TILEMAP_OUTPUT.md.
+# Renaming one silently strands every map already carrying the old name.
+$terrainSpawnMarkers = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainSpawnMarkers.cs"
+foreach ($required in @('RootName = "Spawns"', 'NamePrefix = "Start_"', 'IndexMeta = "start_index"',
+        'FootprintMeta = "hq_footprint"', 'UnusableMeta = "unusable"', "spawnsRoot.ToLocal(")) {
+    if ($terrainSpawnMarkers -notmatch [regex]::Escape($required)) {
+        Fail "TerrainSpawnMarkers must keep the published spawn convention, positions included: $required."
+    }
+}
+# One reader of that convention. A second component picking markers apart by node name is how
+# the two ends come to disagree about which node is start k.
+$gridStartArea = Read "addons/beep_game_builder_cs/ecs/grid/GridStartAreaComponent.cs"
+if ($gridStartArea -notmatch [regex]::Escape("TerrainSpawnMarkers.Find(")) {
+    Fail "GridStartAreaComponent must read spawn markers through TerrainSpawnMarkers.Find rather than its own name/metadata rule."
+}
+
 # The kind the layers answer is the GENERATED one, and its name says so. A
 # method called TerrainAt reads as the live map, which it is not.
 if ($terrainDataLayers -match 'public string TerrainAt\(') {
@@ -2084,6 +2108,74 @@ $isoRenderer = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainIsometricRen
 if ($isoRenderer -notmatch [regex]::Escape('SetShaderParameter("foam_strength", 0.0f)')) {
     Fail "The elevated-river material no longer silences foam on its duplicate; either restore it or drop the exception from the shared-water pin above."
 }
+# Every terrain shader draws under both tints a canvas item is given (VIEW-14).
+#
+# The item modulate (Modulate, SelfModulate, every parent's) reaches a canvas_item
+# fragment INSIDE COLOR, so a shader that assigns COLOR must build the value from a
+# variable captured from COLOR (`vec4 modulate = COLOR;`, or a vertex() varying).
+# terrain_splat wrote `COLOR = vec4(col, 1.0);` and iso_water kept only COLOR.a, so a
+# tint or fade on the renderer node never reached the ground or the sea.
+# The scene's CanvasModulate (AmbientController: day/night, weather, seasons) is
+# applied AFTER the fragment and SKIPPED under `render_mode unshaded` / `light_only`;
+# the tile view's ground detail and the natural-terrain art were unshaded and stayed
+# noon-bright at night. Both rules were confirmed by a rendered experiment on
+# Compatibility and Forward+; tests/terrain_item_modulate_probe.gd measures them.
+#
+# Limits: line-based. An assignment to COLOR split over several lines is judged by
+# its first line; in-place writes (`COLOR.rgb *= ...`, `COLOR.a = ...`) keep the input
+# and are not judged; shaders built from strings in .cs/.gd files, and
+# templates/shaders/*.gdshader.template, are outside this folder and not covered.
+$terrainShaderRoot = Join-Path $root "addons/beep_game_builder_cs/shaders"
+$terrainShaderFiles = @(Get-ChildItem -Path $terrainShaderRoot -Recurse -File | Where-Object { $_.Extension -in @(".gdshader", ".gdshaderinc") })
+$terrainColourWrites = 0
+foreach ($shaderFile in $terrainShaderFiles) {
+    $shaderLines = @(Get-Content -LiteralPath $shaderFile.FullName | ForEach-Object {
+        $commentAt = $_.IndexOf("//")
+        if ($commentAt -ge 0) { $_.Substring(0, $commentAt) } else { $_ }
+    })
+    $shaderCode = $shaderLines -join "`n"
+    if ($shaderCode -match '(?m)^\s*render_mode\b[^;]*\b(unshaded|light_only)\b') {
+        Fail "$($shaderFile.Name) declares render_mode $($Matches[1]); Godot skips the scene's CanvasModulate for it, so terrain drawn with it ignores day/night, weather and seasons."
+    }
+    $capturedNames = @([regex]::Matches($shaderCode, '\b(\w+)\s*=\s*COLOR\s*;') | ForEach-Object { $_.Groups[1].Value }) + @("COLOR")
+    foreach ($shaderLine in $shaderLines) {
+        $assignment = [regex]::Match($shaderLine, '(?<![\w.])COLOR\s*=(?!=)')
+        if (-not $assignment.Success) { continue }
+        $terrainColourWrites++
+        $assigned = $shaderLine.Substring($assignment.Index + $assignment.Length)
+        # Alpha alone does not count: iso_water kept `COLOR.a` and still dropped a tint.
+        $usesInput = @($capturedNames | Where-Object { $assigned -match ('\b' + [regex]::Escape($_) + '\b(?!\s*\.\s*a\b)') }).Count -gt 0
+        if (-not $usesInput) {
+            Fail "$($shaderFile.Name) assigns COLOR without the COLOR it received ('$($shaderLine.Trim())'); capture it first (vec4 modulate = COLOR;) and multiply the result by it, or a node tint or fade is dropped."
+        }
+    }
+}
+# The pin must be reading the folder, not an empty or moved one.
+if ($terrainShaderFiles.Count -lt 10 -or $terrainColourWrites -lt 10) {
+    Fail "The terrain shader modulate pin read $($terrainShaderFiles.Count) shader files and $terrainColourWrites COLOR assignments under addons/beep_game_builder_cs/shaders; it is not reading the shader folder."
+}
+# One resource drawer (VIEW-13). TerrainResourceRendererComponent draws surface and liquid
+# resources; the map overlay draws start rings and the survey. The overlay used to draw the same
+# cells again as category discs, so a scene wiring both showed discs under icons. The lab is the
+# one scene wiring all four projections, so it wires the icon renderer and native collision too.
+# tests/terrain_view_parity_probe.gd measures the drawn result per projection; this pin stops the
+# second drawer and the lab wiring from regrowing or being dropped without a probe run.
+$mapOverlay = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainMapOverlayComponent.cs"
+foreach ($secondDrawer in @("ShowResources", "ResourceRootPath", "ResourceRadiusTiles", "ResourceMarker", "DrawResources(", "ColourFor(", "TerrainResourceViewBinding")) {
+    # Anchored at a word start: the survey's own UndergroundColourFor( must not read as ColourFor(.
+    if ($mapOverlay -match ('(?<![\w])' + [regex]::Escape($secondDrawer))) {
+        Fail "TerrainMapOverlayComponent carries '$secondDrawer' again; TerrainResourceRendererComponent is the one resource drawer."
+    }
+}
+if ($mapOverlay -notmatch [regex]::Escape('public int StartMarkerCount => _startMarkers.Count;')) {
+    Fail "TerrainMapOverlayComponent.StartMarkerCount is gone; the view parity probe reads it."
+}
+$terrainLab = Read "addons/beep_game_builder_cs/templates/scenes/terrain/terrain_generator_lab.tscn"
+foreach ($labWiring in @('ResourceRendererPath = NodePath("../Preview/Diagnostics/Resources")', 'CollisionPath = NodePath("../Preview/Collision")', 'DiagnosticsLayerPath = NodePath("Preview/Diagnostics")')) {
+    if ($terrainLab -notmatch [regex]::Escape($labWiring)) {
+        Fail "terrain_generator_lab.tscn lost '$labWiring'; the lab wires every terrain companion."
+    }
+}
 # One loader for the feature sheets, and every sheet cut on its own grid.
 #
 # The two feature renderers each carried their own copy of the four-sheet loader,
@@ -2126,7 +2218,7 @@ foreach ($layoutExport in @("JungleColumns", "JungleRows", "MarshColumns", "Mars
 # CountTrue, the percentile index and the most-common vote likewise had two to five
 # copies each across the stages.
 $terrainGeometry = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainGeometry.cs"
-foreach ($required in @("public const int VariantSalt", "public static int CountTrue(", "public static float RankedValue(", "public static string? MostCommon(")) {
+foreach ($required in @("public const int VariantSalt", "public static int CountTrue(", "public static float RankedValue(", "public static TKey? MostCommon<TKey>(")) {
     if ($terrainGeometry -notmatch [regex]::Escape($required)) {
         Fail "TerrainGeometry must own the shared generation helper: $required."
     }
@@ -2349,15 +2441,95 @@ foreach ($file in Get-ChildItem -Path (Join-Path $root "addons/beep_game_builder
         Fail "$($file.Name) has a ResolveCurrent copy; call EntityComponent.ResolveLive, which re-resolves a live re-point (DUP-08)."
     }
 }
-# The tile view must keep every dial, not just the ones it happened to have.
-$tileRenderer = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainTileRendererComponent.cs"
-foreach ($dial in @("FoamTilesAlong", "FoamTilesAcross", "FoamScroll", "FoamPulse", "FoamArrivalRate",
-        "SwellDirectionDegrees", "SwellDirectionality", "GroundTextureTiles", "WaterTextureTiles")) {
+# VIEW-07: the half-sample correction has ONE owner. "max(0, sqrt(d2) - 0.5) / samplesPerTile" is
+# what puts a straight boundary between sample centres, and it decides two things that must agree:
+# which samples the shoreline stage calls sand, and how far from the waterline the coast field says
+# a point is. It was written out four times; a fifth copy is a fifth chance for the beach the
+# generator makes and the beach the painter draws to stop being the same beach.
+foreach ($file in Get-ChildItem -Path (Join-Path $root "addons/beep_game_builder_cs/ecs/terrain") -Filter *.cs -Recurse) {
+    if ($file.Name -eq "TerrainEuclideanDistance.cs") { continue }
+    $candidate = Get-Content -Path $file.FullName -Raw
+    if ($candidate -match 'Math\.Sqrt\([^)]*\)\s*-\s*0\.5') {
+        Fail "$($file.Name) has its own half-sample correction; call TerrainEuclideanDistance.ToTiles (VIEW-07)."
+    }
+}
+foreach ($caller in @("TerrainShorelineStage.cs", "TerrainCoastField.cs")) {
+    if ((Read "addons/beep_game_builder_cs/ecs/terrain/$caller") -notmatch [regex]::Escape("TerrainEuclideanDistance.ToTiles(")) {
+        Fail "$caller no longer measures distance through TerrainEuclideanDistance.ToTiles; the beach and the coast field must share one rule (VIEW-07)."
+    }
+}
+
+# FEAT-10: a faction's index, its colour and the start it holds have ONE owner each. The catalog
+# maps index <-> id <-> colour; GridStartAreaComponent owns the faction->start table and is the only
+# place it is decided. A second colour table, or a view that derives a start's colour from the
+# catalog by index, is how a player comes to be blue on the map and green on the minimap - catalog
+# order is NOT start order the moment a faction locks a start.
+$startArea = Read "addons/beep_game_builder_cs/ecs/grid/GridStartAreaComponent.cs"
+foreach ($member in @("public string Assign(", "public int AutoAssign(", "public int StartIndexOf(",
+    "public int FactionAtStart(", "public Color ColourOfStart(", "public int StartCount",
+    "AssignmentChangedEventHandler", "ISaveable")) {
+    if ($startArea -notmatch [regex]::Escape($member)) {
+        Fail "GridStartAreaComponent no longer declares $member; it owns the start assignment and its save (FEAT-10)."
+    }
+}
+if ((Read "addons/beep_game_builder_cs/ecs/grid/GridFactionCatalog.cs") -notmatch [regex]::Escape("public static Color TintToward(")) {
+    Fail "GridFactionCatalog.TintToward is the one owner-tint rule; every view that shades by owner uses it (FEAT-10)."
+}
+foreach ($consumer in @(
+    @("ecs/grid/GridWorkerSpawnerComponent.cs", "StartIndexOf(player.FactionId)", "spawns its OWN owner's faction in its own start area"),
+    @("ecs/grid/ui/GridMinimapComponent.cs", "ColourOfStart(", "tints a reserved texel with the faction that holds that start"),
+    @("ecs/terrain/TerrainMapOverlayComponent.cs", "ColourOfStart(", "draws a start's border in the faction's colour"))) {
+    if ((Read "addons/beep_game_builder_cs/$($consumer[0])") -notmatch [regex]::Escape($consumer[1])) {
+        Fail "$($consumer[0]) no longer $($consumer[2]); it must ask GridStartAreaComponent, never the catalog by index (FEAT-10)."
+    }
+}
+# Pinned on the bare call, not on "FactionCatalog.ColourOf(": a null-forgiving "FactionCatalog!."
+# would slip straight past the qualified spelling, which is exactly how a view acquires a second
+# colour rule. "ColourOfStart(" does not contain "ColourOf(", so the owner's own call is not caught.
+foreach ($file in @("ecs/grid/ui/GridMinimapComponent.cs", "ecs/terrain/TerrainMapOverlayComponent.cs")) {
+    if ((Read "addons/beep_game_builder_cs/$file") -match [regex]::Escape("ColourOf(")) {
+        Fail "$file reads a colour off the catalog by index; only GridStartAreaComponent knows which faction holds a start (FEAT-10)."
+    }
+}
+
+# VIEW-05: water depth has ONE owner, the coast field. The block view measured its own with a
+# four-neighbour sweep out from land - Manhattan steps against the field's Euclidean distance,
+# so the seabed's band changed where the water's tint did not. Deleted, not renamed.
+foreach ($file in Get-ChildItem -Path (Join-Path $root "addons/beep_game_builder_cs/ecs/terrain") -Filter *.cs -Recurse) {
+    if ((Get-Content -Path $file.FullName -Raw) -match 'MeasureWaterDepth') {
+        Fail "$($file.Name) measures water depth itself; the coast field owns distance from the waterline (TerrainCoastField.CellDistances, VIEW-05)."
+    }
+}
+$isometricRenderer = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainIsometricRendererComponent.cs"
+if ($isometricRenderer -notmatch [regex]::Escape("_sea.CellDistances(size, CoastRangeTiles)")) {
+    Fail "TerrainIsometricRendererComponent no longer reads its seabed depth from the coast field its own sea is drawn from (VIEW-05)."
+}
+
+# VIEW-04: every dial of the sea lives on TerrainWaterLook, and on NO renderer. Three views
+# used to export the same thirteen, with the tile view's defaults differing from the other
+# two, so one map drawn twice grew two seas. Pinned both directions.
+$waterLook = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainWaterLook.cs"
+$waterDials = @("WaveIntensity", "FoamStrength", "ShallowTiles", "DeepTiles", "GroundTextureTiles",
+    "WaterTextureTiles", "FoamTilesAlong", "FoamTilesAcross", "FoamScroll", "FoamPulse",
+    "FoamArrivalRate", "SwellDirectionDegrees", "SwellDirectionality")
+foreach ($dial in $waterDials) {
     # The whole declaration, not just the name: "public float FoamTilesAlong" is a
     # prefix of "public float FoamTilesAlongRemoved", so the loose form passed a
     # mutation that renamed the export out of existence.
-    if ($tileRenderer -notmatch [regex]::Escape("public float $dial { get; set; }")) {
-        Fail "TerrainTileRendererComponent lost the $dial export; a view that exposes half the sea's dials is the drift TerrainWaterMaterial exists to stop."
+    if ($waterLook -notmatch [regex]::Escape("public float $dial { get; set; }")) {
+        Fail "TerrainWaterLook lost the $dial dial; the look is the one owner of how the sea looks."
+    }
+}
+foreach ($view in @("TerrainTileRendererComponent.cs", "TerrainIsometricRendererComponent.cs",
+        "TerrainPaintedRendererComponent.cs", "TerrainIsometricAutotileRendererComponent.cs")) {
+    $viewSource = Read "addons/beep_game_builder_cs/ecs/terrain/$view"
+    foreach ($dial in $waterDials) {
+        if ($viewSource -match [regex]::Escape("public float $dial { get; set; }")) {
+            Fail "$view declares its own $dial; the sea's dials belong to TerrainWaterLook, or one map grows two seas (VIEW-04)."
+        }
+    }
+    if ($viewSource -notmatch [regex]::Escape("public TerrainWaterLook? WaterLook { get; set; }")) {
+        Fail "$view cannot be told how the world's sea looks; it needs the WaterLook export TerrainWorldComponent.Draw pushes (VIEW-04)."
     }
 }
 # One noise set per run, each channel on its own seed offset, so changing one
@@ -2399,7 +2571,7 @@ $buildMethod = [regex]::Match($terrainWorldForBuild, 'private bool ConfigureGene
 if (-not $buildMethod.Success) { Fail "TerrainWorldComponent.ConfigureGenerator not found." }
 $buildAssigned = [regex]::Matches($buildMethod.Value, '(?m)^\s{12}_generator\.([A-Z][A-Za-z]*)\s*=') |
     ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
-$buildDocumented = @("BoundsSize", "Seed", "ResourceSet", "UseClimateBiomeMaps", "UseScaleRules") | Sort-Object
+$buildDocumented = @("BoundsSize", "Seed", "ResourceSet", "UseClimateBiomeMaps", "UseScaleRules", "StartAreaRadius") | Sort-Object
 $buildUndocumented = @($buildAssigned | Where-Object { $_ -notin $buildDocumented })
 if ($buildUndocumented.Count -gt 0) {
     Fail "TerrainWorldComponent.ConfigureGenerator overwrites $($buildUndocumented -join ', ') on the generator without naming them as derived in its doc comment."

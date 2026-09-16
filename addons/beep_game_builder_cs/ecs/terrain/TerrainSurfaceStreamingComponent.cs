@@ -73,7 +73,7 @@ public partial class TerrainSurfaceStreamingComponent : Node
             SetProcess(false);
             return;
         }
-        if (!HasExactChunkOutline(_layer.TileSet))
+        if (!GridProjectionComponent.HasAffineCellRuns(_layer.TileSet))
         {
             GD.PushError($"Terrain surface streaming draws chunk quads for square TileSets and diamond-down, horizontal-offset isometric TileSets; the TileSet on '{_layer.Name}' is {_layer.TileSet.TileShape}/{_layer.TileSet.TileLayout}/{_layer.TileSet.TileOffsetAxis}, whose chunks have no four-vertex outline.");
             SetProcess(false);
@@ -223,13 +223,6 @@ public partial class TerrainSurfaceStreamingComponent : Node
     }
 
     private Vector2I ChunkExtent(Vector2I chunk) => (_size - chunk * _chunkSize).Min(new Vector2I(_chunkSize, _chunkSize));
-
-    // TileLayout and TileOffsetAxis only apply to half-offset shapes, so a square TileSet
-    // qualifies whatever they say. These are the two layouts TerrainTileSets.Create produces.
-    private static bool HasExactChunkOutline(TileSet tiles)
-        => tiles.TileShape == TileSet.TileShapeEnum.Square
-            || tiles is { TileShape: TileSet.TileShapeEnum.Isometric, TileLayout: TileSet.TileLayoutEnum.DiamondDown,
-                TileOffsetAxis: TileSet.TileOffsetAxisEnum.Horizontal };
 
     public override void _ExitTree()
     {

@@ -17,6 +17,23 @@ produce different rounded corners even when they read the same terrain grid.
   mask for surf. A distinguishes generated fine geometry from manually painted
   whole-cell geometry. Distance is normalized around 0.5 and clamped by range.
 
+- `BuildPixels(generator, size, detail, rangeTiles)` (internal) is the producer
+  `Build` now uploads: it returns the same RGBAF field as managed `Pixels` before
+  it becomes an `ImageTexture`, and `Build` is `BuildPixels(...).Upload()`. Every
+  `Build` overload used to return the texture and drop the pixels, so a caller
+  that also reads the field on the CPU had nothing to read and would have had to
+  build a second coastline. `BuildLivePixels` and `BuildLakePixels` are the live
+  and lake equivalents, and `LiveCache.CoastField` hands back the live path's
+  pixels the same way.
+- `CellDistances(Pixels field, Vector2I size, float rangeTiles)` (internal)
+  decodes one distance per **cell** from the R channel: the sample nearest the
+  cell's centre (samples sit at `(x + 0.5) / detail` tiles, so cell `y`'s centre
+  is sample `y * detail + detail / 2`), read back as `(encoded - 0.5) * 2 * range`
+  tiles. Positive is water, negative is land, and the value saturates at the range
+  the field was built with — a caller wanting bands wider than that must build the
+  field with a wider range. `field.Size / size` gives the detail, so a field built
+  at any sampling resolution decodes against the same cell grid.
+
 - `Build(GridCellDataComponent cells, Vector2I origin, Vector2I size, int detail, float rangeTiles)` builds from live water membership. Boundary-connected water is ocean; enclosed water is inland.
 - `LiveCache.Resolve(...)` offers bounded, per-view reuse for the live overload.
   It compares cell water flags, immutable fine-patch identities, dimensions,
@@ -25,6 +42,34 @@ produce different rounded corners even when they read the same terrain grid.
 
 Distances use a separable squared Euclidean transform, then a half-sample edge
 correction. Floating-point pixels avoid the old 8-bit distance quantization.
+
+Both of those come from [`TerrainEuclideanDistance`](TerrainEuclideanDistance.md),
+and since VIEW-07 (2026-09-16) the correction is not written here at all. The R
+channel is `TerrainEuclideanDistance.Signed`, which applies it internally; the B
+channel — distance to open ocean for any sample that is not itself open ocean —
+calls `TerrainEuclideanDistance.ToTiles` directly, on both write paths: the live
+cache's windowed rewrite (`FieldCache.WriteWindow`) and the whole-field build
+(`BuildPixels`).
+Sharing that rule with the shoreline stage is what keeps the beach the generator
+cut and the beach the painted view draws the same beach, even though the two work
+at different sample resolutions.
+
+## Water depth is this file's fact (VIEW-05, 2026-09-16)
+
+How far a cell is from the waterline has one owner, and it is the R channel here.
+Every sea already draws from it: the shared include shades `shallow_tiles`/
+`deep_tiles` against `coast_map`, and the painted view's stylised path reads the
+same texture. The isometric block view used to measure its own depth instead — a
+four-neighbour sweep out from land, which counts Manhattan steps — while the water
+drawn over that bed shaded by this field, which is Euclidean. Along a diagonal
+coast the two disagreed by up to a step, so the seabed's material band changed
+where the water's tint did not. `CellDistances` closed that: the view now reads
+depth from the very field its own sea is drawn from, at no second computation,
+because `BuildPixels` keeps what `Build` used to throw away.
+
+Depth is not something the generator records. `shallow_water`/`deep_water` are a
+*wading classification* for gameplay — see [TerrainBiomeStage](TerrainBiomeStage.md)
+— not a distance, and nothing should read them as one.
 
 ## Display Reconstruction
 
@@ -62,7 +107,7 @@ continue to use the original coast texture's B channel.
 ## Source Dependencies
 
 - Resolves `TerrainGeneratorComponent.ResolveField()` once per generated build. All fine-grid water samples and ocean-cell queries read that same `GeneratedTerrainField`, avoiding repeated settings construction/comparison. A subsequent build resolves current settings again, so changing the seed still changes the coastline.
-- Writes nothing to shared state — it returns a new `ImageTexture` each call. Callers (`TerrainIsometricRendererComponent`, `TerrainPaintedRendererComponent`, `TerrainTileRendererComponent` — outside this batch) hold the result themselves as `_coastMap`.
+- Writes nothing to shared state — it returns a new `ImageTexture` each call. Callers hold the result themselves as `_coastMap`: the painted view directly, and the tile, autotile and block views through the one [`TerrainSeaSurface`](TerrainSeaSurface.md) each of them owns, which since VIEW-05 keeps the resolved `Pixels` beside the texture so it can answer `CellDistances` without a GPU readback or a second build.
 
 ## Notes
 

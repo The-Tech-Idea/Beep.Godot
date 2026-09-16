@@ -20,7 +20,7 @@ Everything else (`Density`, `WaterDensityScale`, `SameResourceSpacing`, `Catalog
 - Reads `ResourceCatalog.Resources` and `ResourceCatalogs.For(ResourceSet)` / `ResourceCatalogs.FindAnywhere(id)` (`ResourceCatalog.cs`, `ResourceCatalogs.cs`) to get the weighted resource list and, for `CategoryOf`, to search every catalogue.
 - Reads `ResourceDefinition` fields (`Id`, `Weight`, `RequiresRelief`, `RequiredRelief`, `TerrainKinds`, `Category`) (`ResourceDefinition.cs`).
 - Reads the `WaterBody` and `TerrainRelief` enums (used to test land/water and relief-gated resources).
-- Consumed by: `TerrainFieldBuilder.Build` (calls `Apply`), `TerrainResourceRendererComponent`/`TerrainDataLayersComponent`/`TerrainMapOverlayComponent` and others (read `world.Resource` indirectly via `TerrainGeneratorComponent.ResourceAt`), and `TerrainMapOverlayComponent` (calls `CategoryOf` to colour the overlay).
+- Consumed by: `TerrainFieldBuilder.Build` (calls `Apply`), `TerrainResourceRendererComponent`/`TerrainDataLayersComponent`/`TerrainMapOverlayComponent` and others (read `world.Resource` indirectly via `TerrainGeneratorComponent.ResourceAt`). `CategoryOf` has had no caller since VIEW-13 (2026-09-15) removed the overlay's category-coloured discs. It is marked in place for ENH-13's minimap resource tints.
 
 ## Notes
 

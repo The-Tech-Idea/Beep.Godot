@@ -148,9 +148,15 @@ public partial class TerrainWaterSurfaceSmoke : Node
         var patch = GridTerrainWaterPatch.Create(2, (_, _) => false);
         cells.LoadGeneratedCells(new[]
         {
-            (Vector2I.Zero, "grass", "woods", 1, 0.9f, 0.3f, "", patch, "grass", 1f, (GridTerrainWaterPatch?)null, 0f),
-            (Vector2I.One, "sand", "", 0, 1f, 0f, "", patch, "sand", 0f, (GridTerrainWaterPatch?)null, 0f)
+            (Vector2I.Zero, "grass", "woods", 1, 0.9f, 0.3f, "", patch, "grass", 1f, (GridTerrainWaterPatch?)null, 0f, 3),
+            (Vector2I.One, "sand", "", 0, 1f, 0f, "", patch, "sand", 0f, (GridTerrainWaterPatch?)null, 0f, 0)
         });
+        // FEAT-09: the generated start area rides the handoff into the typed record, answers
+        // through GetStartArea, and exists as a metadata key only inside an area.
+        Check(cells.GetStartArea(Vector2I.Zero) == 3, "Typed start area missing");
+        Check(cells.GetStartArea(Vector2I.One) == 0
+            && !cells.GetCell(Vector2I.One)["metadata"].AsGodotDictionary().ContainsKey("terrain_start_area"),
+            "A cell outside every start area carries a start-area key");
         Check(cells.MetadataDictionaryCount == 0, "Generated cells allocated native metadata dictionaries");
         Check(cells.GetMetadata(Vector2I.Zero, "terrain_feature").AsString() == "woods", "Typed feature missing");
         Check(cells.GetMetadata(Vector2I.Zero, "terrain_relief").AsInt32() == 1, "Typed relief missing");
@@ -167,6 +173,8 @@ public partial class TerrainWaterSurfaceSmoke : Node
             var after = copy.GetCell(at)["metadata"].AsGodotDictionary();
             Check(before.RecursiveEqual(after), "Compact metadata changed save representation");
         }
+        Check(copy.GetStartArea(Vector2I.Zero) == 3 && copy.GetStartArea(Vector2I.One) == 0,
+            "Start area did not survive a cell snapshot reload");
         cells.SetMetadata(Vector2I.Zero, "terrain_feature", "jungle");
         cells.SetMetadata(Vector2I.Zero, "custom", 42);
         Check(cells.MetadataDictionaryCount == 1, "Metadata edit did not allocate only its own dictionary");
@@ -387,7 +395,7 @@ public partial class TerrainWaterSurfaceSmoke : Node
         var patch = GridTerrainWaterPatch.Create(8, (x, y) => x < 3 || y > 5);
         // InlandTerrain "" and BeachWidth 0f: this cell is not a shoreline, so it has no inland
         // counterpart and no beach. Added when LoadGeneratedCells grew those two fields.
-        cells.LoadGeneratedCells(new[] { (cell, "grass", "woods", 0, 0.5f, 0f, "", patch, "", 0f, (GridTerrainWaterPatch?)null, 0f) });
+        cells.LoadGeneratedCells(new[] { (cell, "grass", "woods", 0, 0.5f, 0f, "", patch, "", 0f, (GridTerrainWaterPatch?)null, 0f, 0) });
         var iso = new TerrainIsometricRendererComponent
         {
             Name = "Iso", RefreshOnReady = false, CellDataPath = new NodePath("../Cells"),

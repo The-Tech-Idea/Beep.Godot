@@ -135,6 +135,30 @@ func run() -> void:
 	for anchor in view.GetStampAnchors():
 		var cell: Vector2i = grid.WorldToCell(view.to_global(anchor))
 		check(cell.x > 690 and cell.x < 710 and cell.y > 690 and cell.y < 710, "Transformed grid culled or positioned the wrong prop region")
+	# VIEW-02: the detail cutoff measures the cell the grid BINDS, not the grid's manual TileSize
+	# export. A native 96x48 layer at zoom 0.02 draws 1.92 px cells, above the 1.5 px cutoff;
+	# measured on the export's 64 px it read 1.28 px and hid every prop on a map drawn at 96x48.
+	var native := TileMapLayer.new()
+	native.name = "Native"
+	native.tile_set = TileSet.new()
+	native.tile_set.tile_size = Vector2i(96, 48)
+	host.add_child(native)
+	grid.Projection = 0
+	grid.TileSize = Vector2(64, 64)
+	grid.position = Vector2.ZERO
+	grid.rotation = 0.0
+	grid.TileMapLayerPath = NodePath("../Native")
+	check(grid.EffectiveTileSize == Vector2(96, 48), "Grid bound to a 96x48 layer reported %s" % str(grid.EffectiveTileSize))
+	view.position = Vector2.ZERO
+	view.scale = Vector2.ONE
+	view.Rebuild()
+	view.set_process(false)
+	camera.rotation = 0.0
+	camera.zoom = Vector2(0.02, 0.02)
+	camera.position = native.to_global(native.map_to_local(Vector2i(700, 700)))
+	camera.force_update_scroll()
+	view.UpdateFeatureResidency()
+	check(not view.IsFeatureDetailSuppressed, "Detail cutoff measured the grid's manual TileSize instead of the bound 96x48 layer")
 	host.free()
 	print("[terrain-feature-streaming] OK" if failures.is_empty() else "[terrain-feature-streaming] FAILED")
 	quit(0 if failures.is_empty() else 1)

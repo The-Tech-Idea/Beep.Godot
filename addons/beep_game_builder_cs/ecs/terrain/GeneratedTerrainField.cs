@@ -44,6 +44,8 @@ namespace Beep.ECS
         private readonly TerrainRelief[] _relief;
         private readonly float[] _elevation;
         private readonly string[] _feature;
+        // Null when no start areas were generated, so the common map carries no array.
+        private readonly byte[]? _startArea;
 
         // Sub-tile sample resolution, for painting.
         private readonly TerrainSampleKinds _sampleTerrain;
@@ -74,12 +76,14 @@ namespace Beep.ECS
             _relief = world.CellRelief;
             _elevation = world.CellElevation;
             _feature = world.Feature;
+            _startArea = world.CellStartAreaIfGenerated;
 
             _sampleTerrain = world.PackTerrain(cancellation);
             _sampleWater = world.PackWater(cancellation);
             _sampleShade = world.PackShade(cancellation);
 
             StartPositions = world.StartPositions;
+            StartAreas = world.StartAreas;
             Diagnostics = diagnostics;
             _undergroundDigest = TerrainUndergroundIdentity.Content(this, new(_wide, _high), cancellation);
         }
@@ -94,7 +98,13 @@ namespace Beep.ECS
         /// <summary>Fair player start tiles, in gameplay tile coordinates.</summary>
         public IReadOnlyList<Vector2I> StartPositions { get; }
 
+        /// <summary>One report per start when start areas were generated, in start order; empty otherwise.</summary>
+        public IReadOnlyList<TerrainStartAreaReport> StartAreas { get; }
+
         // ---- Gameplay tile queries -------------------------------------------------
+
+        /// <summary>Which start's reserved area a tile is in: 0 none, k+1 start k.</summary>
+        public int StartAreaAtCell(Vector2I cell) => _startArea is null ? 0 : _startArea[CellIndex(cell.X, cell.Y)];
 
         public string TerrainAtCell(Vector2I cell) => _terrain[CellIndex(cell.X, cell.Y)];
         public string InlandTerrainAtCell(Vector2I cell) => _inlandTerrain[CellIndex(cell.X, cell.Y)];

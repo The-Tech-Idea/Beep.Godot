@@ -50,6 +50,13 @@ namespace Beep.ECS
 		[Export] public NodePath ResetViewButtonPath { get; set; } = new("");
 		[Export] public NodePath StatusPath { get; set; } = new("");
 		[Export] public NodePath DiagnosticsButtonPath { get; set; } = new("");
+		/// <summary>
+		/// A CanvasItem holding renderers that are map diagnostics in this panel - the
+		/// resource icons in the lab - shown only while diagnostics are on. The world
+		/// component owns each renderer's own Visible (it sets it per projection on every
+		/// draw), so the panel toggles their parent instead of fighting that.
+		/// </summary>
+		[Export] public NodePath DiagnosticsLayerPath { get; set; } = new("");
 		[Export] public NodePath CancelButtonPath { get; set; } = new("");
 		[Export] public NodePath GenerationProgressPath { get; set; } = new("");
 
@@ -239,10 +246,11 @@ namespace Beep.ECS
 
 		private void SetDiagnostics(bool enabled)
 		{
+			if (!DiagnosticsLayerPath.IsEmpty && GetNodeOrNull<CanvasItem>(DiagnosticsLayerPath) is { } layer)
+				layer.Visible = enabled;
 			if (_world is null || _world.MapOverlayPath.IsEmpty) return;
 			var overlay = _world.GetNodeOrNull<TerrainMapOverlayComponent>(_world.MapOverlayPath);
 			if (overlay is null) return;
-			overlay.ShowResources = enabled;
 			overlay.ShowStartPositions = enabled;
 			overlay.ShowUndergroundResources = enabled;
 			if (_world.BuiltSize.X > 0) overlay.Rebuild();

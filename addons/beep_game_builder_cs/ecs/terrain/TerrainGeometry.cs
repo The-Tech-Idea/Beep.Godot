@@ -208,17 +208,21 @@ namespace Beep.ECS
         /// constraint, the coherence stage's two, the shoreline's re-vote - already
         /// compared with a strict greater-than over the same insertion-ordered
         /// dictionary. Same input, same winner.
+        ///
+        /// Keyed by whatever is being voted on: terrain kinds by name, and the minimap's start
+        /// areas by index. One vote, so a downsampled block cannot pick its terrain by majority
+        /// and its owner by some other rule.
         /// </summary>
         [return: NotNullIfNotNull(nameof(fallback))]
-        public static string? MostCommon(Dictionary<string, int> counts, string? fallback)
+        public static TKey? MostCommon<TKey>(Dictionary<TKey, int> counts, TKey? fallback) where TKey : notnull
         {
-            string? best = fallback;
+            TKey? best = fallback;
             int most = 0;
-            foreach ((string kind, int count) in counts)
+            foreach ((TKey key, int count) in counts)
             {
                 if (count > most)
                 {
-                    best = kind;
+                    best = key;
                     most = count;
                 }
             }

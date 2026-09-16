@@ -128,6 +128,109 @@ Bug-heavy, so it adds a **Fixes (FIX-NN)** category. Two themes: **load/restore 
 
 Suggested order: **nothing left** — all 17 items in this set are DONE, each with a mutation-proven guard: the two high-severity data-integrity items (**DUP-14**, **FIX-07**), the load/restore family (**FIX-05/06/09/11/13**), the standalone terrain fixes (**FIX-01/02/03/04**), the XS grid fixes (**FIX-08/10/12**), **ENH-17**, **DUP-15** and **DUP-16**. **FIX-02** was resolved as option (A) on the owner's call: the four never-read noise channels were removed. Same standing rules and collision notes as the 2026-09-08 set apply; nothing here touches the streaming/`TerrainWorldComponent` files the concurrent session owns.
 
+## Terrain rendering review and map gameplay features (2026-09-15)
+
+A third pass with two subjects. **Rendering:** every terrain view — Painted, Tiles, Isometric
+(block) and IsometricAutotile — and its companion renderers (features, relief props, resource
+icons, map overlay, collision, streaming, publication), read as source on 2026-09-15 and compared
+capability by capability; the parity matrix, the second owners found (D1–D11) and the
+generation→render contract are in [`docs/terrain-engine/VIEW_PARITY_REVIEW.md`](../../docs/terrain-engine/VIEW_PARITY_REVIEW.md).
+**Map gameplay:** what RTS/colony games put on a map that this engine cannot yet say — the owner's
+example is a distinct area reserved for each player — researched against the games' own code
+where it is public (Ensemble's random-map patent, 0 A.D.'s `player.js`, Civ V's
+`AssignStartingPlots`, Widelands, OpenRA's map format) and documented in
+[`docs/terrain-engine/RTS_COLONY_MAP_RESEARCH.md`](../../docs/terrain-engine/RTS_COLONY_MAP_RESEARCH.md).
+Every item below has its own document with file:line evidence, design, mutation-tested guards,
+effort and collision notes; the same standing rules as the earlier sets apply. Two items change a
+shipped look (VIEW-04's shared water look, VIEW-12's hillshade owner) and land only after the owner
+has seen a before/after capture — VIEW-04's was approved on 2026-09-16, the owner having run the
+lab and seen all four views draw the shared sea. The block view is a shipped view and keeps its
+investment items. FIX-14 (below) changes a shipped look too and skipped that gate, having been
+reported from the lab and fixed the same day; the owner did not accept the result.
+
+Headline evidence: IsometricAutotile drew terrain and nothing else — no sea, features, props,
+resources or start markers (`TerrainWorldComponent.Drawing.cs:36`; the companions are drawn since
+VIEW-01 and the sea since VIEW-04, elevation remains VIEW-09); three per-view sea bindings
+with defaults the code itself admits diverge (`TerrainTileRendererComponent.cs:126-134`; one
+`TerrainWaterLook` since VIEW-04); two prop
+stamp rules, so one map shows different trees per projection; eight owners of cell size and a
+collision component that never merges shapes under any view (`TerrainCollisionComponent.cs:242`);
+terrain shaders that dropped a tint or fade set on their renderer node, and two unshaded ones
+the scene's `CanvasModulate` never reached (corrected on implementation — the review had the sea
+staying daylight; it was the tile view's ground, see VIEW-14); river flow computed and thrown away (`TerrainRiverStage.cs:60-66`); start positions that
+never reach the cells, are never saved and are read as `starts[0]` everywhere
+(`TerrainGeneratorComponent.cs:264-286`, `TerrainWorldComponent.Drawing.cs:286`); no owner, zone
+or player anywhere in the grid.
+
+### Rendering (14)
+
+| Id | Plan | Headline | Effort | Status |
+|---|---|---|---|---|
+| VIEW-01 | [IsometricAutotile draws its companions](VIEW-01-isoautotile-companions.md) | replace the `flat` gate with the grid binding; features, relief, resources and overlay under IA | S | Implemented 2026-09-15 |
+| VIEW-02 | [One owner of cell geometry](VIEW-02-cell-geometry-owner.md) | `GridProjectionComponent.EffectiveTileSize` answers from the bound surface; collision merges again | S | Implemented 2026-09-15 |
+| VIEW-03 | [One prop stamp core](VIEW-03-one-prop-stamper.md) | `TerrainPropStamper`: one roll, one clump rule, one anchor; two thin views | M | |
+| VIEW-04 | [One sea binding and one water look](VIEW-04-one-sea-binding.md) | `TerrainWaterLook` + `TerrainSeaSurface`; IsometricAutotile gets a sea | M | Implemented 2026-09-16 |
+| VIEW-05 | [Water depth has one owner](VIEW-05-water-depth-owner.md) | the coast field's distance replaces the block view's private BFS | S | Implemented 2026-09-16 |
+| VIEW-06 | [River flow is generated data](VIEW-06-river-flow-field.md) | direction + width on the field and the cells; `flow_map` in the shared water material | M–L | |
+| VIEW-07 | [Beach owner and cell-centre contract](VIEW-07-beach-owner-contract.md) | the stage owns width/inland kind; the painter's band agrees at cell centres | S | **Partly implemented 2026-09-16** (the one-owner half-sample correction landed as `TerrainEuclideanDistance.ToTiles`, pinned both directions, generation baseline unchanged; the cell-centre shader contract was built, rejected on sight by the owner and reverted — the band can still disagree with the cell kind at a centre, and that half is open with no guard) |
+| VIEW-08 | [One terrain-connect painter](VIEW-08-one-terrain-connect-painter.md) | `TerrainLibraryPainter.Connect`; windowed edits for the autotile bindings path | M | |
+| VIEW-09 | [Generator elevation reaches the pack views](VIEW-09-pack-elevation-from-generator.md) | `ProfileFor(relief)`; one elevation fact; IA binds as an elevated surface | M | |
+| VIEW-10 | [Stepped publication for tile and block views](VIEW-10-stepped-publication.md) | the publication contract on `TerrainRendererComponent` (closes DUP-01) | M | |
+| VIEW-11 | [Block view: windowed live edits](VIEW-11-iso-windowed-edits.md) | diff changed cells + halos instead of a whole rebuild | M | |
+| VIEW-12 | [Hillshade has one owner](VIEW-12-hillshade-owner.md) | the painter reads `terrain_shade`; the tile view is lit too — look change, owner approves | S | |
+| VIEW-13 | [One resource drawer; parity probe](VIEW-13-resource-drawer-and-parity-probe.md) | overlay = starts + survey; lab wires every companion; `terrain_view_parity_probe.gd` | S | Implemented 2026-09-15 |
+| VIEW-14 | [Shaders honour the item and canvas modulate](VIEW-14-shader-canvas-modulate.md) | every terrain shader multiplies by the `COLOR` it receives and none is unshaded; a node tint reaches the painted ground and sea, day/night reaches the tile ground and natural terrain | XS–S | Implemented 2026-09-15 |
+
+### Features (6)
+
+| Id | Plan | Genre precedent | Effort | Status |
+|---|---|---|---|---|
+| FEAT-09 | [Player start areas](FEAT-09-player-start-areas.md) | AoE player lands + kit, 0 A.D. bases, Civ normalisation, Factorio starting area — a reserved, validated, kitted zone per start; closes E01 | L | Implemented 2026-09-15 |
+| FEAT-10 | [Faction catalog and start assignment](FEAT-10-faction-catalog-and-start-assignment.md) | OpenRA `Players` + `Spawn`; the catalog FEAT-02/03 defer, introduced once | M | Implemented 2026-09-16 |
+| FEAT-11 | [Zones and district range](FEAT-11-zones-and-district-range.md) | RimWorld zones/home area, Timberborn path-distance districts | M | |
+| FEAT-12 | [Spawn markers and playable cordon](FEAT-12-spawn-markers-and-cordon.md) | OpenRA `Bounds` + cordon, `mpspawn`; BGB-13's `Spawns` node | S–M | Implemented 2026-09-16 |
+| FEAT-13 | [Symmetric and competitive layouts](FEAT-13-symmetric-layouts.md) | StarCraft II / Warcraft III mirror and rotational maps | L | |
+| FEAT-14 | [Start-distance field, richness scaling, neutral sites](FEAT-14-start-distance-and-neutral-sites.md) | Factorio richness by distance; AoE neutral objects between areas | S–M | |
+
+### Raised from the lab (1)
+
+Not part of the 2026-09-15 read. The owner reported it while running the lab and it is filed here
+because it lands in the same files.
+
+| Id | Plan | Headline | Effort | Status |
+|---|---|---|---|---|
+| FIX-14 | [A lake is bounded: a shore on any ground, and a waterline that is a line](FIX-14-lake-shore-and-edges.md) | drop the `TerrainRelief.Flat` gate from all three lake-shore owners; take both water shaders' waterline softness from `open_sea` so a lake ends in a line; `GroundTextureTiles` 6 in the shipped look | S | **Landed 2026-09-16, not accepted** — the owner reports the lakes still look wrong |
+
+FIX-14 changes generated maps (a lake is banked on any ground), so
+`tests/fixtures/terrain_generation_baseline.json` was re-recorded;
+`terrain_generation_baseline_probe`, `terrain_beach_footprint_probe` and `terrain_lake_bank_probe`
+pass. It also changes a shipped look and did not go through the before/after approval gate VIEW-04
+and VIEW-12 carry — it was reported and fixed the same day. A rendered capture of the lab's large
+lake does show the intended result, so what is fixed is the case that was measured and something
+else is still wrong in front of the owner. Deliberately left open, and listed in the item:
+sub-cell ponds (water stored as a patch inside land cells, which nothing banks), blur at map-fit
+zoom (mipmapping, not a texture dial), and whether the crisper lake edge is wanted in each art
+style. The item also carries a method note for whoever picks it up — two lab captures prove
+nothing unless the map is redrawn rather than regenerated and `wave_speed` is set to zero first.
+
+### Suggested order
+
+VIEW-14 → VIEW-01 → VIEW-02 → VIEW-13 → **FEAT-09** → FEAT-12 → VIEW-04 → VIEW-05 → VIEW-07 →
+FEAT-10 → **FEAT-14** → VIEW-03 (before DUP-07) → VIEW-08 (before ENH-07) → VIEW-10 (before ENH-07;
+closes DUP-01) → VIEW-11 → FEAT-11 → VIEW-06 → VIEW-09 (with FEAT-05 and the library session) →
+VIEW-12 → FEAT-13.
+
+### Collision notes
+
+`TerrainWorldComponent.Drawing.cs` / `.Generation.cs` and `GridCellDataComponent` belong to the
+streaming session (VIEW-01/02/06/10, FEAT-09/11); `TerrainLibraryEditSession` and
+`TerrainLibraryInspector` to the terrain-library session (VIEW-08/09); BGB-13's publisher owns the
+emission that FEAT-12's helper serves; FEAT-05 and VIEW-06/09 and FEAT-09 all grow the
+generation→cells handoff tuple — coordinate that change once. Deliberately not items: art for
+IsometricAutotile and packs (the library), streaming/save/memory/residency (ENH-05/06/07/10,
+DUP-07), roads (grid session), the `Projection` save (owner's call, recorded in the review), and
+the open water-centre probe cell (21,3).
+
 ## Tracker
 
 Owner clarification, 2026-09-11: terrain generation must deliver populated, editable Godot `TileMapLayer` maps that developers can save and instance. The [Game Builder lifecycle plan](../game-builder/IMPLEMENTATION_PLAN.md) adds BGB-13 for that required native output and BGB-04 for publication; see the [output contract](../../docs/game-builder/TILEMAP_OUTPUT.md). Native authored-map output comes before huge-world streaming. BGB-02/03/06/08 integrate FEAT-06/08 and ENH-07/10 without creating replacement generator, history or archive engines. Their implementation status is tracked in the master tracker; this note does not close existing items.

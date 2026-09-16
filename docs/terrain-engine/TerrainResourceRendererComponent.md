@@ -20,16 +20,24 @@ through the grid/renderer transforms. BoundsOrigin defines the absolute logical 
 queries remain local. TileSize supplies square spacing only without a grid. VerticalOffset is a
 renderer-local vertical lift scaled by the cell edge length. Missing explicit grids clear icons.
 GeometryChanged refreshes cached positions; GetIconCenters returns those baked local centers.
-TerrainWorldComponent binds the selected grid before rebuilding this view in flat projections.
+TerrainWorldComponent binds the selected grid before rebuilding this view under Painted, Tiles and
+IsometricAutotile; it is hidden only under the block Isometric view.
+
+This is the ONE resource drawer (VIEW-13, 2026-09-15). `TerrainMapOverlayComponent` no longer draws
+surface or liquid resources as discs. The terrain lab wires this renderer at
+`Preview/Diagnostics/Resources`: its world rebuilds it on every projection switch, and the lab's map
+diagnostics toggle shows and hides the `Diagnostics` layer. `tests/terrain_view_parity_probe.gd`
+asserts `IconCount` equals the number of cells carrying a surface or liquid resource under every
+grid-bound projection.
 
 `tests/terrain_live_resource_view_probe.gd` covers live depletion/restore, subtree isolation,
-node addition/removal, missing roots and changed custom mappings for both icon and overlay views.
+node addition/removal, missing roots and changed custom mappings.
 It also verifies baked icon centers under rectangular/isometric native layouts, transformed parents,
 negative logical origins and grid geometry notifications. World live-source tests verify grid binding.
 
 Renderer / game-facing component in the terrain pipeline — a `Node2D` a scene places alongside a `TerrainGeneratorComponent` to draw the resources the generator already assigned per tile.
 
-`TerrainResourceRendererComponent` reads `TerrainGeneratorComponent.ResourceAt(cell)` for every cell in its own `BoundsSize` and, for each cell that holds a resource id it has a frame for, draws that frame from an icon sheet on a dark circular backplate. Icons come from either a bundled preset sheet chosen by the generator's `ResourceSet` (`FollowGenerator`, the default) or a sheet/grid/order configured directly on the node (`Custom`). A resource id with no matching frame in the active `IconOrder` is deliberately drawn as nothing rather than substituted with a wrong icon. It exists because previously the only thing rendering the generator's per-tile resource assignments was a debug overlay of coloured circles in the terrain lab — in a running game the twenty-odd resource kinds the generator computes every run were invisible.
+`TerrainResourceRendererComponent` reads `TerrainGeneratorComponent.ResourceAt(cell)` for every cell in its own `BoundsSize` and, for each cell that holds a resource id it has a frame for, draws that frame from an icon sheet on a dark circular backplate. Icons come from either a bundled preset sheet chosen by the generator's `ResourceSet` (`FollowGenerator`, the default) or a sheet/grid/order configured directly on the node (`Custom`). A resource id with no matching frame in the active `IconOrder` is deliberately drawn as nothing rather than substituted with a wrong icon. It exists because previously the only thing rendering the generator's per-tile resource assignments was a debug overlay of coloured circles in the terrain lab — in a running game the twenty-odd resource kinds the generator computes every run were invisible. That overlay drawer has since been removed (VIEW-13); this renderer is the only one.
 
 ## Public API
 

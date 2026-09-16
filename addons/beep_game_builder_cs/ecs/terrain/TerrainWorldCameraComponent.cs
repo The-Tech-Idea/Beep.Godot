@@ -52,6 +52,12 @@ namespace Beep.ECS
         [Export] public NodePath CameraPath { get; set; } = new("");
         [Export] public NodePath CameraControllerPath { get; set; } = new("");
 
+        /// <summary>
+        /// Optional. A StartPosition framing opens on this component's active start; unset, it
+        /// opens on start 0.
+        /// </summary>
+        [Export] public NodePath StartAreaPath { get; set; } = new("");
+
         [Export] public TerrainCameraFraming Framing { get; set; } = TerrainCameraFraming.WholeMap;
 
         /// <summary>Zoom a StartPosition framing opens at. One is the art's own scale.</summary>
@@ -137,7 +143,10 @@ namespace Beep.ECS
             _controller.FocusWorld(extent.Position + (extent.Size * 0.5f), immediate: true);
         }
 
-        /// <summary>Opens on the first start position, at the art's own scale.</summary>
+        /// <summary>
+        /// Opens on the player's start - the start area component's active start, or start 0
+        /// without one - at the art's own scale.
+        /// </summary>
         public void FrameStartPosition()
         {
             Resolve();
@@ -145,8 +154,18 @@ namespace Beep.ECS
                 return;
 
             ApplyBounds();
+            int start = 0;
+            if (!StartAreaPath.IsEmpty)
+            {
+                if (GetNodeOrNull<GridStartAreaComponent>(StartAreaPath) is not { } startArea)
+                {
+                    GD.PushWarning($"[{Name}] StartAreaPath '{StartAreaPath}' is not a GridStartAreaComponent; not framing a start.");
+                    return;
+                }
+                start = startArea.ActiveStartIndex;
+            }
             _controller.SetZoomLevel(Mathf.Max(0.02f, SceneZoom), immediate: true);
-            _controller.FocusWorld(_world.StartPositionGlobal(), immediate: true);
+            _controller.FocusWorld(_world.StartPositionGlobalAt(start), immediate: true);
         }
 
         /// <summary>

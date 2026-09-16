@@ -40,8 +40,12 @@ func run() -> void:
 	iso.set("CellDataPath", NodePath("../Cells"))
 	iso.set("BoundsOrigin", ORIGIN)
 	iso.set("BoundsSize", Vector2i(9, 9))
-	iso.set("GroundTextureTiles", 9.0)
-	iso.set("WaterTextureTiles", 4.0)
+	# The sea's dials are the world's one look since VIEW-04; the demo scene assigns the shipped
+	# one, and this probe drives the renderer without a world, so it authors its own.
+	var look: Resource = load("res://addons/beep_game_builder_cs/ecs/terrain/TerrainWaterLook.cs").new()
+	look.set("GroundTextureTiles", 9.0)
+	look.set("WaterTextureTiles", 4.0)
+	iso.set("WaterLook", look)
 	var authored_water := Polygon2D.new()
 	authored_water.name = "IsoWater"
 	var shared_material := ShaderMaterial.new()
@@ -75,7 +79,7 @@ func run() -> void:
 	for parameter in ["coast_map", "tex_shallow", "tex_deep", "tex_sand", "map_size", "cell_size", "tile_batch", "ground_texture_tiles", "water_texture_tiles"]:
 		check(river.material.get_shader_parameter(parameter) == sea.material.get_shader_parameter(parameter), "Water binding drift: " + parameter)
 	check(river.material.get_shader_parameter("foam_strength") == 0.0, "Ocean breakers applied to narrow rivers")
-	check(sea.material.get_shader_parameter("foam_strength") == iso.get("FoamStrength"), "River settings changed ocean settings")
+	check(sea.material.get_shader_parameter("foam_strength") == look.get("FoamStrength"), "River settings changed ocean settings")
 	var ground: TileMapLayer = iso.get_node("IsoLevel1")
 	check(not nav.call("IsBlocked", river_cells[0]), "Default shallow-water wading policy changed")
 	var blocked: Array[String] = ["shallow_water"]
@@ -166,7 +170,70 @@ func run() -> void:
 	iso.set("CellDataPath", NodePath("../Missing"))
 	iso.call("Rebuild")
 	check(not river.visible and river.polygon.is_empty() and not iso.get("HasSurface"), "Missing source retained river rendering")
+	await check_seabed_depth(iso, cells, nav)
 	host.free()
 	if failures.is_empty():
 		print("[terrain-iso-river] OK")
 	quit(0 if failures.is_empty() else 1)
+
+# VIEW-05: the seabed shelves by distance from the WATERLINE - the coast field the sea over it is
+# drawn from - not by four-neighbour steps out from land.
+#
+# The field measures on its own fine sample grid, so the numbers are not the ones a sketch on paper
+# gives: a cell diagonally off a single land cell reads about 1.13 tiles, against 0.63 across a
+# side. The two metrics therefore agree about that cell, and an earlier version of this guard,
+# written on the 0.71 a corner-to-centre measurement suggests, passed against the old sweep. They
+# separate on a DIAGONAL COAST, which is what the second fixture below measures.
+func check_seabed_depth(iso: Node2D, cells: Node, nav: Node) -> void:
+	iso.set("CellDataPath", NodePath("../Cells"))
+	iso.set("SeabedDepth", 5)
+	cells.call("ClearCells")
+	for y in range(9):
+		for x in range(9):
+			cells.call("SetTerrainKind", ORIGIN + Vector2i(x, y), "grass")
+	# A 3x3 sea pocket in the middle of the land: its own corners are diagonal to land.
+	var pocket: Array[Vector2i] = []
+	for y in range(3, 6):
+		for x in range(3, 6):
+			var cell: Vector2i = ORIGIN + Vector2i(x, y)
+			pocket.append(cell)
+			cells.call("SetTerrainKind", cell, "deep_water")
+	iso.call("Rebuild")
+	await settle()
+	var seabed: TileMapLayer = iso.get_node_or_null("IsoSeabed")
+	check(seabed != null, "The block view drew no seabed for an inland sea")
+	if seabed == null:
+		return
+	# Every cell of a 3x3 pocket touches the shore, across a side or across a corner, and every one
+	# of those distances ceils into the first band - so the whole pocket beds and none of it is
+	# left bare.
+	for cell in pocket:
+		check(seabed.get_cell_source_id(cell) != -1, "Pocket cell %s has no seabed" % cell)
+	# The case the two metrics disagree on: a DIAGONAL coast. Four-neighbour steps out from land
+	# count a cell two diagonal cells offshore as four steps deep; the waterline it is actually
+	# measured from is about 2.5 tiles away, which is the distance the water over it shades by.
+	# Gravel against rock - two bands apart, a shelf the sea's own tint does not have.
+	cells.call("ClearCells")
+	for y in range(9):
+		for x in range(9):
+			cells.call("SetTerrainKind", ORIGIN + Vector2i(x, y), "deep_water" if x + y > 4 else "grass")
+	iso.call("Rebuild")
+	await settle()
+	var offshore: Vector2i = ORIGIN + Vector2i(4, 4)
+	check(seabed.get_cell_source_id(offshore) != -1, "The cell offshore of a diagonal coast has no seabed")
+	check(seabed.get_cell_atlas_coords(offshore) == seabed.get_cell_atlas_coords(ORIGIN + Vector2i(3, 3)),
+		"Diagonal-coast beds step by four-neighbour count, not by distance from the waterline: %s against %s"
+			% [seabed.get_cell_atlas_coords(offshore), seabed.get_cell_atlas_coords(ORIGIN + Vector2i(3, 3))])
+	# Open sea past the field's range carries no depth, so the bed stops rather than tiling the ocean.
+	cells.call("ClearCells")
+	for y in range(9):
+		for x in range(9):
+			cells.call("SetTerrainKind", ORIGIN + Vector2i(x, y), "deep_water")
+	iso.call("Rebuild")
+	await settle()
+	var bedded := 0
+	for y in range(9):
+		for x in range(9):
+			if seabed.get_cell_source_id(ORIGIN + Vector2i(x, y)) != -1:
+				bedded += 1
+	check(bedded == 0, "Open water with no shore in reach still drew %d bed tiles" % bedded)

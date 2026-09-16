@@ -1,8 +1,7 @@
-[gd_scene load_steps=22 format=3]
+[gd_scene load_steps=21 format=3]
 
 [ext_resource type="PackedScene" path="res://addons/beep_game_builder_cs/templates/scenes/terrain/terrain_splat_demo.tscn" id="base"]
 [ext_resource type="Script" path="res://tests/examples/terrain_grid_playground.gd" id="demo"]
-[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridProjectionComponent.cs" id="grid"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridNavigationComponent.cs" id="navigation"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridResourceWalletComponent.cs" id="wallet"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridResourceNodeComponent.cs" id="deposit"]
@@ -30,11 +29,6 @@ SetZIndexFromY = false
 
 [node name="TerrainGridPlayground" instance=ExtResource("base")]
 script = ExtResource("demo")
-
-[node name="Grid" type="Node2D" parent="World"]
-script = ExtResource("grid")
-DrawGrid = false
-TrackMouseCell = false
 
 [node name="Navigation" type="Node" parent="World"]
 script = ExtResource("navigation")
@@ -139,7 +133,6 @@ ResourceRootPath = NodePath("../Deposits")
 KeepViewportInsideBounds = true
 
 [node name="WorldBuilder" parent="." index="4"]
-GridPath = NodePath("../World/Grid")
 NavigationPath = NodePath("../World/Navigation")
 CollisionPath = NodePath("../World/TerrainCollision")
 MapSize = 0

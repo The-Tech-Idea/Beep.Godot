@@ -185,6 +185,15 @@ namespace Beep.ECS
         /// Searches every catalogue, because a saved map may carry ids from a set
         /// the generator is no longer configured for.
         /// </summary>
+        // NO CALLER since VIEW-13 (2026-09-15). Its one reader was the map overlay's
+        // category-coloured resource discs, removed because TerrainResourceRendererComponent
+        // is the one resource drawer. Resource categories are a live gameplay fact (the
+        // catalogs author them); their intended presentation consumer is ENH-13's grid
+        // minimap resource tints. Kept, not deleted: removal is the owner's call.
+        // FEAT-09's start kit, which the plan pointed here for "is this a Bonus resource",
+        // reads the category from the captured TerrainResourceRules instead: the stage runs
+        // on a worker against a detached copy of the configured catalog, and this searches
+        // every live catalog, so it could answer for an id the map's catalog does not hold.
         public static ResourceCategory CategoryOf(string id)
             => ResourceCatalogs.FindAnywhere(id)?.Category ?? ResourceCategory.Bonus;
 

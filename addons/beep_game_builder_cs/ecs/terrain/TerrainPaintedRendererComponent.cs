@@ -56,11 +56,17 @@ namespace Beep.ECS
 		[Export(PropertyHint.Range, "1,256,1")] public int TileSize { get; set; } = 64;
 
 		[ExportGroup("Look")]
-		/// <summary>Tiles per ground-texture repeat, including beach and submerged sand.</summary>
-		[Export(PropertyHint.Range, "1,32,0.5")] public float GroundTextureTiles { get; set; } = 12.0f;
-		/// <summary>Tiles per animated water-texture repeat, independent of ground detail.</summary>
-		[Export(PropertyHint.Range, "1,32,0.5")] public float WaterTextureTiles { get; set; } = 6.0f;
-		/// <summary>Optional per-ground-texture repeat sizes; unassigned slots use GroundTextureTiles.</summary>
+		/// <summary>
+		/// How the sea LOOKS - the thirteen dials and four textures every view of this world
+		/// shares, including the ground and water texture repeats this composite reads (VIEW-04).
+		/// Unassigned, the shipped defaults are used, which are the values this view carried.
+		/// </summary>
+		[Export] public TerrainWaterLook? WaterLook { get; set; }
+
+		/// <summary>The look actually drawn with: the assigned one, else the shipped defaults.</summary>
+		private TerrainWaterLook Water => WaterLook ?? TerrainWaterLook.Shared;
+
+		/// <summary>Optional per-ground-texture repeat sizes; unassigned slots use the look's GroundTextureTiles.</summary>
 		[Export] public TerrainMaterialTiling? MaterialTiling { get; set; }
 		[Export] public TerrainMapArt? MapArt { get; set; }
 		[Export(PropertyHint.Range, "0,0.9,0.01")] public float BlendWidth { get; set; } = 0.42f;
@@ -85,62 +91,10 @@ namespace Beep.ECS
 		// the same fact - which is how the top-down feature renderer ended up
 		// drawing its trees underneath the map.
 
-		[ExportGroup("Surf")]
-		/// <summary>
-		/// A strip of equal frames of authored foam, sampled by distance from the
-		/// waterline rather than stamped per tile, so the coastline stays the
-		/// smooth one the distance field describes.
-		///
-		/// It needs a SOFT fringe - foam fading out at its edges. A flat cutout
-		/// silhouette carries no falloff to read and collapses to one solid band.
-		/// Leave empty for generated crests.
-		/// </summary>
-		[Export(PropertyHint.File, "*.png,*.webp")] public string FoamSheetPath { get; set; } = "";
-		/// <summary>
-		/// How heavy the sea is: 0 a millpond, 1 an ordinary day, 2 a storm.
-		///
-		/// One dial rather than several, because big waves are not just brighter
-		/// foam - the surf reaches further out, the crests broaden, and the wash
-		/// runs further up the sand. Those move together or the result reads as
-		/// small waves turned up.
-		/// </summary>
-		[Export(PropertyHint.Range, "0,2,0.05")] public float WaveIntensity { get; set; } = 1.0f;
-
-		/// <summary>Tiles covered by one repeat of the foam texture ALONG the shore.</summary>
-		[Export(PropertyHint.Range, "1,48,0.5")] public float FoamTilesAlong { get; set; } = 11.0f;
-
-		/// <summary>
-		/// Tiles covered by one repeat ACROSS the shore. Short: the surf band is
-		/// under a tile deep, and a repeat spread over many tiles parks the
-		/// sheet's crest bands outside it - the old default of 7 left the beach
-		/// with no foam at all for most of each scroll cycle.
-		/// </summary>
-		[Export(PropertyHint.Range, "0.3,8,0.1")] public float FoamTilesAcross { get; set; } = 1.6f;
-
-		/// <summary>How fast the authored crests advance onto the beach.</summary>
-		[Export(PropertyHint.Range, "0,4,0.01")] public float FoamScroll { get; set; } = 0.055f;
-
-		/// <summary>How strongly the surf pulses as crests arrive, 0 for a steady band.</summary>
-		[Export(PropertyHint.Range, "0,1,0.05")] public float FoamPulse { get; set; } = 0.34f;
-
-		/// <summary>How fast arriving crests follow one another.</summary>
-		[Export(PropertyHint.Range, "0,4,0.05")] public float FoamArrivalRate { get; set; } = 0.9f;
-
-		// The three water dials the isometric renderer exposes, feeding the same
-		// shader uniforms. The two views share one water on purpose; each view
-		// exposing a different half of its dials was the drift the shared shader
-		// exists to prevent, moved up into the components.
-		/// <summary>How bright the surf paints, 0 for none.</summary>
-		[Export(PropertyHint.Range, "0,1,0.01")] public float FoamStrength { get; set; } = 0.50f;
-		/// <summary>Tiles from the shore at which the water reaches full depth colour.</summary>
-		[Export(PropertyHint.Range, "0.5,12,0.1")] public float DeepTiles { get; set; } = 4.5f;
-		/// <summary>Tiles from the shore over which the sandy bottom shows through.</summary>
-		[Export(PropertyHint.Range, "0,8,0.1")] public float ShallowTiles { get; set; } = 1.8f;
-		/// <summary>Direction the swell travels, in degrees, y-down screen space.</summary>
-		[Export(PropertyHint.Range, "0,360,1")] public float SwellDirectionDegrees { get; set; } = 210.0f;
-		/// <summary>How strongly surf favours coasts facing the swell. 0 puts surf on every shore alike.</summary>
-		[Export(PropertyHint.Range, "0,1,0.01")] public float SwellDirectionality { get; set; } = 0.65f;
-
+		// The surf and water dials moved to TerrainWaterLook (VIEW-04). This view exposed thirteen
+		// of them, the tile view exposed the same thirteen with three different defaults, and the
+		// block view a third copy - one map drawn twice grew two seas. What stays below is this
+		// view's own: the LAND material textures, which are a different fact from the seabed.
 
 		[ExportGroup("Material Textures")]
 		[Export(PropertyHint.File, "*.png,*.webp")] public string GrassTexturePath { get; set; } = "";
@@ -402,24 +356,10 @@ namespace Beep.ECS
 			// Everything water_common.gdshaderinc declares, through its one writer.
 			// The coast range keeps this view's own floor: it must agree with the range
 			// TerrainPaintedCoastJob BUILT the field with, not with the export alone.
-			TerrainWaterMaterial.Apply(_material, new TerrainWaterMaterial.Settings(
-				Size: size,
-				Origin: BoundsOrigin,
-				CoastRange: Mathf.Max(5f, CoastRangeTiles),
-				GroundTextureTiles: GroundTextureTiles,
-				WaterTextureTiles: WaterTextureTiles,
-				WaveIntensity: WaveIntensity,
-				FoamStrength: FoamStrength,
-				ShallowTiles: ShallowTiles,
-				DeepTiles: DeepTiles,
-				FoamTilesAlong: FoamTilesAlong,
-				FoamTilesAcross: FoamTilesAcross,
-				FoamScroll: FoamScroll,
-				FoamPulse: FoamPulse,
-				FoamArrivalRate: FoamArrivalRate,
-				SwellDirectionDegrees: SwellDirectionDegrees,
-				SwellDirectionality: SwellDirectionality));
-			TerrainWaterMaterial.BindFoamSheet(_material, FoamSheetPath, Name);
+			TerrainWaterMaterial.Apply(_material, Water.Settings(size, BoundsOrigin, Mathf.Max(5f, CoastRangeTiles)));
+			// The surf sheet only; this view composites its own seabed from the LAND materials, so
+			// the look's three water-bed textures are not read here.
+			TerrainWaterMaterial.BindFoamSheet(_material, Water.FoamSheetPath, Name);
 			_material.SetShaderParameter("art_style", 0);
 			MapArt?.ApplyGround(_material);
 		}
@@ -493,7 +433,7 @@ namespace Beep.ECS
 			_idPixels![pixel] = (byte)id;
 			var shore = _cells is not null ? _visualSnapshot[index].Shore
 				: (Inland: field!.InlandTerrainAtCell(cell), Width: field.BeachWidth,
-					LakeWidth: field.ReliefAtCell(cell) == TerrainRelief.Flat ? field.LakeShoreWidth : 0f);
+					LakeWidth: field.LakeShoreWidth);
 			_lakeWidthPixels![pixel] = (byte)Mathf.RoundToInt(shore.LakeWidth / 3f * 255f);
 			bool bank = shore.LakeWidth > 0f;
 			if (_lakeBank![index] != bank)

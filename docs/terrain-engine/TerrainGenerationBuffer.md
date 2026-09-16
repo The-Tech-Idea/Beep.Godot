@@ -22,6 +22,8 @@ World-data model: the single mutable working set every generation stage in the t
 - `int[] Continent` — landmass id per sample; 0 is water.
 - `string[] Resource` — per **gameplay cell** (not per sample) resource id, empty = none.
 - `List<Vector2I> StartPositions` — fair player start tiles, in gameplay cell coordinates.
+- `byte[] CellStartArea` — per gameplay cell, which start's reserved area the cell belongs to: 0 none, k+1 start k. Allocated on first access, which only `TerrainStartAreaStage` makes, so a map without start areas carries no array. `internal byte[]? CellStartAreaIfGenerated` returns the array when it was allocated, else null (FEAT-09).
+- `List<TerrainStartAreaReport> StartAreas` — one report per start position when start areas were generated, in start order.
 - `string[] CellTerrain`, `WaterBody[] CellWater`, `TerrainRelief[] CellRelief`, `float[] CellElevation`, `float[] CellShade`, `int[] CellContinent`, `string[] Feature` — the authoritative gameplay-tile-resolution reductions of the sample arrays above; these, not the sample arrays, are what a game actually moves/paths/builds on.
 - `int CellIndex(int cellX, int cellY)` — `(cellY * CellsWide) + cellX`.
 - `bool CellInBounds(int cellX, int cellY)` — bounds check against `CellsWide`/`CellsHigh`.
@@ -45,7 +47,7 @@ save participant, or live map. Runtime cell edits belong to `GridCellDataCompone
 The world controller and its camera/status helpers do not hold this buffer. They reach generation
 through `TerrainGeneratorComponent`, which delegates the build to `TerrainFieldBuilder`.
 
-Outside this batch, `TerrainGenerationBuffer` is the shared working set read and written by essentially every generation-stage file in the folder: `TerrainElevationStage.cs`, `TerrainClimateStage.cs`, `TerrainLandmassStage.cs`, `TerrainWaterStage.cs`, `TerrainRiverStage.cs`, `TerrainContinentStage.cs`, `TerrainCoherenceStage.cs`, `TerrainErosionStage.cs`, `TerrainFeatureStage.cs`, `TerrainResourceStage.cs`, `TerrainScaleConstraintStage.cs`, `TerrainStartPositionStage.cs`, `TerrainTileReductionStage.cs`, `TerrainShadingStage.cs`, `TerrainBiomeStage.cs`, `TerrainFieldBuilder.cs`, `TerrainFlow.cs`, `GeneratedTerrainField.cs`.
+Outside this batch, `TerrainGenerationBuffer` is the shared working set read and written by essentially every generation-stage file in the folder: `TerrainElevationStage.cs`, `TerrainClimateStage.cs`, `TerrainLandmassStage.cs`, `TerrainWaterStage.cs`, `TerrainRiverStage.cs`, `TerrainContinentStage.cs`, `TerrainCoherenceStage.cs`, `TerrainErosionStage.cs`, `TerrainFeatureStage.cs`, `TerrainResourceStage.cs`, `TerrainScaleConstraintStage.cs`, `TerrainStartPositionStage.cs`, `TerrainStartAreaStage.cs`, `TerrainTileReductionStage.cs`, `TerrainShadingStage.cs`, `TerrainBiomeStage.cs`, `TerrainFieldBuilder.cs`, `TerrainFlow.cs`, `GeneratedTerrainField.cs`.
 
 ## Notes
 

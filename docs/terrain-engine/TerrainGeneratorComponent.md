@@ -9,6 +9,19 @@ cell along ocean edges and corners after reduction. Width zero disables this
 minimum; themed ground and lake/river banks keep their separate rules. See
 [TerrainShorelineStage](TerrainShorelineStage.md).
 
+The two water kinds this generator reports — `shallow_water` and `deep_water`,
+from `TerrainKindAt`/`TerrainKindAtPosition` — are a **wading classification for
+gameplay, not a depth**. Lake and river water is always `shallow_water`, whatever
+its size; sea water is `shallow_water` exactly where it touches land and
+`deep_water` everywhere else (`TerrainBiomeStage.WaterKind`; see
+[TerrainBiomeStage](TerrainBiomeStage.md)). They answer "can something wade here",
+which is what navigation and the build-side blocked-kind lists read them for. The
+generator records no depth at all: how far a cell is from the waterline is owned
+by [`TerrainCoastField`](TerrainCoastField.md), which every sea shades its
+shallows by and which the isometric block view shelves its seabed by since
+VIEW-05 (2026-09-16). `WaterSourceAt` ("ocean"/"lake"/"river") is the third,
+separate fact — which *body* a cell belongs to.
+
 ## Public API
 
 - `enum LandformMode { Mainland, Island, Archipelago }` — the three landform shapes; consumed by `TerrainGenerationSettings.RequestedLandmassCount`.
@@ -28,6 +41,8 @@ minimum; themed ground and lake/river banks keep their separate rules. See
 - `[Export] float LakeCoverage` (0–0.35), `[Export] float LakeFrequencyMultiplier` (0.02–1), `[Export] float LakeShoreWidth` (0–3, tiles) — lake generation controls; `LakeShoreWidth` defaults to 0 because it was newly implemented and turning it on by default would change previously-tuned maps.
 - `[Export] float RiverDensity` (0–4) — river generation density.
 - `[Export] int StartPositionCount` (0–24) — number of fair player-start tiles to compute; 0 disables the layer.
+- `[Export] int StartAreaRadius` (0–32, default 0) — cells reserved around each start as that player's area. 0 generates no start areas and leaves start selection exactly as it was. Above 0 a start must also hold the kit's headquarters footprint on level ground (`TerrainStartPositionStage`), and `TerrainStartAreaStage` grows, validates and kits an area per start. `ApplyMapSetup` does not set it.
+- `[Export] TerrainStartKit? StartKit` — what every start area must provide (headquarters footprint, exits, gap, minimum size, guaranteed resources). Null uses the `TerrainStartKit` defaults with no entries. It has no effect on the map while `StartAreaRadius` is 0. Like `Resources`, editing an assigned kit in place does not invalidate a field already built; generate again. `ApplyMapSetup` does not set it.
 - `[Export] float ResourceDensity` (0–4) — resource-node density; 0 disables the layer.
 - `[Export] ResourceSet ResourceSet` — which shipped resource catalog axis to draw from.
 - `[Export] ResourceCatalog? Resources` — an authored catalog overriding `ResourceSet` when non-null; shared with gameplay so both the map and the economy read the same definitions.
@@ -47,7 +62,7 @@ minimum; themed ground and lake/river banks keep their separate rules. See
 - `Vector2I EffectiveBoundsSize { get; }` — `BoundsSize` with both axes floored to 1.
 - `override void _Ready()` — resolves references, updates configuration warnings, and (if configured) defers a `GenerateTerrain()` call.
 - `override string[] _GetConfigurationWarnings()` — editor warnings when `CellDataPath` is empty or `BoundsSize` has a non-positive axis.
-- `int GenerateTerrain()` — builds the field for current settings and, where a `GridCellDataComponent` is wired, loads it with every cell (position + terrain kind, flags always 0) via `LoadGeneratedCells` — the map loader's one write — then emits `TerrainGenerated` and returns the cell count. With no cells wired it generates the field, emits `TerrainGenerated(0)` and returns 0: a legitimate shape (a map viewer, a lab with no grid), not a failure, since every renderer draws from the field regardless. Restoring a saved world never comes through here — `TerrainWorldComponent.RestoreWorld` resolves the field without touching the cells.
+- `int GenerateTerrain()` — builds the field for current settings and, where a `GridCellDataComponent` is wired, loads it with every cell (position + terrain kind, flags always 0) via `LoadGeneratedCells` — the map loader's one write — then emits `TerrainGenerated` and returns the cell count. With no cells wired it generates the field, emits `TerrainGenerated(0)` and returns 0: a legitimate shape (a map viewer, a lab with no grid), not a failure, since every renderer draws from the field regardless. Restoring a saved world never comes through here — `TerrainWorldComponent.RestoreWorld` resolves the field without touching the cells. The per-cell handoff tuple ends with `int StartArea` (`StartAreaAt` for that cell), which `GridCellDataComponent` stores as the generated `terrain_start_area` metadata key.
 - `string TerrainKindAt(Vector2I localCell)` — terrain kind string at a cell.
 - `string TerrainKindAtPosition(Vector2 localPosition)` — terrain kind string at a continuous position.
 - `string WaterSourceAt(Vector2I localCell)` — the water-source classification (e.g. ocean/lake) at a cell.
@@ -63,16 +78,19 @@ minimum; themed ground and lake/river banks keep their separate rules. See
 - `int ContinentAt(Vector2I localCell)` — landmass id at a cell (0 = water); two land cells sharing an id are reachable without crossing water.
 - `string ResourceAt(Vector2I localCell)` — resource kind at a cell, or empty.
 - `string FeatureAt(Vector2I localCell)` — terrain feature (woods/jungle/marsh/oasis/etc.) at a cell, or empty; a feature sits on top of terrain rather than replacing it.
-- `Godot.Collections.Array<Vector2I> GetStartPositions()` — the computed fair player-start cells.
+- `Godot.Collections.Array<Vector2I> GetStartPositions()` — the computed fair player-start cells, generator-local, in start order (element k is start k).
+- `int StartAreaAt(Vector2I localCell)` — which start's reserved area a cell is in: 0 for none (always 0 with `StartAreaRadius` at 0), k+1 for start k.
+- `Godot.Collections.Array<Godot.Collections.Dictionary> GetStartAreaReports()` — one dictionary per start, in start order, from `TerrainStartAreaReport.ToDictionary`: `index`, `origin`, `footprint`, `cell_count`, `exits`, `placements` (each `resource`, `cell`, `relaxation`), `problems` and `usable`. Cells are generator-local. Empty without start areas. An unusable start stays in `GetStartPositions()`; its report says why.
 - `void ApplyMapSetup(int mapType, int worldAge, int temperature, int rainfall, int seaLevel, int resources)` — the single place that turns a chosen map "shape" plus five climate axes into concrete generator settings; overwrites `Landform`, `ArchipelagoIslandCount`, `StartPositionCount`, `LandmassScale`, `HillsFraction`, `MountainsFraction`, `ClimateLatitudeCentre`, `LakeCoverage`, `RiverDensity`, `FeatureDensity`, `ResourceDensity` on this component. Takes ints (not enums) specifically so GDScript can call it.
-- `Godot.Collections.Dictionary GetGenerationDiagnostics()` — the current field's `TerrainGenerationDiagnostics` as a dictionary.
+- `Godot.Collections.Dictionary GetGenerationDiagnostics()` — the current field's `TerrainGenerationDiagnostics` as a dictionary. Start areas add `start_area_count`, `start_area_usable_count`, `start_area_min_cells` and `start_area_max_cells` (all 0 without start areas).
 - `internal GeneratedTerrainField ResolveField()` — returns the cached/rebuilt field for current settings; internal fast-path for renderers that need to sample millions of positions without re-marshalling ~40 Godot properties per call.
 
 ## Dependencies
 
 - Reads/writes `GridCellDataComponent`: resolves it via `CellDataPath` or `EntityComponent.FindComponent<GridCellDataComponent>`, sets its `DefaultTerrainKind`, and calls `GridCellDataComponent.LoadCells(...)` in `GenerateTerrain()`.
 - Constructs `TerrainGenerationSettings` (in `CurrentSettings()`) from every exported field, and reads `TerrainGenerationSettings.RequestedLandmassCount`/`TargetLandCoverage` indirectly through the settings passed onward.
-- Calls `TerrainFieldBuilder.Build(TerrainGenerationSettings)` to obtain a `GeneratedTerrainField`, and calls straight through to that field's methods (`TerrainAtCell`, `TerrainAtPosition`, `WaterSourceAtCell`, `IsWaterAtPosition`, `WaterFractionAtPosition`, `ShadeAtPosition`, `ReliefAtCell`, `ElevationAtCell`, `BlendedBaseColour`, `ContinentAtCell`, `ResourceAtCell`, `FeatureAtCell`, `StartPositions`, `Diagnostics`) for every public query method.
+- Calls `TerrainFieldBuilder.Build(TerrainGenerationSettings)` to obtain a `GeneratedTerrainField`, and calls straight through to that field's methods (`TerrainAtCell`, `TerrainAtPosition`, `WaterSourceAtCell`, `IsWaterAtPosition`, `WaterFractionAtPosition`, `ShadeAtPosition`, `ReliefAtCell`, `ElevationAtCell`, `BlendedBaseColour`, `ContinentAtCell`, `ResourceAtCell`, `FeatureAtCell`, `StartPositions`, `StartAreaAtCell`, `StartAreas`, `Diagnostics`) for every public query method.
+- `CurrentSettings()` passes `StartAreaRadius` (clamped 0–32) and the `StartKit` reference into `TerrainGenerationSettings`; `TerrainFieldBuilder.Build` detaches the kit into `TerrainStartKitRules` before the stages run.
 - Reads `TerrainTileSets.Kinds` (canonical kind ordering) in `TerrainKindsPresent()`.
 - Reads `TerrainLayers.LevelForKind(kind)` in `TerrainLevelsPresent()`.
 - Uses `TerrainScaleRules.For(size, LandmassScale)` / constructs `TerrainScaleRules.Rules` directly, depending on `UseScaleRules`.

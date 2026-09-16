@@ -23,8 +23,14 @@ namespace Beep.ECS
         private const int WorkRadius = 3;
         private readonly record struct Candidate(Vector2I Cell, float Score, int Continent);
 
-        public static void Apply(TerrainGenerationBuffer world, TerrainGenerationSettings settings, CancellationToken cancellation = default)
+        public static void Apply(TerrainGenerationBuffer world, TerrainGenerationSettings settings,
+            TerrainStartKitRules kit, CancellationToken cancellation = default)
         {
+            // With start areas on, a start must hold the kit's headquarters footprint. This is
+            // the ONLY change the feature makes to start selection: scoring, sorting,
+            // separation and the per-continent pass below are untouched, so with the radius
+            // at zero the predicate - and therefore every start - is exactly as it was.
+            Vector2I footprint = settings.StartAreaRadius > 0 ? kit.HqFootprint : Vector2I.One;
             cancellation.ThrowIfCancellationRequested();
             // The SAME clamp TerrainGenerationSettings.RequestedStartPositionCount
             // reports, so what this stage aims for and what a diagnostic calls
@@ -41,7 +47,7 @@ namespace Beep.ECS
             {
                 cancellation.ThrowIfCancellationRequested();
                 for (int x = 0; x < wide; x++)
-                    if (Eligible(world, world.CellIndex(x, y))) count++;
+                    if (Eligible(world, x, y, footprint)) count++;
             }
             var candidates = new List<Candidate>(count);
 
@@ -51,7 +57,7 @@ namespace Beep.ECS
                 for (int cellX = 0; cellX < wide; cellX++)
                 {
                     int index = world.CellIndex(cellX, cellY);
-                    if (!Eligible(world, index)) continue;
+                    if (!Eligible(world, cellX, cellY, footprint)) continue;
 
                     var cell = new Vector2I(cellX, cellY);
                     candidates.Add(new(cell, Score(world, cellX, cellY), world.CellContinent[index]));
@@ -86,9 +92,26 @@ namespace Beep.ECS
             }
         }
 
-        private static bool Eligible(TerrainGenerationBuffer world, int index)
-            => world.CellWater[index] == WaterBody.None && world.CellRelief[index] != TerrainRelief.Mountains
-                && TerrainKindCatalog.Standard.Startable(world.CellTerrain[index]);
+        /// <summary>
+        /// Whether a start may stand here: every cell of the footprint anchored at the cell is
+        /// in bounds, dry, not mountainous, startable, and shares the anchor's relief - the
+        /// level-ground rule GridPlacementComponent.WhyNot enforces as not_level, walked over
+        /// the same GridFootprint.Cells. A 1x1 footprint is the single-cell test it replaces.
+        /// </summary>
+        private static bool Eligible(TerrainGenerationBuffer world, int cellX, int cellY, Vector2I footprint)
+        {
+            TerrainRelief anchorRelief = world.CellRelief[world.CellIndex(cellX, cellY)];
+            foreach (Vector2I cell in GridFootprint.Cells(new Vector2I(cellX, cellY), footprint))
+            {
+                if (!world.CellInBounds(cell.X, cell.Y)) return false;
+                int index = world.CellIndex(cell.X, cell.Y);
+                if (world.CellWater[index] != WaterBody.None || world.CellRelief[index] == TerrainRelief.Mountains
+                    || !TerrainKindCatalog.Standard.Startable(world.CellTerrain[index])
+                    || world.CellRelief[index] != anchorRelief)
+                    return false;
+            }
+            return true;
+        }
 
         private static void Take(
             TerrainGenerationBuffer world,

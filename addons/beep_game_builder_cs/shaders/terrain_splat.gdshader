@@ -212,6 +212,14 @@ int id_at(vec2 cell) {
 }
 
 void fragment() {
+	// What the item was drawn with: the blank surface tile times the node's
+	// Modulate, SelfModulate and every modulate inherited from its parents. The
+	// ground replaces the tile's colour, never the modulate, so the result is
+	// multiplied by this at the end - written without it, a renderer tinted or
+	// faded through its node kept drawing at full colour and full opacity.
+	// (The scene's CanvasModulate is applied by Godot after this function and
+	// never passes through COLOR.)
+	vec4 modulate = COLOR;
 	// The map-wide UV the old full-map quad used to hand over as UV.
 	vec2 map_uv = surface_local / max(map_size * cell_size, vec2(1.0));
 	vec2 tile = surface_local / max(cell_size, vec2(1.0));
@@ -313,7 +321,11 @@ void fragment() {
 	// that beach, wet sand and surf are measured against, so it drew the tile
 	// staircase AND covered the beach before that band had any width on
 	// screen.
-	float shore = smoothstep(-shore_blend_tiles, shore_blend_tiles, sd);
+	// A LAKE ends in a line. The sea's edge is soft on purpose - the sand, the wash and the
+	// surf carry that transition - but a lake has none of them, so the same blend reads as its
+	// water smeared into the ground. open_sea is the flag that already separates the two.
+	float shore_softness = mix(shore_blend_tiles * 0.2, shore_blend_tiles, open_sea);
+	float shore = smoothstep(-shore_softness, shore_softness, sd);
 	if (art_style == 1) { shore = smoothstep(-0.06, 0.06, sd); }
 	else if (art_style == 2) { shore = step(0.0, sd); }
 
@@ -385,9 +397,9 @@ void fragment() {
 	col = mix(vec3(grey), col, saturation);
 	col = clamp((col - vec3(0.5)) * contrast + vec3(0.5), vec3(0.0), vec3(1.0));
 
-    COLOR = vec4(col, 1.0);
+    COLOR = vec4(col, 1.0) * modulate;
     if (contour_debug) {
         vec3 ground = beach > 0.5 ? vec3(0.91, 0.73, 0.40) : vec3(0.27, 0.57, 0.20);
-        COLOR = vec4(sd >= 0.0 ? vec3(0.10, 0.48, 0.64) : ground, 1.0);
+        COLOR = vec4(sd >= 0.0 ? vec3(0.10, 0.48, 0.64) : ground, 1.0) * modulate;
     }
 }

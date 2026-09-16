@@ -1137,6 +1137,8 @@ Live resource markers, 2026-09-05:
 - Optional ResourceRootPath on both overlay and icon views reads only live nondepleted nodes
   in that subtree. Shared TerrainResourceViewBinding observes gather/restore and node lifecycle.
   Missing configured roots show nothing; empty roots retain generation-preview behavior.
+  (2026-09-15, VIEW-13: the overlay's resource drawer and its ResourceRootPath were removed; the
+  icon view is the one resource drawer and keeps this binding.)
 - ResourceChanged is emitted after gather/restore. Views coalesce event rebuilds and detach
   subscriptions on exit or root change. Direct property mutation requires explicit Rebuild.
 - Fixed resource icon sheet/mapping invalidation, bounded frame indices to sheet capacity,

@@ -44,6 +44,9 @@ This is the renderer a game with hand-authored 15-piece tileset art uses (as opp
   participates in the layer cache signature, so same-path replacement updates child transitions too.
 - TerrainGeneratorPath resolves freshly rather than retaining a previously valid node. Clearing
   WaterShaderPath and rebuilding removes the old water overlay while retaining biome water tiles.
+  A `LibraryPack` build also clears the `TileWater` layer: a pack brings its own shoreline tiles,
+  so the shader sea would draw a second one over them. The isometric autotile view applies the
+  same rule (VIEW-04).
 
 - `[Export] Vector2I BoundsOrigin` / `[Export] Vector2I BoundsSize = (48,30)` — the map rectangle (in cells) this renderer draws, forwarded to every child transition layer.
 - `[Export] Vector2I AtlasTileSize = (64,64)`, `[Export] int AtlasColumns = 4` (range 1–16), `[Export] int AtlasTileRows = 4` (range 1–16) — the shared 15-piece atlas layout (tile pixel size and sheet grid) applied to every biome atlas.
@@ -54,10 +57,11 @@ This is the renderer a game with hand-authored 15-piece tileset art uses (as opp
 - `[Export] NodePath CellDataPath` — authoritative live `GridCellDataComponent`; when assigned,
   transitions and coastline read this source and observe its cell-change signals.
 - `[Export(File,*.gdshader)] string WaterShaderPath` — if set, the shader used to paint the sea over the water tiles; if empty, no shader sea is built and only the water tiles themselves draw (a flat, stylised sea).
-- `[Export] float CoastRangeTiles = 5.0`, `[Export] int CoastDetail = 2` — controls the resolution/range of the coast-distance field baked into `_coastMap` and fed to the shader.
-- `[Export] float MaxOpacity`, `ShoreOpacity`, `LakeOpacity`, `ClarityTiles`, `WaveIntensity`, `FoamStrength`, `DeepTiles`, `ShallowTiles` — forwarded verbatim as shader parameters (`max_opacity`, `shore_opacity`, `lake_opacity`, `clarity_tiles`, `wave_intensity`, `foam_strength`, `deep_tiles`, `shallow_tiles`).
-- `[Export(File)] string ShallowTexturePath`, `DeepTexturePath`, `SandTexturePath`, `FoamSheetPath` — optional authored textures for the water shader; each is loaded via `TerrainTextures.Load` and only set as a shader parameter if it actually loads. `FoamSheetPath` additionally flips a `use_foam_sheet` shader flag on success so the shader falls back to procedural foam when no sheet is supplied.
+- `[Export(Range 1,24,0.5)] float CoastRangeTiles = 5.0`, `[Export(Range 1,16,1)] int CoastDetail = 12` (both `TerrainCoastField`'s defaults) — the range and sub-tile resolution of the coast-distance field this view resolves for itself and feeds to the shader.
+- `[Export] float MaxOpacity`, `ShoreOpacity`, `LakeOpacity`, `ClarityTiles` — the transparent-sheet uniforms (`max_opacity`, `shore_opacity`, `lake_opacity`, `clarity_tiles`), passed as a `TerrainSeaSurface.Sheet`. They describe this view's floating water surface, so they stay per view.
+- `[Export] TerrainWaterLook? WaterLook` — how the sea *looks*: the thirteen shared dials and the four water texture paths, for every view of this world at once (VIEW-04, 2026-09-16). This view used to export its own copies of all thirteen, defaulted differently from the painted and block views (`FoamStrength 1.0 / DeepTiles 6.0 / ShallowTiles 6.0` against `0.50 / 4.5 / 1.8`), so one map drawn twice grew two seas; those exports are gone. `TerrainWorldComponent.Draw()` pushes the world's look onto this property on every build, so assign it on the world, not here. Unassigned, `TerrainWaterLook.Shared` — the shipped defaults — is used, which is still one sea rather than one per renderer. See [TerrainWaterLook](TerrainWaterLook.md).
 - `void Rebuild()` — public entry point. Ensures the biome `TerrainTransitionLayerComponent`s exist (building or reusing them per a computed configuration "signature"), calls `RefreshTransitions()` on each, pushes a warning if zero biome layers are configured, then builds/updates the shader sea via `EnsureWaterSurface()`.
+- `Godot.Collections.Dictionary GetPaintDiagnostics()` — a copy of the last build's report: `valid`, plus `reason` when the view did not draw (missing source, no biome atlas, or a `LibraryPack` that fails validation or cannot draw a cell). A failed pack build keeps the terrain it last published on screen, so the report is what says the view is out of date. While this view is active, `TerrainWorldComponent` shows the reason in its status line as `View incomplete: …` and fails world generation with it.
 - `override string[] _GetConfigurationWarnings()` — editor warnings: neither source path assigned, or zero configured biome atlases.
 - `override void _Ready()` — defers `Rebuild()` when `RefreshOnReady` is true and this is not the editor.
 
@@ -68,9 +72,8 @@ This is the renderer a game with hand-authored 15-piece tileset art uses (as opp
 - Creates and owns one `TerrainTransitionLayerComponent` per configured biome (`CreateLayer`), wiring `TerrainGeneratorPath`, `DisplayLayerPath`, `DetailDisplayLayerPath`, `TransitionTerrainKind`, `AtlasTexturePath`/`DetailAtlasTexturePath`, and forcing `UseTileSetTerrains = false` / `UseCanonical15PieceLayout = true` (hand-authored 15-piece sheets, not Godot `TileSet` terrain sets).
 - Reads `TerrainLayers.ZFor(TerrainLayers.Sea)` to place the shader-sea `TileMapLayer`'s z-index; does **not** set z-index on the biome `TileMapLayer`s themselves — each `TerrainTransitionLayerComponent` places its own display layer via `TerrainLayers.ZForKind`/`ZForFloor`, by design (see Notes).
 - Calls `TerrainAuthoring.EnsureLayer` / `TerrainAuthoring.Adopt` to create and register child `TileMapLayer` nodes (both the sea layer and each biome's display layer).
-- Calls `TerrainCoastField.Build(_generator, size, CoastDetail, CoastRangeTiles)` to build the `_coastMap` texture fed to the water shader.
-- Calls `TerrainShaderSurface.BuildTileSet` / `TerrainShaderSurface.Fill` to build and fill the blank-tile `TileMapLayer` the sea shader paints onto.
-- Calls `TerrainTextures.Load` (not a bare `GD.Load`) for every optional water texture, so relative/absolute path resolution matches the isometric renderer's loader.
+- Owns one [`TerrainSeaSurface`](TerrainSeaSurface.md), which resolves the coast field (`TerrainCoastField.LiveCache` / `TerrainCoastField.Build`), builds and adopts the water material, and fills the blank-tile `TileMapLayer` through `TerrainShaderSurface.BuildTileSet`/`Fill`. `EnsureWaterSurface` is now the three calls that remain here: resolve the coast, `TileBatched("TileWater", isometric: false)` at `BoundsOrigin * AtlasTileSize`, and `BuildMaterial(..., flatProjection: true, tileBatch: true)`.
+- Water textures are loaded by `TerrainWaterMaterial.ApplyTextures` from the look's paths, through `TerrainTextures.Load` (not a bare `GD.Load`), so every view resolves them the same way.
 - Reads live `GridCellDataComponent` for coastline generation and forwards it to transitions.
   Rendering does not mutate gameplay cells or run terrain generation stages.
 

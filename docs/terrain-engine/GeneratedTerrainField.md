@@ -9,6 +9,8 @@ World-data model: the finished, queryable output of one terrain-generation run, 
 - `GeneratedTerrainField(TerrainGenerationBuffer world, TerrainGenerationDiagnostics diagnostics)` — constructor; copies references to `world`'s cell- and sample-resolution arrays and captures `world.StartPositions` and the diagnostics for the run.
 - `TerrainGenerationDiagnostics Diagnostics { get; }` — the diagnostics object passed in at construction (timing/stats from the generation run).
 - `IReadOnlyList<Vector2I> StartPositions { get; }` — fair player start tiles, in gameplay tile coordinates.
+- `IReadOnlyList<TerrainStartAreaReport> StartAreas { get; }` — one `TerrainStartAreaReport` per start, in start order, when start areas were generated; empty otherwise (FEAT-09).
+- `int StartAreaAtCell(Vector2I cell)` — which start's reserved area a tile is in: 0 none, k+1 start k. The field keeps the buffer's start-area array only when the start-area stage allocated it (`CellStartAreaIfGenerated`), so a map generated with `StartAreaRadius` 0 carries no array and answers 0 everywhere.
 - `string TerrainAtCell(Vector2I cell)` — terrain kind string at a gameplay tile.
 - `string WaterSourceAtCell(Vector2I cell)` — `"ocean"`, `"lake"`, `"river"`, or empty for dry land, derived from the cell's `WaterBody`.
 - `int ContinentAtCell(Vector2I cell)` — landmass id at a tile; 0 means water.
@@ -26,7 +28,7 @@ All indexing (`CellIndex`, `SampleIndex`, `SampleIndexAt`, `CornersAt`) clamps c
 
 ## Dependencies
 
-- Reads `TerrainGenerationBuffer` (`CellsWide`, `CellsHigh`, `SamplesPerCell`, `Width`, `Height`, `CellTerrain`, `CellWater`, `CellContinent`, `Resource`, `CellRelief`, `CellElevation`, `Feature`, `Terrain`, `Water`, `Shade`, `StartPositions`) — all consumed once, at construction, and cached as private arrays.
+- Reads `TerrainGenerationBuffer` (`CellsWide`, `CellsHigh`, `SamplesPerCell`, `Width`, `Height`, `CellTerrain`, `CellWater`, `CellContinent`, `Resource`, `CellRelief`, `CellElevation`, `Feature`, `Terrain`, `Water`, `Shade`, `StartPositions`, `StartAreas`, `CellStartAreaIfGenerated`) — all consumed once, at construction, and cached as private arrays.
 - Reads `TerrainGenerationDiagnostics` only as an opaque value passed through the constructor to the `Diagnostics` property.
 - Uses the `WaterBody` and `TerrainRelief` enums, both defined in `TerrainGenerationBuffer.cs`.
 - Constructed by `TerrainFieldBuilder.Build`/`Finish` (`TerrainFieldBuilder.cs`), which is the only place that calls `new GeneratedTerrainField(...)`.

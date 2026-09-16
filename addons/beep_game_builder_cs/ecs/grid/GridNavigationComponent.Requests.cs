@@ -26,11 +26,13 @@ public partial class GridNavigationComponent
     private bool _processingRequests;
     private GridRoadComponent? _requestRoads;
 
-    private readonly record struct Configuration(bool UseBounds, Vector2I Origin, Vector2I Size,
+    // Inset is here with the rest of the bounds: it decides which cells IsInBounds accepts, so a
+    // route found under the old cordon must not be handed back after the cordon moves.
+    private readonly record struct Configuration(bool UseBounds, Vector2I Origin, Vector2I Size, int Inset,
         DiagonalPolicy Diagonals, bool Start, bool Goal, int Limit, ulong OccupancyRevision,
         ulong CellRevision, string DefaultTerrain, bool StreamTerrain);
 
-    private Configuration RequestConfiguration() => new(UseBounds, BoundsOrigin, BoundsSize, Diagonals,
+    private Configuration RequestConfiguration() => new(UseBounds, BoundsOrigin, BoundsSize, EffectivePlayableInset, Diagonals,
         AllowBlockedStart, AllowBlockedGoal, MaxVisitedCells, _placement?.OccupancyRevision ?? 0,
         (LoadMissingTerrain ? _cellData?.PinnedNavigationRevision : _cellData?.NavigationRevision) ?? 0,
         GridTerrainRules.Normalize(_cellData?.DefaultTerrainKind ?? ""), LoadMissingTerrain);

@@ -48,10 +48,31 @@ func z_span(node: Node) -> Array:
 			stack.append(c)
 	return [lo, hi]
 
+# Generation is ASYNCHRONOUS: the world builds off-thread and publishes over
+# several frames. A fixed frame count after Generate() read a half-built lab -
+# and because the lab ignores Generate() while a build is running, every later
+# view "switch" was silently dropped too, so each row measured whichever view
+# the first build happened to be showing. Wait for the world to say it is done.
+const GENERATION_FRAME_LIMIT := 6000
+
+func await_idle(world: Node) -> bool:
+	var frames := 0
+	while world.IsGenerating and frames < GENERATION_FRAME_LIMIT:
+		await process_frame
+		frames += 1
+	return not world.IsGenerating
+
 func _initialize() -> void:
 	var root_node = load("res://addons/beep_game_builder_cs/templates/scenes/terrain/terrain_generator_lab.tscn").instantiate()
 	get_root().add_child(root_node)
-	for i in range(60): await process_frame
+	await process_frame
+	await process_frame
+	var world = root_node.find_child("World", true, false)
+	check(world != null, "the lab has a World")
+	if world == null:
+		quit(1)
+		return
+	check(await await_idle(world), "the lab's first build finishes")
 
 	var preview = root_node.find_child("Preview", true, false)
 	check(preview != null, "the lab has a Preview holding every renderer")
@@ -68,27 +89,42 @@ func _initialize() -> void:
 	var picker = root_node.find_child("View", true, false)
 	check(picker != null, "the lab exposes its view picker")
 
-	# Which renderers each view is allowed to draw. The isometric view has its
-	# own feature renderer, so the flat one must be OFF there - it stamps trees
-	# on the square grid, and over a diamond map they stand on open water.
+	# Which renderers each view is allowed to draw. The block view has its own
+	# feature renderer standing on its stacked surface, so the grid companions
+	# (vegetation, relief props, the overlay) must be OFF there. Every other view
+	# binds the gameplay grid - IsometricAutotile to its diamond layer - and the
+	# companions place through that binding, so they are ON: IsometricAutotile
+	# used to be gated out with the block view and drew a bare map.
 	var expected := {
-		0: {"Splat": true,  "TileRenderer": false, "Features": true,
-			"Iso": false, "IsoFeatures": false},
-		1: {"Splat": false, "TileRenderer": true,  "Features": true,
-			"Iso": false, "IsoFeatures": false},
-		2: {"Splat": false, "TileRenderer": false, "Features": false,
-			"Iso": true,  "IsoFeatures": true},
+		0: {"Splat": true,  "TileRenderer": false, "IsoAutotile": false, "Features": true,
+			"RockObjects": true, "MapOverlay": true, "Iso": false, "IsoFeatures": false},
+		1: {"Splat": false, "TileRenderer": true,  "IsoAutotile": false, "Features": true,
+			"RockObjects": true, "MapOverlay": true, "Iso": false, "IsoFeatures": false},
+		2: {"Splat": false, "TileRenderer": false, "IsoAutotile": false, "Features": false,
+			"RockObjects": false, "MapOverlay": false, "Iso": true, "IsoFeatures": true},
+		3: {"Splat": false, "TileRenderer": false, "IsoAutotile": true, "Features": true,
+			"RockObjects": true, "MapOverlay": true, "Iso": false, "IsoFeatures": false},
 	}
-	var view_names := ["Painted", "Game tiles", "Isometric"]
+	var view_names := ["Painted", "Game tiles", "Isometric", "Isometric tiles"]
 
 	if picker != null:
-		for index in range(3):
+		for index in range(4):
 			picker.selected = index
+			var outcome := []
+			var on_finished := func(success: bool, message: String) -> void: outcome.append([success, message])
+			world.GenerationFinished.connect(on_finished)
 			root_node.Generate()
-			for i in range(15): await process_frame
+			check(world.IsGenerating, "%s: Generate() started a build" % view_names[index])
+			var settled: bool = await await_idle(world)
+			world.GenerationFinished.disconnect(on_finished)
+			check(settled and outcome.size() == 1 and outcome[0][0],
+				"%s: the build finished successfully (%s)" % [view_names[index], str(outcome)])
 
 			for node_name in expected[index]:
 				var n = preview.find_child(node_name, true, false)
+				# A missing renderer fails the row. Skipping it let a renamed node
+				# pass every row it was named in without being measured at all.
+				check(n != null, "%s: the lab has a %s renderer" % [view_names[index], node_name])
 				if n == null:
 					continue
 				var want: bool = expected[index][node_name]
@@ -97,6 +133,8 @@ func _initialize() -> void:
 				check(n.is_visible_in_tree() == want,
 					"%s: %s is %s" % [view_names[index], node_name,
 						"drawn" if want else "off"])
+			if index == 3:
+				autotile_companions(world, preview)
 
 	# Every renderer in the one scene, so their z indices are comparable.
 	var splat = preview.find_child("Splat", true, false)
@@ -166,6 +204,48 @@ func _initialize() -> void:
 
 	print("\nRESULT: ", "all checks passed" if failures.is_empty() else "%d FAILED" % failures.size())
 	quit(1 if failures.size() > 0 else 0)
+
+# IsometricAutotile draws the grid companions ON its diamonds, above its ground.
+#
+# Visible is not drawn: a companion that stamps nothing, or stamps on the square
+# grid over a diamond map, is "on" and wrong. So this counts the stamps and asks
+# the gameplay grid which cell each tree's ground anchor falls in - it must be a
+# cell the generator put a feature on. Placed from a square tile size instead of
+# the grid binding, the anchors land on unrelated cells.
+func autotile_companions(world: Node, preview: Node) -> void:
+	var autotile = preview.find_child("IsoAutotile", true, false)
+	var features = preview.find_child("Features", true, false)
+	var rocks = preview.find_child("RockObjects", true, false)
+	var overlay = preview.find_child("MapOverlay", true, false)
+	var grid = world.get_node_or_null(world.get("GridPath"))
+	check(autotile != null and features != null and rocks != null and overlay != null and grid != null,
+		"Isometric tiles: the lab wires the autotile view, its companions and a grid")
+	if autotile == null or features == null or rocks == null or overlay == null or grid == null:
+		return
+	var layer: TileMapLayer = autotile.GetTerrainLayer()
+	check(layer != null and grid.get_node_or_null(grid.get("TileMapLayerPath")) == layer,
+		"Isometric tiles: the grid is bound to the autotile layer")
+
+	var ground_top: int = z_span(autotile)[1]
+	for pair in [["Features", features], ["RockObjects", rocks], ["MapOverlay", overlay]]:
+		var low: int = z_span(pair[1])[0]
+		check(low > ground_top, "Isometric tiles: %s draws over the autotile ground (z%d > z%d)"
+			% [pair[0], low, ground_top])
+
+	var anchors: PackedVector2Array = features.call("GetStampAnchors")
+	check(anchors.size() >= 20, "Isometric tiles: vegetation is stamped (%d trees)" % anchors.size())
+	var cells = features.get_node_or_null(features.get("CellDataPath"))
+	check(cells != null, "Isometric tiles: the feature renderer reads the live cells")
+	if cells == null:
+		return
+	var misplaced := 0
+	for anchor in anchors:
+		var cell: Vector2i = grid.call("WorldToCell", features.to_global(anchor))
+		var feature = cells.call("GetMetadata", cell, "terrain_feature")
+		if typeof(feature) != TYPE_STRING or String(feature).is_empty():
+			misplaced += 1
+	check(misplaced == 0, "Isometric tiles: every tree stands on a diamond the generator wooded (%d of %d elsewhere)"
+		% [misplaced, anchors.size()])
 
 # Two rules that hold for terrain components no scene here instantiates.
 #

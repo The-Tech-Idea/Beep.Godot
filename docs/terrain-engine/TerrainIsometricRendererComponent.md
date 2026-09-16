@@ -20,6 +20,10 @@ water, matching the painted view's beach material scale. `WaterTextureTiles`
 Both bind to the shared water shader and are copied to river materials during
 rebuild. Neither resizes native cell geometry or block/top atlas frames.
 
+Since VIEW-04 (2026-09-16) both are dials on [`TerrainWaterLook`](TerrainWaterLook.md), the one
+resource every view of a world draws its sea from, rather than exports on this renderer. The
+values above are that resource's defaults, which are what this view already drew.
+
 ## Built Surface Lifecycle
 
 Automatic cell-change rebuilds are deferred while the view is not visible in the scene tree.
@@ -101,6 +105,44 @@ functions, and checks GPU cell-coordinate output against native `map_to_local`
 positions after scaling and translation. This caught a one-cell sampling shift
 that a tile-only shader fixture did not cover.
 
+### Seabed Depth (VIEW-05, 2026-09-16)
+
+How far below the surface the bed is drawn comes from the coast field, not from a measurement of
+this view's own. `ReadWaterDepth` asks its `TerrainSeaSurface` for
+`CellDistances(size, CoastRangeTiles)` — the R channel of the very field the sea over the bed is
+shaded from — and ceils each water cell's distance into a step, which is what `SeabedFrameFor`'s
+sand/gravel/rock bands and the `SeabedDepth` cut-off have always been written against. Land cells
+stay 0. `SeabedFrameFor`, its bands and `SeabedDepth` are unchanged by this.
+
+`MeasureWaterDepth`, the four-neighbour breadth-first sweep out from land that used to fill
+`_depth`, **is deleted** — not renamed. Its steps were Manhattan distance while the water drawn
+over the bed shades by the field's Euclidean distance, so along a diagonal coast the two disagreed
+by up to a step and the bed's material band changed where the water's tint did not. A contract-scan
+pin forbids the name anywhere under `ecs/terrain/` and requires the block view to read
+`_sea.CellDistances(size, CoastRangeTiles)`.
+
+Two rules sit on top of the decode, and both are load-bearing:
+
+- **A water cell beds at least the shore band.** The field measures the *sub-tile* coastline, so a
+  cell the generator calls water can have its centre on the land side of its own water patch and
+  read a negative distance. Ceiling that to 0 left 21 shore cells of the isometric demo with no bed
+  — and a water cell draws no block, so that is a transparent hole at the shore rather than a
+  shallow. Water clamps to at least step 1.
+- **A cell at or past the field's range is beyond the shelf.** The encoding saturates at the range
+  the field was built with, so with the default `CoastRangeTiles` 5 and `SeabedDepth` 5 every
+  deep-ocean cell would otherwise read the deepest expressible step and draw a bed. That is the
+  defect the code's own comment warns about: a bed under the whole ocean that opaque water can never
+  reveal, whose only visible effect is the straight line where the bed stops and the overscanned sea
+  runs on. Such a cell is given a depth past the cut-off, so the bed ends at the shelf.
+
+When no coast field could be resolved there is no depth to shelve by: `ReadWaterDepth` warns once —
+here, not per cell — and no bed is drawn, which is the honest outcome, since without
+`WaterShaderPath` there is no sea over the bed either.
+
+Depth is not something the generator records: `shallow_water`/`deep_water` are a wading
+classification for gameplay, not a distance (see [TerrainBiomeStage](TerrainBiomeStage.md)), and
+this view reads them only to tell land from water.
+
 ### Block Side Fitting
 
 For tightly framed isometric blocks, when LevelHeight is shorter than the source
@@ -139,7 +181,7 @@ these changes do not establish origin support or valid artwork in that renderer.
 ### Settings
 
 - `[Export] NodePath TerrainGeneratorPath` — path to the `TerrainGeneratorComponent` this renderer reads cell data from.
-- `[Export] Vector2I BoundsSize = (48,48)` — map size in cells used for the coast field, water-depth sweep, and the draw loop.
+- `[Export] Vector2I BoundsSize = (48,48)` — map size in cells used for the coast field, the per-cell depth decoded from it, and the draw loop.
 - `[Export] string BlockSheetPath` — file path to the block sprite sheet (`.png`/`.webp`); required or `Rebuild` bails out.
 - `[Export] int SheetColumns = 4`, `[Export] int SheetRows = 4` — grid layout of the block/top sheets.
 - `[Export] Vector2I CellSize = (462,308)` — the diamond footprint of one cell in sheet pixels (not the taller block image).
@@ -150,19 +192,19 @@ these changes do not establish origin support or valid artwork in that renderer.
 - `[Export] int GrassFrame/DryGrassFrame/DesertFrame/SandFrame/TundraFrame/SnowFrame/IceFrame/JungleFrame/SwampFrame/GravelFrame/RockFrame` — land frame indices in the block sheet (`mud` also maps to `SwampFrame`). Water uses no atlas frames.
 - `[Export] string[] TerrainVariants` — `"kind=frame[,frame...]"` entries giving a terrain kind multiple interchangeable frames, selected deterministically per cell by a hash of its coordinates (repeat a frame number to weight it).
 - `[Export] bool RefreshOnReady = true` — when true and not in the editor, calls `Rebuild()` deferred on `_Ready`; turn off when an external controller drives generation first.
-- `[Export] int SeabedDepth = 5` (range 1-8) — how many tiles from shore the seabed is drawn, and how many material bands (sand/gravel/rock) it spans.
+- `[Export] int SeabedDepth = 5` (range 1-8) — how many tiles from the waterline the seabed is drawn, and how many material bands (sand/gravel/rock) it spans. Beyond it the water is opaque and a bed would never be seen.
 - `[Export] int SeabedStep = 12` — vertical pixel offset placing the seabed layer just under the water surface.
 - `[Export] string WaterShaderPath` — `.gdshader` for the sea surface; without it `EnsureWaterSurface` returns early and there is no water.
-- `[Export] string ShallowTexturePath/DeepTexturePath/SandTexturePath/FoamSheetPath` — optional water shader textures; unset falls back to flat shader colour (foam sheet additionally toggles `use_foam_sheet`).
-- `[Export] int CoastDetail = 4` (range 1-8) — sub-tile samples per edge when building the shared coast distance field.
-- `[Export] float CoastRangeTiles = 5.0` — distance at which the coast field saturates.
+- `[Export] TerrainWaterLook? WaterLook` — how the sea looks: the thirteen shared dials and the four water texture paths, for every view of this world (VIEW-04, 2026-09-16). The per-renderer texture-path and dial exports are gone. `TerrainWorldComponent.Draw()` pushes the world's look here on every build, so assign it on the world; unassigned, `TerrainWaterLook.Shared` (the shipped defaults, which are the values this view carried) is used. See [TerrainWaterLook](TerrainWaterLook.md).
+- `[Export] int CoastDetail = 12` (range 1-16, `TerrainCoastField.DefaultDetail`) — sub-tile samples per edge when building the shared coast distance field.
+- `[Export] float CoastRangeTiles = 5.0` (range 1-24, `TerrainCoastField.DefaultRangeTiles`) — distance at which the coast field saturates.
 - `[Export] float MaxOpacity = 1.0`, `[Export] float ClarityTiles = 3.0` — deep-water opacity ceiling and how many tiles it takes to reach it (lets the seabed show near shore).
 - `[Export] float LakeOpacity = 0.42` — opacity used for inland lakes, lower than open sea.
 - `[Export] float ShoreOpacity = 0.55` — opacity at/inland of the waterline, kept above zero because an isometric block overhangs the tile below it.
 - `[Export] float WaterOverscan = 2.5` — how far the sea quad extends past the map as a multiple of map size, clamped to `MaxWaterMarginCells` (72) in actual tiles.
-- `[Export] float WaveIntensity = 1.0`, `[Export] float FoamStrength = 0.40`, `[Export] float DeepTiles = 4.5`, `[Export] float ShallowTiles = 1.8` — shader dials forwarded verbatim to the water material.
 - `const int LevelCount` / `static int ZIndexForLevel(int)` / `static int ZIndexForProps(int)` — forward directly to `TerrainLayers` so callers can query the shared stack through the renderer without it owning the answer.
-- `void Rebuild()` — resolves the terrain source, builds/reuses the `TileSet`, rebuilds the coast field, clears layers, measures water depth and summit floor, then paints land stacks, seabed and the batched animated river surface.
+- `void Rebuild()` — resolves the terrain source, builds/reuses the `TileSet`, rebuilds the coast field, clears layers, reads water depth from that field (`ReadWaterDepth`) and measures the summit floor, then paints land stacks, seabed and the batched animated river surface.
+- `int SeabedDepthAt(Vector2I cell)` — how deep the bed lies under an absolute cell, in steps from the waterline: 0 on land and off the map, 1 at the shore, and past `SeabedDepth` where the water is opaque and no bed is drawn. Added for `tests/examples/iso_layers.gd`, whose seabed check used to carry its own copy of the old metric (VIEW-05).
 - `Vector2 SurfacePosition(Vector2I cell)` — returns the on-screen position of a cell's top face (grid projection plus elevation offset), the single source anything drawn on the map (props, units) must use to align with the terrain stack.
 - `Godot.Collections.Array<Dictionary> GetLayerDiagnostics()` — reports each layer's kind/level/z-index/relative-z/painted-cell-count (plus the water surface's shading state and opacity), meant for a guard to catch a silently wrong z-order or an unshaded sea.
 - `bool IsLandCell(Vector2I cell)` — true when the generator's terrain kind at that cell is a land kind (per `TerrainTileSets.IsLandKind`).
@@ -174,11 +216,10 @@ these changes do not establish origin support or valid artwork in that renderer.
 
 - Reads `TerrainGeneratorComponent.TerrainKindAt`, `.ReliefAt`, `.ElevationAt`, `.WaterSourceAt` for every cell (via `TerrainGeneratorPath`).
 - Reads `TerrainLayers.Count/Sea/Ground/Hills/Mountains/Summits`, `.ZFor`, `.ZForProps`, `.ZForSeabed`, `.LevelFor` for the shared stack order and z-indexing.
-- Calls `TerrainCoastField.Build` to compute the shared coast distance field, and `TerrainTileSets.IsWaterKind`/`IsLandKind` to classify cells.
-- Uses `TerrainAuthoring.EnsureLayer`/`Adopt` to create and register the water `TileMapLayer` (and other layers via `MakeLayer`).
-- Uses `TerrainShaderSurface.BuildTileSet`/`Fill` to build the diamond-cell blank `TileSet` and fill the overscanned sea quad.
-- Uses `TerrainTextures.Load` (via `LoadTexture`/`LoadSheet`) to load the block sheet, top sheet, and water textures.
-- Shares the same water shader parameter contract (`coast_map`, `coast_range`, `map_size`, `cell_size`, `tile_offset`, `max_opacity`, `clarity_tiles`, `lake_opacity`, `shore_opacity`, `wave_intensity`, `foam_strength`, `deep_tiles`, `shallow_tiles`, `tex_shallow`, `tex_deep`, `tex_sand`, `foam_sheet`, `use_foam_sheet`) as the flat/painted renderer, so the two views draw the same sea.
+- Owns one [`TerrainSeaSurface`](TerrainSeaSurface.md): `Rebuild` calls its `ResolveCoast` (which uses `TerrainCoastField.LiveCache` or `TerrainCoastField.BuildPixels`), `ReadWaterDepth` calls its `CellDistances(size, CoastRangeTiles)` for the seabed's depth, `EnsureWaterSurface` takes the quad's corners from its static `Polygon(cellSize, size, margin)`, and `BuildWaterMaterial` is a single call to its `BuildMaterial(..., flatProjection: false, tileBatch: false, authored: the existing IsoWater material)`. `TerrainTileSets.IsWaterKind`/`IsLandKind` still classify cells here.
+- Uses `TerrainAuthoring.EnsureLayer`/`Adopt` to create and register the block, seabed and river nodes (via `MakeLayer`); the sea itself is an adopted `Polygon2D` named `IsoWater`.
+- Uses `TerrainTextures.Load` (via `LoadTexture`/`LoadSheet`) for the block and top sheets; the water textures are loaded by `TerrainWaterMaterial.ApplyTextures` from the look's four paths.
+- Shares the same water shader parameter contract (`coast_map`, `coast_range`, `map_size`, `map_origin`, `cell_size`, `tile_offset`, `tile_batch`, `flat_projection`, `max_opacity`, `clarity_tiles`, `lake_opacity`, `shore_opacity`, plus the thirteen look dials and `tex_shallow`, `tex_deep`, `tex_sand`, `foam_sheet`, `use_foam_sheet`) as the flat/painted renderer, so the views draw the same sea. Since VIEW-04 the shared half of that contract is written once, in `TerrainWaterMaterial`, from one `TerrainWaterLook`.
 
 ## Notes
 
@@ -186,4 +227,5 @@ these changes do not establish origin support or valid artwork in that renderer.
 - The XML doc comment on the class describes the seabed as previously "five, stacked at descending offsets" and now "ONE layer" — this matches the current code, not a stale claim.
 - `MeasureSummitFloor`/`SummitShare` (0.45f) determines summits from the top 45% of mountain-tile elevations map-wide; the comment explains this replaced a per-massif depth walk that starved narrow ridges — no leftover dead code from that approach remains in this file.
 - `EnsureTileSet` short-circuits (`return true`) once `_tileSet` and `_frames` are populated, so changing `BlockSheetPath`/`SheetColumns`/`SheetRows`/frame exports at runtime after the first successful build has no effect until `_tileSet` is externally cleared — there is no invalidation path in this file; a caller must reconstruct the node or otherwise reset `_tileSet` to pick up sheet/column/row changes.
-- Water textures failing to load are silently accepted as "no texture" (`SetTexture` returns false, shader falls back to flat colour) except for the shader itself and the coast map, both of which `GD.PushWarning`.
+- Water textures failing to load are accepted as "no texture" (the shader falls back to flat colour) with `TerrainTextures.Load`'s own warning; the shader itself, a missing coast map and a set-but-unloadable foam sheet each push their own warning as well.
+- Obsolete water atlas frame exports were removed earlier; the thirteen water dials and four water texture paths followed them out of this file in VIEW-04. What is left here is what is genuinely this surface's: `WaterShaderPath`, `CoastDetail`/`CoastRangeTiles`, the four sheet opacities, `SeabedDepth`, `SeabedStep` and `WaterOverscan`.

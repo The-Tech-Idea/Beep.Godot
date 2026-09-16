@@ -26,6 +26,13 @@ namespace Beep.ECS
         [Export] public NodePath CellDataPath { get; set; } = new("");
         [Export] public NodePath PlacementPath { get; set; } = new("");
         [Export] public Vector2I SpawnCell { get; set; } = Vector2I.Zero;
+        /// <summary>
+        /// Spawn in the active player's generated start area instead of at SpawnCell: each unit
+        /// takes the nearest walkable area cell no spawned unit stands on
+        /// (GridStartAreaComponent.SpawnCellsFor). Needs StartAreaPath and GridPath.
+        /// </summary>
+        [Export] public bool SpawnAtStartArea { get; set; }
+        [Export] public NodePath StartAreaPath { get; set; } = new("");
         [Export] public string WorkerIdPrefix { get; set; } = "worker";
         [Export] public bool AutoSpawnOnReady { get; set; } = false;
         [Export(PropertyHint.Range, "0,32,1")] public int InitialWorkers { get; set; } = 1;
@@ -47,6 +54,7 @@ namespace Beep.ECS
         private GridJobQueueComponent? _jobs;
         private GridCellDataComponent? _cellData;
         private GridPlacementComponent? _placement;
+        private GridStartAreaComponent? _startArea;
         private int _nextWorkerNumber = 1;
 
         public int EffectiveMaxWorkers => Mathf.Max(1, MaxWorkers);
@@ -71,7 +79,10 @@ namespace Beep.ECS
                 {
                     int count = EffectiveInitialWorkers;
                     for (int i = 0; i < count; i++)
-                        SpawnWorker(SpawnCell + new Vector2I(i, 0));
+                    {
+                        if (SpawnAtStartArea) SpawnWorker();
+                        else SpawnWorker(SpawnCell + new Vector2I(i, 0));
+                    }
                 });
             }
 
@@ -86,12 +97,62 @@ namespace Beep.ECS
             if (InitialWorkers < 0)
                 return new[] { "InitialWorkers cannot be negative." };
 
+            if (SpawnAtStartArea && StartAreaPath.IsEmpty)
+                return new[] { "SpawnAtStartArea needs StartAreaPath to point to a GridStartAreaComponent." };
+
             return Array.Empty<string>();
         }
 
+        /// <summary>Spawns at SpawnCell, or - with SpawnAtStartArea - in the active player's start area.</summary>
         public Node2D? SpawnWorker()
         {
-            return SpawnWorker(SpawnCell);
+            if (!SpawnAtStartArea)
+                return SpawnWorker(SpawnCell);
+
+            ResolveReferences();
+            PruneFreedUnits();
+            if (_startArea is null || _grid is null)
+                return Reject("missing_start_area_or_grid");
+
+            // Every cell a live spawned unit stands on, so the next one does not stack on it.
+            // The candidates are all of the area's walkable cells: asking for fewer could hand
+            // back only cells the existing units already hold.
+            var standing = new HashSet<Vector2I>();
+            foreach (Node2D unit in _spawnedUnits)
+                standing.Add(_grid.WorldToCell(unit.GlobalPosition));
+
+            int start = StartIndexForOwner();
+            if (start < 0)
+                return Reject("owner_has_no_start");
+
+            foreach (Vector2I cell in _startArea.SpawnCellsFor(start, int.MaxValue))
+                if (!standing.Contains(cell) && SpawnBlockReason(cell) is null)
+                    return SpawnWorker(cell);
+
+            return Reject("no_start_area_spawn_cell");
+        }
+
+        /// <summary>
+        /// The start THIS spawner's units belong in: its owner's, resolved through the registry's
+        /// player to the faction the assignment holds. A map with a spawner per player therefore
+        /// puts each player's units in their own area from one scene, where reading the start
+        /// component's ActiveStartIndex would have put every player in the local player's.
+        ///
+        /// Falls through to ActiveStartIndex when there is no catalog, no registry or no owner -
+        /// a single-player sandbox has one start and one player, and that is what it means.
+        /// -1 only when the owner is a real player whose faction was assigned nothing: refusing to
+        /// spawn is the honest answer, because any other area belongs to somebody else.
+        /// </summary>
+        private int StartIndexForOwner()
+        {
+            if (_startArea!.FactionCatalog is null || OwnerId.Length == 0)
+                return _startArea.ActiveStartIndex;
+
+            var registry = ActorRegistryPath.IsEmpty ? null : GetNodeOrNull<ActorRegistryComponent>(ActorRegistryPath);
+            if (registry?.FindPlayer(OwnerId) is not { } player)
+                return _startArea.ActiveStartIndex;
+
+            return _startArea.StartIndexOf(player.FactionId);
         }
 
         public Node2D? SpawnWorker(Vector2I cell)
@@ -327,6 +388,7 @@ namespace Beep.ECS
             EntityComponent.Resolve(this, JobQueuePath, ref _jobs);
             EntityComponent.Resolve(this, CellDataPath, ref _cellData);
             EntityComponent.Resolve(this, PlacementPath, ref _placement);
+            EntityComponent.Resolve(this, StartAreaPath, ref _startArea);
         }
 
     }

@@ -92,8 +92,9 @@ namespace Beep.ECS
         [Export] public NodePath MapOverlayPath { get; set; } = new("");
 
         /// <summary>
-        /// Relief objects and resource icons, both drawn on the square grid and
-        /// so belonging to the flat projections.
+        /// Relief objects and resource icons, both placed through the gameplay
+        /// grid and so drawn under every view that binds it: Painted, Tiles and
+        /// IsometricAutotile.
         /// </summary>
         [Export] public NodePath ReliefRendererPath { get; set; } = new("");
         [Export] public NodePath ResourceRendererPath { get; set; } = new("");
@@ -105,6 +106,14 @@ namespace Beep.ECS
         /// </summary>
         [Export] public NodePath DataLayersPath { get; set; } = new("");
 
+        /// <summary>
+        /// Optional <c>Spawns</c> node (a Node2D) this world writes one Start_&lt;k&gt; marker into
+        /// per player start, as docs/game-builder/TILEMAP_OUTPUT.md requires of a published map.
+        /// Markers are ordinary scene nodes, so a map saved as a .tscn keeps its starts with no
+        /// generator; GridStartAreaComponent.SpawnsRootPath reads them back.
+        /// </summary>
+        [Export] public NodePath SpawnsPath { get; set; } = new("");
+
         [ExportGroup("World")]
         [Export] public TerrainShape MapType { get; set; } = TerrainShape.Continents;
         [Export] public TerrainMapSize MapSize { get; set; } = TerrainMapSize.Standard;
@@ -115,6 +124,13 @@ namespace Beep.ECS
         [Export] public TerrainResourceLevel ResourceLevel { get; set; } = TerrainResourceLevel.Normal;
         [Export] public ResourceSet Resources { get; set; } = ResourceSet.Historical;
         [Export] public int Seed { get; set; } = 31415;
+
+        /// <summary>
+        /// Radius, in cells, of the area reserved around every player start; 0 leaves starts as
+        /// single tiles. The kit an area is checked and stocked against is the generator's
+        /// StartKit resource, which - like Resources' catalogue - is not part of the saved recipe.
+        /// </summary>
+        [Export(PropertyHint.Range, "0,32,1")] public int StartAreaRadius { get; set; }
 
         [ExportGroup("Exact Recipe")]
         [Export] public bool UseCustomBounds { get; set; }
@@ -154,6 +170,12 @@ namespace Beep.ECS
         [Export] public TerrainPropSizing? PropSizing { get; set; }
 
         /// <summary>
+        /// How this world's sea looks, in every view that draws one. Unassigned, every view uses
+        /// the shipped defaults - which is still ONE sea, not one per renderer (VIEW-04).
+        /// </summary>
+        [Export] public TerrainWaterLook? WaterLook { get; set; }
+
+        /// <summary>
         /// Build a NEW world once the scene is ready. This is what lets a demo
         /// be a configured node rather than a controller script. Yields to a
         /// save: when a load has already restored the recipe by the time the
@@ -191,7 +213,7 @@ namespace Beep.ECS
         public Callable GenerateMap => Callable.From(NewWorld);
 
         /// <summary>Bumped when the saved recipe's shape changes.</summary>
-        private const int RecipeVersion = 3;
+        private const int RecipeVersion = 4;
 
         private bool _restoredFromSave;
 
@@ -368,6 +390,9 @@ namespace Beep.ECS
         /// this component. MinBiomeRegionFraction is derived from scale rules.
         /// ClimateLatitudeSpan is also derived unless this world's saved
         /// UseCustomClimateSpan override supplies the geographic range.
+        /// StartAreaRadius is this world's own recipe value, so the generator's
+        /// Inspector radius is discarded for a world built here; the generator's
+        /// StartKit is not touched.
         /// </summary>
         private bool ConfigureGenerator(out Vector2I size)
         {
@@ -391,6 +416,7 @@ namespace Beep.ECS
                 (int)MapType, (int)WorldAge, (int)Temperature,
                 (int)Rainfall, (int)SeaLevel, (int)ResourceLevel);
             _generator.ResourceSet = Resources;
+            _generator.StartAreaRadius = Mathf.Clamp(StartAreaRadius, 0, 32);
             if (UseCustomLandCoverage) _generator.LandmassScale = LandCoverage;
 
             // The climate model and the scale rules are what make the axes mean
@@ -444,6 +470,7 @@ namespace Beep.ECS
             ["resource_level"] = (int)ResourceLevel,
             ["resources"] = (int)Resources,
             ["seed"] = Seed,
+            ["start_area_radius"] = StartAreaRadius,
             ["built_size"] = BuiltSize,
         };
 
@@ -469,6 +496,8 @@ namespace Beep.ECS
             ResourceLevel = (TerrainResourceLevel)GridVariantReader.Int(state, "resource_level", (int)ResourceLevel);
             Resources = (ResourceSet)GridVariantReader.Int(state, "resources", (int)Resources);
             Seed = GridVariantReader.Int(state, "seed", Seed);
+            // Absent before recipe version 4, whose worlds had no start areas.
+            StartAreaRadius = GridVariantReader.Int(state, "start_area_radius", 0);
             Vector2I savedSize = GridVariantReader.Vector2I(state, "built_size", Vector2I.Zero);
 
             _restoredFromSave = true;
@@ -535,16 +564,29 @@ namespace Beep.ECS
                 d["underground_cell_count"].AsInt32(),
                 d["start_position_count"].AsInt32(),
                 d["requested_start_position_count"].AsInt32(),
-                d["generation_milliseconds"].AsInt64()) + ViewStatus();
+                d["generation_milliseconds"].AsInt64()) + StartAreaStatus(d) + ViewStatus();
         }
 
-        private string ViewStatus()
+        private static string StartAreaStatus(Godot.Collections.Dictionary d)
         {
-            if (Projection != TerrainProjection.IsometricAutotile || _isometricAutotile is null) return "";
-            var report = _isometricAutotile.GetPaintDiagnostics();
-            if (!report.TryGetValue("valid", out var valid) || valid.AsBool()) return "";
-            if (report.TryGetValue("reason", out var reason)) return " | View incomplete: " + reason.AsString();
-            return $" | View incomplete: {report["missing"].AsInt32()} unmatched, {report["unmapped"].AsInt32()} unbound cells";
+            int areas = d["start_area_count"].AsInt32();
+            return areas > 0 ? $"  |  areas {d["start_area_usable_count"].AsInt32()} of {areas} usable" : "";
+        }
+
+        private string ViewStatus() => ActiveViewProblem() is { } problem ? " | View incomplete: " + problem : "";
+
+        /// <summary>Why the active tile view did not draw the world, or null when it did.</summary>
+        private string? ActiveViewProblem()
+        {
+            Godot.Collections.Dictionary? report = Projection switch
+            {
+                TerrainProjection.Tiles => _tiles?.GetPaintDiagnostics(),
+                TerrainProjection.IsometricAutotile => _isometricAutotile?.GetPaintDiagnostics(),
+                _ => null
+            };
+            if (report is null || !report.TryGetValue("valid", out var valid) || valid.AsBool()) return null;
+            if (report.TryGetValue("reason", out var reason)) return reason.AsString();
+            return $"{report["missing"].AsInt32()} unmatched, {report["unmapped"].AsInt32()} unbound cells";
         }
 
         private static string LandformName(TerrainGeneratorComponent.LandformMode landform)

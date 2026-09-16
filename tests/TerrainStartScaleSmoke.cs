@@ -16,11 +16,13 @@ public partial class TerrainStartScaleSmoke : Node
             var world = MakeWorld(size.X, size.Y);
             var settings = default(TerrainGenerationSettings) with { StartPositionCount = wanted };
             var expected = Reference(world, settings);
-            TerrainStartPositionStage.Apply(world, settings);
+            TerrainStartPositionStage.Apply(world, settings, TerrainStartKitRules.Capture(settings));
             if (!expected.SequenceEqual(world.StartPositions)) return Fail($"Start selection changed: {size}, wanted={wanted}");
         }
         var huge = MakeWorld(1024, 1024);
         var six = default(TerrainGenerationSettings) with { StartPositionCount = 6 };
+        // Captured before measuring: the kit rules are main-thread input, not stage work.
+        var kit = TerrainStartKitRules.Capture(six);
         long before = GC.GetAllocatedBytesForCurrentThread();
         var watch = Stopwatch.StartNew();
         var reference = Reference(huge, six);
@@ -28,7 +30,7 @@ public partial class TerrainStartScaleSmoke : Node
         long referenceBytes = GC.GetAllocatedBytesForCurrentThread() - before;
         before = GC.GetAllocatedBytesForCurrentThread();
         watch.Restart();
-        TerrainStartPositionStage.Apply(huge, six);
+        TerrainStartPositionStage.Apply(huge, six, kit);
         long actualMs = watch.ElapsedMilliseconds;
         long actualBytes = GC.GetAllocatedBytesForCurrentThread() - before;
         if (!reference.SequenceEqual(huge.StartPositions) || huge.StartPositions.Count != 6) return Fail("Million-cell starts changed");
@@ -36,7 +38,7 @@ public partial class TerrainStartScaleSmoke : Node
         using var cancelled = new CancellationTokenSource();
         cancelled.Cancel();
         int previous = huge.StartPositions.Count;
-        try { TerrainStartPositionStage.Apply(huge, six, cancelled.Token); return Fail("Cancelled stage executed"); }
+        try { TerrainStartPositionStage.Apply(huge, six, kit, cancelled.Token); return Fail("Cancelled stage executed"); }
         catch (OperationCanceledException) { }
         if (huge.StartPositions.Count != previous) return Fail("Cancelled stage modified starts");
         GD.Print($"[terrain-start-scale] 1024x1024: old={referenceMs}ms/{referenceBytes} bytes; compact={actualMs}ms/{actualBytes} bytes; identical starts");

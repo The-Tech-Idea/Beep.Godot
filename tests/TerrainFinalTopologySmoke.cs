@@ -178,11 +178,12 @@ public partial class TerrainFinalTopologySmoke : Node
         TerrainTileReductionStage.Apply(world);
         TerrainContinentStage.Apply(world);
         var settings = default(TerrainGenerationSettings) with { StartPositionCount = 1 };
-        TerrainStartPositionStage.Apply(world, settings);
+        var kit = TerrainStartKitRules.Capture(settings);
+        TerrainStartPositionStage.Apply(world, settings, kit);
         bool passed = Check(world.StartPositions.Count == 0, "Starting position accepted blocked lava");
         int dry = world.CellIndex(4, 4);
         world.CellTerrain[dry] = "grass";
-        TerrainStartPositionStage.Apply(world, settings);
+        TerrainStartPositionStage.Apply(world, settings, kit);
         return passed & Check(world.StartPositions.Count == 1 && world.StartPositions[0] == new Vector2I(4, 4),
             "Start selection did not choose the only habitable cell beside lava");
     }

@@ -8,12 +8,49 @@ before resources, vegetation and start positions are placed.
 For climate-driven presets, fine Euclidean distance to ocean samples classifies
 dry samples within `BeachWidth` as sand. Widths are in cells, with no minimum
 whole-cell ring. Zero disables the band. Explicit themed presets retain their
-ground policy. Flat lake banks use their own fine Euclidean inset and
-`LakeShoreWidth`, independently of ocean width. Rivers are not lake banks.
+ground policy. Lake banks use their own fine Euclidean inset and
+`LakeShoreWidth`, independently of ocean width, on any ground.
+Rivers are not lake banks.
+
+Both bands measure distance through
+[`TerrainEuclideanDistance.ToTiles`](TerrainEuclideanDistance.md), the one owner
+of the half-sample correction, so the band this stage cuts and the band the
+painted view draws from the coast field apply the same rule.
 
 The stage updates both the cell material and its dry samples. It does not change
 water samples, water-body labels, elevation, relief, land coverage or seed. It
 runs only during generation, never during redraw or player terrain editing.
+
+## The stage owns the beach and the lake bank (VIEW-07, 2026-09-16)
+
+Which cells are sand, what lies inland of them (`terrain_shore_inland`), and how
+wide each band is (`terrain_beach_width`, `terrain_lake_shore_width`) are decided
+here and nowhere else. The tile and block views draw the cell kind. The painted
+view composites its own band per fragment, from the width texels the generation
+handoff carries out of this stage against the coast field's distance — it renders
+those numbers, it does not choose them, and there is no shader-side default width
+left for it to fall back to.
+
+That ownership is stated, not yet fully enforced at the pixel: see
+[TerrainPaintedRendererComponent](TerrainPaintedRendererComponent.md) for the
+cell-centre disagreement that remains open.
+
+## A lake is banked on any ground (FIX-14, 2026-09-16)
+
+The lake band used to apply only where `TerrainRelief.Flat` held. The same gate
+was written three times — here, in the per-cell lake width of
+`TerrainGeneratorComponent`'s handoff, and in the painted renderer's
+generator-only fallback — so a lake running against rising land got no shore at
+all: grass met water directly, and the lake read as a stain on the hillside
+rather than as a body of water with an edge. All three gates are gone. A shore
+is what bounds water; the ground behind it may do what it likes.
+
+**This changes generated maps.** `tests/fixtures/terrain_generation_baseline.json`
+was re-recorded for it on 2026-09-16;
+`terrain_generation_baseline_probe`, `terrain_beach_footprint_probe` and
+`terrain_lake_bank_probe` pass against the re-recorded fixture. The change
+landed but was **not accepted** by the owner — see
+`plans/terrain-grid/FIX-14-lake-shore-and-edges.md` for what is still open.
 
 ## Why It Exists
 

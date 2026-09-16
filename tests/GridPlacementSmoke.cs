@@ -167,27 +167,46 @@ public partial class GridPlacementSmoke : Node
 
     private bool VerifyPlacementOccupancy()
     {
-        var placement = new GridPlacementComponent { Footprint = new Vector2I(2, 3) };
+        // A placement with no grid has nowhere to put anything: WhyNot answers not_ready. This
+        // check used to call CanPlace on a bare, unwired component and expect it to allow
+        // placement - the missing-configuration fallback the component deliberately refuses.
+        var unwired = new GridPlacementComponent { Footprint = new Vector2I(2, 3) };
+        bool unwiredRefused = !unwired.CanPlace(new Vector2I(4, 7));
+        unwired.Free();
+        if (!Expect(unwiredRefused, "A placement with no grid must refuse rather than allow placement."))
+            return false;
+
+        var root = new Node { Name = "GridPlacementOccupancySmokeRoot" };
+        AddChild(root);
+        root.AddChild(new GridProjectionComponent { Name = "Grid" });
+        var placement = new GridPlacementComponent
+        {
+            Name = "Placement",
+            GridPath = new NodePath("../Grid"),
+            Footprint = new Vector2I(2, 3),
+            UseMouseInput = false
+        };
+        root.AddChild(placement);
         Vector2I anchor = new(4, 7);
 
-        if (!Expect(placement.CanPlace(anchor), "Fresh placement grid should allow an empty footprint."))
-            return false;
+        bool ok = Expect(placement.CanPlace(anchor), "Fresh placement grid should allow an empty footprint.");
 
-        placement.SetFootprintOccupied(anchor, true);
-        if (!Expect(!placement.CanPlace(anchor), "Occupied anchor footprint should reject placement."))
-            return false;
+        if (ok)
+        {
+            placement.SetFootprintOccupied(anchor, true);
+            ok = Expect(!placement.CanPlace(anchor), "Occupied anchor footprint should reject placement.")
+                && Expect(!placement.CanPlace(new Vector2I(5, 9)), "Overlapping footprint should reject placement.")
+                && Expect(placement.CanPlace(new Vector2I(6, 10)), "Non-overlapping footprint should still be placeable.");
+        }
 
-        if (!Expect(!placement.CanPlace(new Vector2I(5, 9)), "Overlapping footprint should reject placement."))
-            return false;
+        if (ok)
+        {
+            placement.SetFootprintOccupied(anchor, false);
+            ok = Expect(placement.CanPlace(anchor), "Cleared footprint should be placeable again.");
+        }
 
-        if (!Expect(placement.CanPlace(new Vector2I(6, 10)), "Non-overlapping footprint should still be placeable."))
-            return false;
-
-        placement.SetFootprintOccupied(anchor, false);
-        if (!Expect(placement.CanPlace(anchor), "Cleared footprint should be placeable again."))
-            return false;
-
-        return true;
+        root.QueueFree();
+        return ok;
     }
 
     // Every site answers the same three questions - the ground it takes, the
@@ -428,12 +447,17 @@ public partial class GridPlacementSmoke : Node
         cells.AddFlag(new Vector2I(2, 2), GridCellDataComponent.CellFlags.Blocked);
         cells.SetTerrainKind(new Vector2I(3, 3), "sand");
         root.AddChild(cells);
+        // Without a grid every answer is not_ready, which made the two rejections below pass
+        // without testing the terrain or flag rule at all.
+        root.AddChild(new GridProjectionComponent { Name = "Grid" });
 
         var placement = new GridPlacementComponent
         {
             Name = "Placement",
+            GridPath = new NodePath("../Grid"),
             CellDataPath = new NodePath("../Cells"),
-            Footprint = Vector2I.One
+            Footprint = Vector2I.One,
+            UseMouseInput = false
         };
         root.AddChild(placement);
 

@@ -179,6 +179,8 @@ public partial class TerrainWorldComponent
                         return;
                     }
                     Draw(_generationSettings.Size, queueCollision: true);
+                    if (ActiveViewProblem() is { } viewProblem)
+                        throw new InvalidOperationException(viewProblem);
                     _publicationCollision = CollisionPath.IsEmpty ? null : GetNodeOrNull<TerrainCollisionComponent>(CollisionPath);
                     if (!CollisionPath.IsEmpty && _publicationCollision is null)
                         throw new InvalidOperationException("Configured terrain collision is unavailable.");
@@ -252,8 +254,11 @@ public partial class TerrainWorldComponent
                 || renderer.BoundsSize != BuiltSize || renderer.BoundsOrigin != _generationTarget!.BoundsOrigin)
                 throw new InvalidOperationException("Isometric terrain sources changed during publication.");
             if (renderer.IsRebuilding) return;
-            if (renderer.PublicationRevision == _autotileRevision || !renderer.GetPaintDiagnostics()["valid"].AsBool())
-                throw new InvalidOperationException("Isometric terrain publication was cancelled or has incomplete tile coverage.");
+            // A build that stopped without publishing and without a reason was cancelled, not failed.
+            if (renderer.PublicationRevision == _autotileRevision && !renderer.GetPaintDiagnostics().ContainsKey("reason"))
+                throw new InvalidOperationException("Isometric terrain publication was cancelled.");
+            if (ActiveViewProblem() is { } viewProblem)
+                throw new InvalidOperationException(viewProblem);
             _publicationAutotile = null;
             Draw(BuiltSize, queueCollision: true, preparedAutotile: true);
             _publicationCollision = CollisionPath.IsEmpty ? null : GetNodeOrNull<TerrainCollisionComponent>(CollisionPath);

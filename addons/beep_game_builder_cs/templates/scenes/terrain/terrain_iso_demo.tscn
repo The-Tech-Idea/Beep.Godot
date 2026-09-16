@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3 uid="uid://c8isodemo1beep"]
+[gd_scene load_steps=11 format=3 uid="uid://c8isodemo1beep"]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainWorldComponent.cs" id="world_builder"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainWorldCameraComponent.cs" id="world_camera"]
@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainIsometricRendererComponent.cs" id="iso"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainIsometricFeatureRendererComponent.cs" id="iso_features"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridCameraControllerComponent.cs" id="camera_controller"]
+[ext_resource type="Resource" path="res://addons/beep_game_builder_cs/textures/terrain/terrain_water_look.tres" id="water_look"]
 
 [node name="TerrainIsoDemo" type="Node2D"]
 
@@ -73,20 +74,12 @@ LevelHeight = 32
 SeabedDepth = 5
 SeabedStep = 10
 WaterShaderPath = "res://addons/beep_game_builder_cs/shaders/iso_water.gdshader"
-ShallowTexturePath = "res://addons/beep_game_builder_cs/textures/water/seamless_turquoise_shallow_water_texture.png"
-DeepTexturePath = "res://addons/beep_game_builder_cs/textures/water/seamless_deep_blue_ocean_texture.png"
-SandTexturePath = "res://addons/beep_game_builder_cs/textures/water/seamless_golden_desert_sand_texture.png"
-FoamSheetPath = "res://addons/beep_game_builder_cs/textures/water/surf_foam_streaks.png"
 CoastDetail = 4
 CoastRangeTiles = 5.0
 MaxOpacity = 1.0
 ClarityTiles = 3.0
 LakeOpacity = 0.42
 WaterOverscan = 2.5
-WaveIntensity = 1.0
-FoamStrength = 0.4
-DeepTiles = 4.5
-ShallowTiles = 1.8
 GrassFrame = 54
 DryGrassFrame = 2
 DesertFrame = 3
@@ -158,6 +151,7 @@ script = ExtResource("world_builder")
 GeneratorPath = NodePath("../World/TerrainGenerator")
 IsometricRendererPath = NodePath("../World/Iso")
 IsometricFeaturesPath = NodePath("../World/IsoFeatures")
+WaterLook = ExtResource("water_look")
 MapType = 0
 MapSize = 1
 Seed = 31415

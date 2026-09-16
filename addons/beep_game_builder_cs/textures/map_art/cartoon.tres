@@ -45,6 +45,6 @@ filter_clip = true
 
 [resource]
 script = ExtResource("2_y7g0d")
-TextureRepeatCells = 1.5
+TextureRepeatCells = 4.8
 GroundDetail = 0.16
 GroundTextures = Array[Texture2D]([SubResource("AtlasTexture_rkion"), SubResource("AtlasTexture_qronj"), SubResource("AtlasTexture_auikk"), SubResource("AtlasTexture_mxsoh"), SubResource("AtlasTexture_r7fyb"), SubResource("AtlasTexture_5t5te"), SubResource("AtlasTexture_c4lvh"), SubResource("AtlasTexture_uwv8e")])

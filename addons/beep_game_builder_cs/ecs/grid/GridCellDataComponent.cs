@@ -112,6 +112,10 @@ namespace Beep.ECS
 			_unavailableChunks.Clear();
 			_evictedChunks.Clear();
 			ResetChunkRevisions();
+			// An emptied store holds no reservations either. Left set, a cleared component would
+			// report a map with start areas whose every cell reads as outside one - the very
+			// answer HasStartAreas exists to keep a build restriction from acting on.
+			HasStartAreas = false;
 			TerrainRevision++;
 			MarkNavigationChanged();
 			EmitCellsChanged(TerrainChangeKind.Content, new Godot.Collections.Array<Vector2I>());
@@ -134,6 +138,13 @@ namespace Beep.ECS
 
 		public string GetTerrainKind(Vector2I cell)
 			=> _cells.TryGetValue(cell, out CellRecord? record) ? record.TerrainKind : DefaultTerrainKind;
+
+		/// <summary>
+		/// Which generated start area the cell is reserved for: 0 none, k+1 start k. A static
+		/// generated fact (FEAT-09) - it is who the map set the land aside for, not who owns it now.
+		/// </summary>
+		public int GetStartArea(Vector2I cell)
+			=> _cells.TryGetValue(cell, out CellRecord? record) ? GridVariantReader.Int(record.GetMetadata("terrain_start_area"), 0) : 0;
 
 		internal GridTerrainWaterPatch? WaterPatchAtCell(Vector2I cell)
 			=> _cells.TryGetValue(cell, out CellRecord? record) ? record.WaterPatch : null;
@@ -372,6 +383,7 @@ namespace Beep.ECS
 			bool navigationKey = normalizedKey is "terrain_relief" or "terrain_ramp_direction";
 			if (navigationKey && !record.GetMetadata(normalizedKey).Equals(value)) MarkNavigationChanged();
 			record.SetMetadata(normalizedKey, CopyMetadataValue(value));
+			if (normalizedKey == "terrain_start_area" && GridVariantReader.Int(value, 0) > 0) HasStartAreas = true;
 			// Only these four move the cached fields the surface renderers read off
 			// TerrainRevision; but EVERY terrain_* key is a terrain-visual change - the
 			// feature renderer reads terrain_feature, for one - so it carries the Terrain
@@ -462,6 +474,21 @@ namespace Beep.ECS
 		/// listener that needs per-cell granularity gets it from the editing
 		/// API (Till, Water, SetFlags, ...), which is where single edits happen.
 		/// </summary>
+		/// <summary>
+		/// Whether this map carries player start-area reservations at all (FEAT-09's
+		/// terrain_start_area). False on a map generated with no start areas, and on a native map
+		/// published without the gameplay baseline - both of which have starts a game can read
+		/// from spawn markers, but no reserved ground. A build restriction that asked "is this
+		/// cell in my area" on such a map would refuse every cell on earth, so the restriction
+		/// asks this first.
+		///
+		/// Set where a reservation can enter the store - a bulk load, a publication, or a write
+		/// through SetMetadata - and cleared only when the whole store is replaced. Evicting a
+		/// chunk does not clear it: the map still has areas, this component just is not holding
+		/// those cells in memory.
+		/// </summary>
+		public bool HasStartAreas { get; private set; }
+
 		public void LoadCells(Godot.Collections.Array cells, bool clearExisting = true)
 		{
 			// Validate snapshots before changing the live store, including fine surfaces.
@@ -484,11 +511,13 @@ namespace Beep.ECS
 				_unavailableChunks.Clear();
 				_evictedChunks.Clear();
 				ResetChunkRevisions();
+				HasStartAreas = false;
 			}
 
 			foreach (var (cell, record) in parsed)
 			{
 				_cells[cell] = record;
+				if (record.Generated is { StartArea: > 0 }) HasStartAreas = true;
 				RefreshDaily(cell, record);
 				if (!clearExisting) MarkCellChanged(cell);
 				changed = true;
@@ -518,7 +547,7 @@ namespace Beep.ECS
 		/// single biggest allocation in a world build. Same signal contract as
 		/// the Variant path: one CellsChanged for the whole batch.
 		/// </summary>
-		internal int LoadGeneratedCells(IEnumerable<(Vector2I Cell, string Terrain, string Feature, int Relief, float Shade, float Elevation, string WaterSource, GridTerrainWaterPatch WaterPatch, string InlandTerrain, float BeachWidth, GridTerrainWaterPatch? LakePatch, float LakeWidth)> cells, bool clearExisting = true, string? defaultTerrainKind = null)
+		internal int LoadGeneratedCells(IEnumerable<(Vector2I Cell, string Terrain, string Feature, int Relief, float Shade, float Elevation, string WaterSource, GridTerrainWaterPatch WaterPatch, string InlandTerrain, float BeachWidth, GridTerrainWaterPatch? LakePatch, float LakeWidth, int StartArea)> cells, bool clearExisting = true, string? defaultTerrainKind = null)
 		{
 			if (!clearExisting && _evictedChunks.Count > 0)
 			{
@@ -537,12 +566,14 @@ namespace Beep.ECS
 				_unavailableChunks.Clear();
 				_evictedChunks.Clear();
 				ResetChunkRevisions();
+				HasStartAreas = false;
 			}
 
 			if (clearExisting && defaultTerrainKind is not null) DefaultTerrainKind = defaultTerrainKind;
 			foreach (var cell in cells)
 			{
 				_cells[cell.Cell] = CreateGeneratedRecord(cell, DefaultTerrainKind);
+				if (cell.StartArea > 0) HasStartAreas = true;
 				if (!clearExisting) MarkCellChanged(cell.Cell);
 				loaded++;
 				changed = true;
@@ -585,8 +616,10 @@ namespace Beep.ECS
 
 
 
+		// StartArea: which start's generated reservation the cell is in, 0 none, k+1 start k (FEAT-09).
+		// Static like relief, so it saves with the cell and regenerates from the recipe.
 		private sealed record GeneratedMetadata(string Feature, int Relief, float Shade, float Elevation,
-			string WaterSource, string Inland, float BeachWidth, float LakeWidth);
+			string WaterSource, string Inland, float BeachWidth, float LakeWidth, int StartArea);
 
 		internal int MetadataDictionaryCount
 		{
@@ -633,6 +666,8 @@ namespace Beep.ECS
 			{
 				"terrain_feature" or "terrain_relief" or "terrain_shade" or "terrain_elevation" or "terrain_water_source" => true,
 				"terrain_shore_inland" or "terrain_beach_width" or "terrain_lake_shore_width" => HasGeneratedShore,
+				// Present only inside an area, so cells outside every area save nothing extra.
+				"terrain_start_area" => Generated.StartArea > 0,
 				_ => false
 			}));
 
@@ -650,6 +685,7 @@ namespace Beep.ECS
 					"terrain_shore_inland" when HasGeneratedShore => data.Inland,
 					"terrain_beach_width" when HasGeneratedShore => data.BeachWidth,
 					"terrain_lake_shore_width" when HasGeneratedShore => data.LakeWidth,
+					"terrain_start_area" when data.StartArea > 0 => data.StartArea,
 					_ => default
 				};
 			}
@@ -680,7 +716,8 @@ namespace Beep.ECS
 			}
 
 			private static readonly string[] GeneratedKeys = { "terrain_feature", "terrain_relief", "terrain_shade",
-				"terrain_elevation", "terrain_water_source", "terrain_shore_inland", "terrain_beach_width", "terrain_lake_shore_width" };
+				"terrain_elevation", "terrain_water_source", "terrain_shore_inland", "terrain_beach_width", "terrain_lake_shore_width",
+				"terrain_start_area" };
 
 			/// <summary>Whether a patch here carries a sub-cell boundary; a uniform patch does not.</summary>
 			public bool HasFineShoreline => WaterPatch is { IsUniform: false } || LakePatch is { IsUniform: false };
@@ -777,7 +814,7 @@ namespace Beep.ECS
 			private void AdoptMetadata(Godot.Collections.Dictionary metadata)
 			{
 				string feature = "", waterSource = "", inland = "";
-				int relief = 0;
+				int relief = 0, startArea = 0;
 				float shade = 1f, elevation = 0f, beachWidth = 0f, lakeWidth = 0f;
 				bool generated = false, shore = false;
 				Godot.Collections.Dictionary? custom = null;
@@ -795,6 +832,7 @@ namespace Beep.ECS
 						case "terrain_shore_inland": inland = value.AsString(); shore = true; break;
 						case "terrain_beach_width": beachWidth = GridVariantReader.Float(value, 0f); shore = true; break;
 						case "terrain_lake_shore_width": lakeWidth = GridVariantReader.Float(value, 0f); shore = true; break;
+						case "terrain_start_area": startArea = Mathf.Clamp(GridVariantReader.Int(value, 0), 0, 255); generated = true; break;
 						default:
 							// The only user-controlled values in a record; live objects, callables,
 							// signals and RIDs are rejected here, at the depth the whole-array walk used.
@@ -805,7 +843,7 @@ namespace Beep.ECS
 				}
 				if (generated || shore)
 				{
-					Generated = new GeneratedMetadata(feature, relief, shade, elevation, waterSource, inland, beachWidth, lakeWidth);
+					Generated = new GeneratedMetadata(feature, relief, shade, elevation, waterSource, inland, beachWidth, lakeWidth, startArea);
 					HasGeneratedShore = shore;
 				}
 				_metadata = custom;

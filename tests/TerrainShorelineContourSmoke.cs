@@ -20,6 +20,26 @@ public partial class TerrainShorelineContourSmoke : Node
 
     public bool Run()
     {
+        // VIEW-07: one owner for the half-sample correction. A straight boundary sits BETWEEN two
+        // sample centres, so the sample against it is half a sample away, not a whole one - and at
+        // n samples per tile the n-th sample out reads a whole number of tiles. Drop the half and
+        // every band is half a sample too wide on both sides; the beach the stage makes and the
+        // beach the painter draws stop being the same beach.
+        foreach (int samplesPerTile in new[] { 1, 4, 12 })
+        {
+            for (int step = 1; step <= 3; step++)
+            {
+                // A sample `step * samplesPerTile` centres from the boundary sample.
+                double squared = Math.Pow(step * samplesPerTile - 0.5 + 0.5, 2);
+                float tiles = TerrainEuclideanDistance.ToTiles(squared, samplesPerTile);
+                Check(Math.Abs(tiles - (step - 0.5 / samplesPerTile)) < 1e-5,
+                    $"ToTiles({squared}, {samplesPerTile}) = {tiles}, not {step - 0.5 / samplesPerTile} tiles");
+            }
+            // The boundary sample itself is half a sample from the boundary, never negative.
+            Check(TerrainEuclideanDistance.ToTiles(0.25, samplesPerTile) == 0f,
+                "a sample inside the boundary reported a negative distance");
+        }
+
         var random = new Random(4251);
         for (int trial = 0; trial < 24; trial++)
         {
@@ -127,7 +147,7 @@ public partial class TerrainShorelineContourSmoke : Node
             checkedSamples++;
         }
         var data = new System.Collections.Generic.List<(Vector2I, string, string, int, float, float,
-            string, GridTerrainWaterPatch, string, float, GridTerrainWaterPatch?, float)>();
+            string, GridTerrainWaterPatch, string, float, GridTerrainWaterPatch?, float, int)>();
         for (int y = 0; y < size.Y; y++)
         for (int x = 0; x < size.X; x++)
         {
@@ -136,7 +156,7 @@ public partial class TerrainShorelineContourSmoke : Node
             var water = GridTerrainWaterPatch.Create(detail, (sx, sy) => world.Water[world.Index(x * detail + sx, y * detail + sy)] != WaterBody.None);
             var lake = GridTerrainWaterPatch.Create(detail, (sx, sy) => world.Water[world.Index(x * detail + sx, y * detail + sy)] == WaterBody.Lake);
             data.Add((cell, world.CellTerrain[i], "", 0, 1f, 0f, world.CellWater[i].ToString().ToLowerInvariant(),
-                water, world.CellInlandTerrain[i], world.BeachWidth, lake, world.LakeShoreWidth));
+                water, world.CellInlandTerrain[i], world.BeachWidth, lake, world.LakeShoreWidth, 0));
         }
         cells.LoadGeneratedCells(data);
         var restored = new GridCellDataComponent();

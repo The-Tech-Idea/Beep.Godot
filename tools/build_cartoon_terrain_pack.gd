@@ -247,7 +247,8 @@ func build_resources() -> void:
     scene.name = "CartoonTerrainExample"
     scene.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
     var shader := Shader.new()
-    shader.code = "shader_type canvas_item; render_mode unshaded; varying vec4 tint; void vertex(){tint=COLOR;} void fragment(){vec4 c=texture(TEXTURE,UV); float k=c.g-max(c.r,c.b); COLOR=vec4(c.rgb,c.a*(1.0-step(0.6,k)))*tint;}"
+    # Shaded: an unshaded terrain item skips the scene's CanvasModulate (day/night, weather).
+    shader.code = "shader_type canvas_item; varying vec4 tint; void vertex(){tint=COLOR;} void fragment(){vec4 c=texture(TEXTURE,UV); float k=c.g-max(c.r,c.b); COLOR=vec4(c.rgb,c.a*(1.0-step(0.6,k)))*tint;}"
     check(ResourceSaver.save(shader,OUT+"green_key.gdshader") == OK,"Shader save failed")
     var material := ShaderMaterial.new()
     material.shader = shader

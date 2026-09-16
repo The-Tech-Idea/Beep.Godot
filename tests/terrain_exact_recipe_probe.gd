@@ -31,7 +31,7 @@ func run() -> void:
 	var diagnostics: Dictionary = world.call("Diagnostics")
 	assert(absf(diagnostics["land_footprint_coverage"] - 0.7) < 0.08, "Land footprint must follow recipe")
 	var saved: Dictionary = world.call("CaptureState")
-	assert(saved["version"] == 3 and saved["use_custom_bounds"])
+	assert(saved["version"] == 4 and saved["use_custom_bounds"] and saved["start_area_radius"] == 0)
 	assert(generator.get("UseCustomClimateSpan") and generator.get("UseScaleRules"))
 	assert(is_equal_approx(generator.get("ClimateLatitudeSpan"), 0.0024))
 	cells.call("SetTerrainKind", Vector2i(2, 3), "probe_edit")

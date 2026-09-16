@@ -8,14 +8,16 @@ not a world recipe or a second terrain-data source.
 
 `Grass`, `DryGrass`, `Sand`, `Dirt`, `Snow`, `Mud`, `Gravel`, `Rock` and `Lava`
 set **tiles per texture repeat**. Smaller values make features in that texture
-smaller. Zero inherits the renderer's `GroundTextureTiles`; positive values are
+smaller. Zero inherits `GroundTextureTiles`, which since VIEW-04 (2026-09-16) is a dial on the
+world's [`TerrainWaterLook`](TerrainWaterLook.md) rather than an export on the painted renderer;
+positive values are
 clamped to 0.25-32, nonpositive/nonfinite values inherit. A null resource leaves
 all materials at the common ground scale.
 
 The settings follow texture slots, not biome IDs: jungle shares Grass, desert
 shares Sand, tundra shares Dirt, ice shares Snow, and swamp shares Mud. Sand's
 scale also applies to the visible seabed. Animated water still uses the separate
-`WaterTextureTiles` setting.
+`WaterTextureTiles` dial, which is the water look's too.
 
 Repeat phase uses absolute grid coordinates, including the renderer's
 `BoundsOrigin`. Cropping a live map does not restart the textures at local zero.

@@ -1,5 +1,6 @@
 shader_type canvas_item;
-render_mode unshaded;
+// No `render_mode unshaded`: Godot skips the scene's CanvasModulate for an
+// unshaded item, so this plateau art ignored day/night, weather and seasons.
 varying vec4 tint;
 
 void vertex() {

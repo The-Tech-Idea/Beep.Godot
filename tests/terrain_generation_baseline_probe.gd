@@ -47,6 +47,11 @@ func run() -> void:
 		for size_name in SIZES:
 			var layers: Dictionary = smoke.call("Snapshot", SIZES[size_name], seed, i)
 			snapshot[case_name(seed, size_name, i)] = layers
+	# FEAT-09: start areas on (radius 8, the smoke's kit). Recorded beside the cases above,
+	# which run with the radius at zero and so pin that the feature is opt-in.
+	for size_name in SIZES:
+		var areas: Dictionary = smoke.call("SnapshotWithStartAreas", SIZES[size_name], SEEDS[0], 0)
+		snapshot[case_name(SEEDS[0], size_name, 0) + "_start_areas"] = areas
 
 	if recording:
 		DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://tests/fixtures"))

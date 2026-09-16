@@ -19,6 +19,14 @@ namespace Beep.ECS
     /// The tile itself is blank on purpose. It contributes no colour; it is
     /// there so the layer has something to rasterise, and every pixel of it is
     /// replaced by the shader.
+    ///
+    /// Replaced in colour, never in modulate. A surface shader multiplies its
+    /// result by the COLOR it received - the tile's cutout times the node's
+    /// Modulate, SelfModulate and every parent's modulate - so a renderer tinted
+    /// or faded through its node draws tinted or faded like any other item.
+    /// Writing COLOR without it silently drops both. The scene's CanvasModulate
+    /// is not in COLOR at all: Godot applies it after the fragment - but only to a
+    /// shaded item, so no terrain shader may declare render_mode unshaded.
     /// </summary>
     public static class TerrainShaderSurface
     {

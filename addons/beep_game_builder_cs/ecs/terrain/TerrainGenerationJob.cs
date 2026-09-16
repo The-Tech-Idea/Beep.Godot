@@ -17,9 +17,10 @@ internal sealed class TerrainGenerationJob : IDisposable
     public TerrainGenerationJob(TerrainGenerationSettings settings)
     {
         TerrainResourceRules resources = TerrainResourceRules.Capture(settings);
-        TerrainGenerationSettings detached = settings with { ResourceCatalog = null };
+        TerrainStartKitRules startKit = TerrainStartKitRules.Capture(settings);
+        TerrainGenerationSettings detached = settings with { ResourceCatalog = null, StartKit = null };
         CancellationToken token = _cancellation.Token;
-        Completion = Task.Run(() => TerrainFieldBuilder.BuildPrepared(detached, resources, token,
+        Completion = Task.Run(() => TerrainFieldBuilder.BuildPrepared(detached, resources, startKit, token,
             (stage, completed) => Volatile.Write(ref _progress, new Progress(stage, completed))), token);
     }
 

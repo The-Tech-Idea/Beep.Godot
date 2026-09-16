@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="TerrainWaterLook" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainWaterLook.cs" id="water_look"]
+
+[resource]
+script = ExtResource("water_look")
+FoamStrength = 0.4
+GroundTextureTiles = 6.0
+ShallowTexturePath = "res://addons/beep_game_builder_cs/textures/water/seamless_turquoise_shallow_water_texture.png"
+DeepTexturePath = "res://addons/beep_game_builder_cs/textures/water/seamless_deep_blue_ocean_texture.png"
+SeabedSandTexturePath = "res://addons/beep_game_builder_cs/textures/water/seamless_golden_desert_sand_texture.png"
+FoamSheetPath = "res://addons/beep_game_builder_cs/textures/water/surf_foam_streaks.png"

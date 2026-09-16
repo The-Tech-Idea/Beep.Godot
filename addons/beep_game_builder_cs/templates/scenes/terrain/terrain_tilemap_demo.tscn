@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainWorldComponent.cs" id="world_builder"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainWorldCameraComponent.cs" id="world_camera"]
@@ -7,6 +7,7 @@
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainGeneratorComponent.cs" id="generator"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainTileRendererComponent.cs" id="tile_renderer"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridCameraControllerComponent.cs" id="camera_controller"]
+[ext_resource type="Resource" path="res://addons/beep_game_builder_cs/textures/terrain/terrain_water_look.tres" id="water_look"]
 
 [node name="TerrainTileMapDemo" type="Node2D"]
 
@@ -72,15 +73,10 @@ WaterAtlasPath = "res://addons/beep_game_builder_cs/textures/tiles/water_15piece
 WaterDetailAtlasPath = ""
 TerrainGeneratorPath = NodePath("../TerrainGenerator")
 WaterShaderPath = "res://addons/beep_game_builder_cs/shaders/iso_water.gdshader"
-ShallowTexturePath = "res://addons/beep_game_builder_cs/textures/water/seamless_turquoise_shallow_water_texture.png"
-DeepTexturePath = "res://addons/beep_game_builder_cs/textures/water/seamless_deep_blue_ocean_texture.png"
-SandTexturePath = "res://addons/beep_game_builder_cs/textures/water/seamless_golden_desert_sand_texture.png"
 CoastRangeTiles = 5.0
 ClarityTiles = 3.0
 LakeOpacity = 0.42
 ShoreOpacity = 0.55
-WaveIntensity = 1.0
-FoamStrength = 0.4
 
 [node name="Camera" type="Camera2D" parent="."]
 
@@ -118,6 +114,7 @@ text = "Mouse wheel: zoom  |  Middle-drag: pan  |  WASD / arrows: pan  |  R: res
 script = ExtResource("world_builder")
 GeneratorPath = NodePath("../World/TerrainGenerator")
 TileRendererPath = NodePath("../World/TileRenderer")
+WaterLook = ExtResource("water_look")
 MapType = 0
 MapSize = 3
 Seed = 31415

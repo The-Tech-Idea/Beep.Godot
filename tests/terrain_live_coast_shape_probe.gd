@@ -89,8 +89,10 @@ func check_rendered_centres(host: Node2D, cells: Node, view: Node) -> void:
 	host.reparent(viewport)
 	view.set("CoastDetail", 4)
 	view.set("ShadeStrength", 0.0)
-	view.set("FoamStrength", 0.0)
-	view.set("WaveIntensity", 0.0)
+	var look: Resource = load(BASE + "terrain/TerrainWaterLook.cs").new()
+	look.set("FoamStrength", 0.0)
+	look.set("WaveIntensity", 0.0)
+	view.set("WaterLook", look)
 	view.call("Rebuild")
 	await process_frame
 	await process_frame

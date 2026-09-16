@@ -105,6 +105,35 @@ func run() -> void:
 	grid.call("NotifyGeometryChanged")
 	await settle()
 	assert(collision.get("ShapeCount") == 0, "Missing projected surface retained collision")
+
+	# VIEW-02: same-class runs merge into one shape wherever the grid's cells form affine
+	# runs (GridProjectionComponent.HasAffineCellRuns) and stay one shape per cell where they
+	# do not. The merge used to require an UNBOUND grid, and every terrain view binds one, so
+	# it never ran. A merged outline must be the exact union, not a cheaper wrong shape: every
+	# cell centre in the run collides and no cell just outside it does.
+	grid.set("ElevatedTerrainPath", NodePath(""))
+	collision.set("LandCollisionLayer", 0)
+	collision.set("BoundsOrigin", Vector2i.ZERO)
+	collision.set("BoundsSize", Vector2i(32, 32))
+	for y in range(32):
+		for x in range(32): cells.call("SetTerrainKind", Vector2i(x, y), "water")
+	for layout in [[TileSet.TILE_SHAPE_SQUARE, TileSet.TILE_LAYOUT_STACKED, 1, "square"],
+			[TileSet.TILE_SHAPE_ISOMETRIC, TileSet.TILE_LAYOUT_DIAMOND_DOWN, 1, "diamond-down"],
+			[TileSet.TILE_SHAPE_ISOMETRIC, TileSet.TILE_LAYOUT_STACKED, 1024, "stacked isometric"]]:
+		layer.tile_set.tile_shape = layout[0]
+		layer.tile_set.tile_layout = layout[1]
+		grid.call("NotifyGeometryChanged")
+		collision.call("Rebuild")
+		await settle()
+		assert(collision.get("ShapeCount") == layout[2], "%s layer built %d water shapes for one 32x32 run, expected %d"
+			% [layout[3], collision.get("ShapeCount"), layout[2]])
+		for y in range(32):
+			for x in range(32):
+				assert(hits(host, grid.call("CellToWorld", Vector2i(x, y)), 4),
+					"%s merged collision missed cell %s" % [layout[3], str(Vector2i(x, y))])
+		for outside in [Vector2i(-1, 5), Vector2i(32, 5), Vector2i(5, -1), Vector2i(5, 32), Vector2i(-1, -1), Vector2i(32, 32)]:
+			assert(not hits(host, grid.call("CellToWorld", outside), 4),
+				"%s merged collision covers cell %s outside the run" % [layout[3], str(outside)])
 	host.free()
 	print("[terrain-collision] OK")
 	quit()

@@ -37,7 +37,9 @@ namespace Beep.ECS
         [Export] public Vector2I BoundsOrigin { get; set; } = Vector2I.Zero;
         [Export] public Vector2I BoundsSize { get; set; } = new(48, 30);
         [Export] public TerrainLibraryPack? LibraryPack { get; set; }
-        public string LibraryProblem { get; private set; } = "";
+        private Godot.Collections.Dictionary _paintDiagnostics = new();
+        /// <summary>Whether the last build drew this view, and the reason when it did not.</summary>
+        public Godot.Collections.Dictionary GetPaintDiagnostics() => _paintDiagnostics.Duplicate(true);
         public int LibraryCellsUpdated { get; private set; }
         private readonly HashSet<Vector2I> _libraryDirty = new();
         private TerrainLibraryPack? _publishedPack;
@@ -114,56 +116,13 @@ namespace Beep.ECS
         [Export(PropertyHint.Range, "0,1,0.01")] public float ShoreOpacity { get; set; } = 0.55f;
         [Export(PropertyHint.Range, "0,1,0.01")] public float LakeOpacity { get; set; } = 0.42f;
         [Export(PropertyHint.Range, "0.1,12,0.1")] public float ClarityTiles { get; set; } = 3.0f;
-        // Ranges match water_common.gdshaderinc's own hint_range, because
-        // TerrainWaterMaterial now holds these values to it. They used to be wider
-        // here than the shader accepts - DeepTiles ran to 64 against a shader
-        // declaring 0.5 to 12 - so the Inspector offered numbers that would now be
-        // silently clamped. No scene in the tree authors one; narrowing the slider
-        // is what keeps that true.
-        //
-        // The DEFAULTS below are still this view's own and differ from the
-        // isometric sea's (0.50 / 4.5 / 1.8). That is a real divergence - one map
-        // drawn twice with two different seas - but changing a default changes how
-        // terrain_tilemap_demo.tscn looks, which is an appearance decision rather
-        // than a consolidation, so it is left to the owner.
-        [Export(PropertyHint.Range, "0,2,0.01")] public float WaveIntensity { get; set; } = 1.0f;
-        [Export(PropertyHint.Range, "0,1,0.01")] public float FoamStrength { get; set; } = 1.0f;
-        [Export(PropertyHint.Range, "0.5,12,0.1")] public float DeepTiles { get; set; } = 6.0f;
-        [Export(PropertyHint.Range, "0,8,0.1")] public float ShallowTiles { get; set; } = 6.0f;
-        /// <summary>Tiles per sandy-seabed texture repeat, under the shallows.</summary>
-        [Export(PropertyHint.Range, "1,32,0.5")] public float GroundTextureTiles { get; set; } = 12.0f;
-        /// <summary>Tiles per animated water-texture repeat.</summary>
-        [Export(PropertyHint.Range, "1,32,0.5")] public float WaterTextureTiles { get; set; } = 6.0f;
-        [Export(PropertyHint.File, "*.png,*.webp")] public string ShallowTexturePath { get; set; } = "";
-        [Export(PropertyHint.File, "*.png,*.webp")] public string DeepTexturePath { get; set; } = "";
-        [Export(PropertyHint.File, "*.png,*.webp")] public string SandTexturePath { get; set; } = "";
-
         /// <summary>
-        /// The authored surf, as the isometric sea takes. Without it the shader
-        /// falls back to generated crests - which is a different sea from the
-        /// one the other view draws off the same coastline.
+        /// How the sea LOOKS - the thirteen dials and four textures every view of this world
+        /// shares (VIEW-04). This view used to export its own copies, defaulted differently from
+        /// the other two views, so one map drawn twice grew two seas. Unassigned, the shipped
+        /// defaults are used, which are still the same sea the other views draw.
         /// </summary>
-        [Export(PropertyHint.File, "*.png,*.webp")] public string FoamSheetPath { get; set; } = "";
-
-        // The dials that make the sheet above behave. This view set use_foam_sheet
-        // from FoamSheetPath and then set NONE of these, so an authored sheet ran on
-        // whatever the shader defaulted to while the isometric view of the same map
-        // ran the values its author tuned. The defaults here are the shader's own, so
-        // adding them changes nothing that draws today and gives this view the dial.
-        /// <summary>Tiles covered by one repeat of the foam texture ALONG the shore.</summary>
-        [Export(PropertyHint.Range, "1,48,0.5")] public float FoamTilesAlong { get; set; } = 11.0f;
-        /// <summary>Tiles covered by one repeat ACROSS the shore - short on purpose; see the painted renderer.</summary>
-        [Export(PropertyHint.Range, "0.3,8,0.1")] public float FoamTilesAcross { get; set; } = 1.6f;
-        /// <summary>How fast the authored crests advance onto the beach.</summary>
-        [Export(PropertyHint.Range, "0,4,0.01")] public float FoamScroll { get; set; } = 0.055f;
-        /// <summary>How strongly the surf pulses as crests arrive, 0 for a steady band.</summary>
-        [Export(PropertyHint.Range, "0,1,0.05")] public float FoamPulse { get; set; } = 0.34f;
-        /// <summary>How fast arriving crests follow one another.</summary>
-        [Export(PropertyHint.Range, "0,4,0.05")] public float FoamArrivalRate { get; set; } = 0.9f;
-        /// <summary>Direction the swell travels, in degrees, y-down screen space.</summary>
-        [Export(PropertyHint.Range, "0,360,1")] public float SwellDirectionDegrees { get; set; } = 210.0f;
-        /// <summary>How strongly surf favours coasts facing the swell. 0 puts surf on every shore alike.</summary>
-        [Export(PropertyHint.Range, "0,1,0.01")] public float SwellDirectionality { get; set; } = 0.65f;
+        [Export] public TerrainWaterLook? WaterLook { get; set; }
 
         private readonly List<TerrainTransitionLayerComponent> _layers = new();
         private const string BiomeDisplayMetadata = "_terrain_tile_biome_display";
@@ -171,10 +130,7 @@ namespace Beep.ECS
         private GridCellDataComponent? _cells;
         private bool _coastQueued;
         private TileMapLayer? _water;
-        private ImageTexture? _coastMap;
-        private readonly TerrainCoastField.RenderCache _renderCoast = new();
-        private readonly TerrainCoastField.LiveCache _liveCoast = new();
-        private ShaderMaterial? _waterMaterial;
+        private readonly TerrainSeaSurface _sea = new();
         /// <summary>What the current layers were built from; see Signature.</summary>
         private string _builtSignature = string.Empty;
 
@@ -284,7 +240,7 @@ namespace Beep.ECS
             if ((!CellDataPath.IsEmpty && _cells is null) || (_cells is null && _generator is null))
             {
                 ClearSurface();
-                GD.PushWarning($"[{Name}] no generator at TerrainGeneratorPath; no terrain tiles were drawn.");
+                RecordBuildFailure("no generator at TerrainGeneratorPath; no terrain tiles were drawn.");
                 return;
             }
             if (_cells is null && _generator is not null)
@@ -296,10 +252,7 @@ namespace Beep.ECS
             // nothing, but a scene loaded at runtime never sees that. Without it
             // an empty biome list is indistinguishable from an empty world.
             if (_layers.Count == 0)
-            {
-                GD.PushWarning(
-                    $"[{Name}] no biome atlas is configured, so no terrain tiles were drawn.");
-            }
+                RecordBuildFailure("no biome atlas is configured, so no terrain tiles were drawn.");
 
             foreach (TerrainTransitionLayerComponent layer in _layers)
             {
@@ -308,6 +261,8 @@ namespace Beep.ECS
             }
 
             EnsureWaterSurface();
+            if (_layers.Count > 0)
+                _paintDiagnostics = new() { ["valid"] = true, ["requested"] = BoundsSize.X * BoundsSize.Y };
         }
 
         private void RebuildLibrary()
@@ -315,14 +270,13 @@ namespace Beep.ECS
             HasRebuildAttempt = true;
             ClearRebuildQueued();
             _libraryDirty.Clear();
-            LibraryProblem = LibraryPack!.Validate(TerrainProjection.Tiles);
-            if (LibraryProblem.Length > 0) { GD.PushWarning(LibraryProblem); return; }
+            string problem = LibraryPack!.Validate(TerrainProjection.Tiles);
+            if (problem.Length > 0) { RecordBuildFailure(problem); return; }
             ResolveCells();
             ResolveGenerator();
             if ((!CellDataPath.IsEmpty && _cells is null) || (_cells is null && _generator is null))
             {
-                LibraryProblem = "Library rendering requires a valid terrain source.";
-                GD.PushWarning(LibraryProblem);
+                RecordBuildFailure("Library rendering requires a valid terrain source.");
                 return;
             }
             var display = TerrainAuthoring.EnsureLayer(this, "LibraryTerrain");
@@ -333,19 +287,32 @@ namespace Beep.ECS
             {
                 foreach (int _ in TerrainLibraryPainter.Build(display, LibraryPack,
                     new Rect2I(BoundsOrigin, BoundsSize), KindAt, cell => LibraryPack.ElevationAt(_cells, cell))) { }
-                ClearBiomeLayers();
-                _water?.Clear();
-                display.Position = Vector2.Zero;
-                display.ZIndex = TerrainLayers.ZFor(TerrainLayers.Ground);
-                display.ZAsRelative = false;
-                display.Visible = true;
-                _publishedPack = LibraryPack;
-                _publishedPackKey = LibraryPack.RenderKey();
-                _publishedPackBounds = new Rect2I(BoundsOrigin, BoundsSize);
-                LibraryCellsUpdated = BoundsSize.X * BoundsSize.Y;
-                TerrainLibraryEditSession.RestoreVisuals(this, display);
             }
-            catch (Exception error) { LibraryProblem = error.Message; GD.PushWarning(LibraryProblem); }
+            // The painter's failure for a pack that cannot draw this map.
+            catch (InvalidOperationException error)
+            {
+                RecordBuildFailure(error.Message);
+                return;
+            }
+            ClearBiomeLayers();
+            _water?.Clear();
+            display.Position = Vector2.Zero;
+            display.ZIndex = TerrainLayers.ZFor(TerrainLayers.Ground);
+            display.ZAsRelative = false;
+            display.Visible = true;
+            _publishedPack = LibraryPack;
+            _publishedPackKey = LibraryPack.RenderKey();
+            _publishedPackBounds = new Rect2I(BoundsOrigin, BoundsSize);
+            LibraryCellsUpdated = BoundsSize.X * BoundsSize.Y;
+            TerrainLibraryEditSession.RestoreVisuals(this, display);
+            _paintDiagnostics = new() { ["valid"] = true, ["requested"] = BoundsSize.X * BoundsSize.Y };
+        }
+
+        /// <summary>Records why a build did not publish; what is on screen is left as it was.</summary>
+        private void RecordBuildFailure(string reason)
+        {
+            _paintDiagnostics = new() { ["valid"] = false, ["reason"] = reason };
+            GD.PushWarning($"[{Name}] {reason}");
         }
 
         protected override void PerformQueuedRebuild()
@@ -359,8 +326,8 @@ namespace Beep.ECS
                 Rebuild();
                 return;
             }
-            LibraryProblem = LibraryPack.Validate(TerrainProjection.Tiles);
-            if (LibraryProblem.Length == 0)
+            string problem = LibraryPack.Validate(TerrainProjection.Tiles);
+            if (problem.Length == 0)
             {
                 try
                 {
@@ -368,10 +335,15 @@ namespace Beep.ECS
                         _libraryDirty, cell => GridCellRules.TerrainKindAt(_cells, cell), cell => LibraryPack.ElevationAt(_cells, cell));
                     TerrainLibraryEditSession.RestoreVisuals(this, display);
                 }
-                catch (Exception error) { LibraryProblem = error.Message; }
+                // The painter's failure for a pack that cannot draw these cells.
+                catch (InvalidOperationException error) { problem = error.Message; }
             }
             _libraryDirty.Clear();
-            if (LibraryProblem.Length > 0) { _publishedPack = null; GD.PushWarning(LibraryProblem); }
+            if (problem.Length > 0)
+            {
+                _publishedPack = null;
+                RecordBuildFailure(problem);
+            }
         }
 
         private void ApplyGroundDetail(TerrainTransitionLayerComponent layer)
@@ -409,7 +381,7 @@ namespace Beep.ECS
         {
             ClearBiomeLayers();
             _water?.Clear();
-            _coastMap = null;
+            _sea.ForgetCoast();
         }
 
         private void ClearBiomeLayers()
@@ -457,96 +429,17 @@ namespace Beep.ECS
             }
 
             Vector2I size = new(Mathf.Max(1, BoundsSize.X), Mathf.Max(1, BoundsSize.Y));
-            _coastMap = _cells is not null
-                ? _liveCoast.Resolve(_cells, BoundsOrigin, size, CoastDetail, CoastRangeTiles)
-                : TerrainCoastField.Build(_generator!, size, CoastDetail, CoastRangeTiles);
+            _sea.ResolveCoast(_cells, _generator, BoundsOrigin, size, CoastDetail, CoastRangeTiles);
 
-            _water = TerrainAuthoring.EnsureLayer(this, "TileWater");
-
-            // The sea is tiles like everything else. Every cell is filled, not
-            // just the wet ones: the shader decides where the water stops, and
-            // it needs to be able to draw the shore fade and the foam slightly
-            // INLAND of the waterline. Filling only water cells would clip both
-            // at a cell boundary and put a straight edge along every beach.
             Vector2I cell = new(Mathf.Max(1, AtlasTileSize.X), Mathf.Max(1, AtlasTileSize.Y));
-            if (_water.TileSet is null || _water.TileSet.TileSize != cell)
-                _water.TileSet = TerrainShaderSurface.BuildTileSet(cell, isometric: false);
+            _water = _sea.TileBatched(this, "TileWater", cell, size,
+                new Vector2(BoundsOrigin.X * cell.X, BoundsOrigin.Y * cell.Y), isometric: false);
 
-            TerrainShaderSurface.Fill(_water, size);
-
-            _water.Position = new Vector2(BoundsOrigin.X * cell.X, BoundsOrigin.Y * cell.Y);
-
-            // The shared sea level: over the water tiles that are its bed, and
-            // under the land. Not another biome competing for the same ground.
-            _water.ZIndex = TerrainLayers.ZFor(TerrainLayers.Sea);
-            _water.ZAsRelative = false;
-
-            _waterMaterial = BuildWaterMaterial(size);
-            _water.Material = _waterMaterial;
-        }
-
-        private ShaderMaterial? BuildWaterMaterial(Vector2I size)
-        {
-            ShaderMaterial material = _waterMaterial ?? new ShaderMaterial();
-            material.SetShaderParameter("tile_batch", true);
-            if (material.Shader is null)
-            {
-                var shader = GD.Load<Shader>(WaterShaderPath);
-                if (shader is null)
-                {
-                    GD.PushWarning(
-                        $"[{Name}] could not load water shader '{WaterShaderPath}'; there will be no sea.");
-                    return null;
-                }
-                material.Shader = shader;
-            }
-
-            // TOP-DOWN. The one thing that differs from the isometric view.
-            material.SetShaderParameter("flat_projection", 1.0f);
-
-            if (_coastMap is null)
-            {
-                GD.PushWarning(
-                    $"[{Name}] the coast field is missing; the sea will draw without shallows.");
-            }
-            else
-            {
-                material.SetShaderParameter("coast_map", _renderCoast.Resolve(_coastMap, BoundsSize, _liveCoast.CoastRevision));
-            }
-
-            // This surface's OWN uniforms - the ones iso_water.gdshader declares for
-            // a transparent sheet of water floating over seabed. They mean nothing to
-            // the painted view's opaque composite, so they stay here rather than
-            // moving into the shared block below.
-            material.SetShaderParameter(
-                "cell_size", new Vector2(AtlasTileSize.X, AtlasTileSize.Y));
-            material.SetShaderParameter("max_opacity", MaxOpacity);
-            material.SetShaderParameter("clarity_tiles", ClarityTiles);
-            material.SetShaderParameter("lake_opacity", LakeOpacity);
-            material.SetShaderParameter("shore_opacity", ShoreOpacity);
-
-            // Everything water_common.gdshaderinc declares, through its one writer.
-            TerrainWaterMaterial.Apply(material, new TerrainWaterMaterial.Settings(
-                Size: size,
-                Origin: BoundsOrigin,
-                CoastRange: CoastRangeTiles,
-                GroundTextureTiles: GroundTextureTiles,
-                WaterTextureTiles: WaterTextureTiles,
-                WaveIntensity: WaveIntensity,
-                FoamStrength: FoamStrength,
-                ShallowTiles: ShallowTiles,
-                DeepTiles: DeepTiles,
-                FoamTilesAlong: FoamTilesAlong,
-                FoamTilesAcross: FoamTilesAcross,
-                FoamScroll: FoamScroll,
-                FoamPulse: FoamPulse,
-                FoamArrivalRate: FoamArrivalRate,
-                SwellDirectionDegrees: SwellDirectionDegrees,
-                SwellDirectionality: SwellDirectionality));
-
-            TerrainWaterMaterial.ApplyTextures(
-                material, Name, ShallowTexturePath, DeepTexturePath, SandTexturePath, FoamSheetPath);
-            return material;
+            // TOP-DOWN, batched tiles: the two things that differ from the block view's quad.
+            _water.Material = _sea.BuildMaterial(
+                this, WaterShaderPath, WaterLook ?? TerrainWaterLook.Shared,
+                new TerrainSeaSurface.Sheet(MaxOpacity, ClarityTiles, LakeOpacity, ShoreOpacity),
+                BoundsOrigin, size, cell, CoastRangeTiles, flatProjection: true, tileBatch: true);
         }
 
         /// <summary>

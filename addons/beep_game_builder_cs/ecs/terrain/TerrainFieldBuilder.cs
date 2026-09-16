@@ -40,10 +40,10 @@ namespace Beep.ECS
         private const int MaxFieldSamples = 1_250_000;
 
         public static GeneratedTerrainField Build(TerrainGenerationSettings settings)
-            => BuildPrepared(settings, TerrainResourceRules.Capture(settings));
+            => BuildPrepared(settings, TerrainResourceRules.Capture(settings), TerrainStartKitRules.Capture(settings));
 
         internal static GeneratedTerrainField BuildPrepared(TerrainGenerationSettings settings,
-            TerrainResourceRules resources, CancellationToken cancellation = default,
+            TerrainResourceRules resources, TerrainStartKitRules startKit, CancellationToken cancellation = default,
             Action<string, int>? progress = null)
         {
             cancellation.ThrowIfCancellationRequested();
@@ -120,7 +120,10 @@ namespace Beep.ECS
             // about to be drained.
             Run("Feature constraints", () => TerrainScaleConstraintStage.ApplyFeatures(world, settings));
 
-            Run("Start positions", () => TerrainStartPositionStage.Apply(world, settings, cancellation));
+            Run("Start positions", () => TerrainStartPositionStage.Apply(world, settings, startKit, cancellation));
+            // Reads the chosen starts and never moves one. Returns at radius zero without
+            // allocating, so a map without start areas is built exactly as before.
+            Run("Start areas", () => TerrainStartAreaStage.Apply(world, settings, startKit, resources, cancellation));
 
             stopwatch.Stop();
             cancellation.ThrowIfCancellationRequested();
@@ -224,6 +227,16 @@ namespace Beep.ECS
                     features++;
             }
 
+            int usableAreas = 0;
+            int minAreaCells = 0, maxAreaCells = 0;
+            for (int i = 0; i < world.StartAreas.Count; i++)
+            {
+                TerrainStartAreaReport report = world.StartAreas[i];
+                if (report.Usable) usableAreas++;
+                minAreaCells = i == 0 ? report.CellCount : Mathf.Min(minAreaCells, report.CellCount);
+                maxAreaCells = Mathf.Max(maxAreaCells, report.CellCount);
+            }
+
             float total = Mathf.Max(1, world.Count);
             var diagnostics = new TerrainGenerationDiagnostics(
                 settings.TargetLandCoverage,
@@ -240,6 +253,10 @@ namespace Beep.ECS
                 undergroundCells,
                 settings.RequestedStartPositionCount,
                 world.StartPositions.Count,
+                world.StartAreas.Count,
+                usableAreas,
+                minAreaCells,
+                maxAreaCells,
                 features,
                 world.SamplesPerCell,
                 world.Width,

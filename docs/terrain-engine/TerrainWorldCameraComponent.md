@@ -9,6 +9,7 @@ Consolidates camera-framing arithmetic that, per its own header comment, used to
 - `NodePath WorldPath` `[Export]` — the `TerrainWorldComponent` this reads extent/start-position from and subscribes to `WorldBuilt` on.
 - `NodePath CameraPath` `[Export]` — the `Camera2D` made current in `_Ready`.
 - `NodePath CameraControllerPath` `[Export]` — the `GridCameraControllerComponent` actually driven (zoom, focus, bounds).
+- `NodePath StartAreaPath` `[Export]` (optional) — a `GridStartAreaComponent`. When set, `StartPosition` framing opens on that component's `ActiveStartIndex`; empty, it opens on start 0.
 - `TerrainCameraFraming Framing` `[Export]` (`WholeMap` / `StartPosition`) — which framing `OnWorldBuilt` applies after a build.
 - `float SceneZoom` `[Export(Range 0.1..4)]` — zoom used for `StartPosition` framing; `1.0` is the art's own scale.
 - `Vector2 FitMargin` `[Export]` (default `48,96`) — viewport pixels left around the map for `WholeMap` framing.
@@ -18,14 +19,15 @@ Consolidates camera-framing arithmetic that, per its own header comment, used to
 - `_GetConfigurationWarnings()` — warns if `WorldPath` or `CameraControllerPath` is empty; does **not** check `CameraPath`.
 - `_UnhandledInput(InputEvent)` — on `FrameMapKey` press, calls `FrameWholeMap()`.
 - `void FrameWholeMap()` — reads `_world.PreviewExtent()`, computes the zoom that fits `(viewport - FitMargin)` around that extent, sets it on the controller immediately, and centres the controller on the extent's midpoint.
-- `void FrameStartPosition()` — applies the world's bounds to the controller, sets zoom to `SceneZoom`, and focuses on `_world.StartPositionView()`, both immediately.
+- `void FrameStartPosition()` — applies the world's bounds to the controller, picks the start (the `StartAreaPath` component's `ActiveStartIndex`, or 0 when the path is empty), sets zoom to `SceneZoom`, and focuses on `_world.StartPositionGlobalAt(start)`, both immediately. If `StartAreaPath` is set but does not resolve to a `GridStartAreaComponent`, it pushes a warning and does not frame; it does not fall back to start 0.
 - `OnWorldBuilt(Vector2I size)` *(private, signal handler)* — dispatches to `FrameStartPosition()` or `FrameWholeMap()` per `Framing`; the `size` argument is discarded (`_ = size;`) since the extent is re-derived from the world component instead.
 - `ApplyBounds()` *(private)* — pushes `_world.PreviewExtent()` onto the controller's `BoundsPosition`/`BoundsSize` and returns it.
 - `Resolve()` *(private)* — re-resolves `_world`/`_controller` from their NodePaths whenever the cached reference is null or invalid; resolves `_camera` once via `??=` with no later validity check.
 
 ## Dependencies
 
-- Reads `TerrainWorldComponent.PreviewExtent()` and `TerrainWorldComponent.StartPositionView()` (defined in `TerrainWorldComponent.Drawing.cs`), and subscribes to `TerrainWorldComponent.WorldBuilt` (defined in `TerrainWorldComponent.cs`).
+- Reads `TerrainWorldComponent.WorldExtent()` (`PreviewExtent()` in global coordinates) and `TerrainWorldComponent.StartPositionGlobalAt(int)` (defined in `TerrainWorldComponent.Drawing.cs`), and subscribes to `TerrainWorldComponent.WorldBuilt` (defined in `TerrainWorldComponent.cs`).
+- Reads `GridStartAreaComponent.ActiveStartIndex` (`ecs/grid/GridStartAreaComponent.cs`) when `StartAreaPath` is set.
 - Writes `GridCameraControllerComponent.SetZoomLevel(...)`, `.FocusWorld(...)`, `.BoundsPosition`, `.BoundsSize` — defined in `GridCameraControllerComponent.cs`, outside this batch.
 
 ## Notes

@@ -64,6 +64,9 @@ namespace Beep.ECS
         private readonly HashSet<Vector2I> _dirty = new();
         private bool _dirtyQueued;
         private bool _hasRefreshAttempt;
+        // What the last refresh wrote, so a smaller or moved map can erase exactly that.
+        private TileMapLayer? _paintedLayer;
+        private Rect2I _paintedCells;
 
         public Vector2I EffectiveBoundsSize => new(Mathf.Max(1, BoundsSize.X), Mathf.Max(1, BoundsSize.Y));
 
@@ -177,6 +180,8 @@ namespace Beep.ECS
             }
 
             Vector2I size = EffectiveBoundsSize;
+            // A dual grid paints one more row and column than the map has.
+            ErasePaintedOutside(new Rect2I(BoundsOrigin, size + Vector2I.One));
             for (int y = 0; y <= size.Y; y++)
             {
                 for (int x = 0; x <= size.X; x++)
@@ -187,12 +192,42 @@ namespace Beep.ECS
             }
         }
 
+        /// <summary>
+        /// Erases the cells the previous refresh painted that the coming refresh will
+        /// not cover, then records the coming coverage. Only cells this layer painted
+        /// are erased: a display can also hold authored cells it does not own.
+        /// </summary>
+        private void ErasePaintedOutside(Rect2I coverage)
+        {
+            if (_displayLayer is null)
+                return;
+            if (_paintedLayer == _displayLayer && !coverage.Encloses(_paintedCells))
+            {
+                for (int y = _paintedCells.Position.Y; y < _paintedCells.End.Y; y++)
+                {
+                    for (int x = _paintedCells.Position.X; x < _paintedCells.End.X; x++)
+                    {
+                        var cell = new Vector2I(x, y);
+                        if (coverage.HasPoint(cell))
+                            continue;
+                        _displayLayer.EraseCell(cell);
+                        if (_detailDisplayLayer is not null && _detailDisplayLayer != _displayLayer)
+                            _detailDisplayLayer.EraseCell(cell);
+                    }
+                }
+            }
+            _paintedLayer = _displayLayer;
+            _paintedCells = coverage;
+        }
+
         private void RefreshUsingTileSetTerrains()
         {
             if (_displayLayer is null)
                 return;
 
             Vector2I size = EffectiveBoundsSize;
+            // Terrain matching may also rewrite the ring of neighbours around the bounds.
+            ErasePaintedOutside(new Rect2I(BoundsOrigin, size).Grow(1));
             var cells = new Godot.Collections.Array<Vector2I>();
             for (int y = 0; y < size.Y; y++)
             {

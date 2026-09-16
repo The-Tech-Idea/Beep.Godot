@@ -43,6 +43,12 @@ namespace Beep.ECS
         [Export] public bool TreatCellDataBlockedAsUnplaceable { get; set; } = true;
         [Export] public bool TreatBlockedTerrainKindsAsUnplaceable { get; set; } = true;
         [Export] public bool RequireLevelFootprint { get; set; } = true;
+        /// <summary>
+        /// Refuse a footprint with any cell outside the active player's generated start area
+        /// (reason <c>outside_start_area</c>). Needs <see cref="StartAreaPath"/>.
+        /// </summary>
+        [Export] public bool RestrictBuildToStartArea { get; set; }
+        [Export] public NodePath StartAreaPath { get; set; } = new("");
         [Export] public Godot.Collections.Array<string> BlockedTerrainKinds { get; set; }
             = GridTerrainRules.DefaultBlockedTerrainKinds();
         [Export] public Godot.Collections.Array<string> AllowedTerrainKinds { get; set; } = new();
@@ -63,6 +69,12 @@ namespace Beep.ECS
         private GridResourceWalletComponent? _resourceWallet;
         private GridCellDataComponent? _cellData;
         private GridNavigationComponent? _navigation;
+        private GridStartAreaComponent? _startArea;
+        private bool _warnedWithoutStartAreas;
+
+        /// <summary>How many times the unreserved-map warning was raised. Instrumentation, so a
+        /// guard can prove WhyNot says it ONCE rather than on every mouse move.</summary>
+        public int StartAreaWarnings { get; private set; }
         private Node2D? _preview;
         private PackedScene? _activeScene;
         private string _activeId = "";
@@ -138,6 +150,9 @@ namespace Beep.ECS
 
             if (Footprint.X <= 0 || Footprint.Y <= 0)
                 return new[] { "Footprint must be at least 1x1." };
+
+            if (RestrictBuildToStartArea && StartAreaPath.IsEmpty)
+                return new[] { "RestrictBuildToStartArea needs StartAreaPath to point to a GridStartAreaComponent." };
 
             return System.Array.Empty<string>();
         }
@@ -350,10 +365,26 @@ namespace Beep.ECS
             if (_grid is null || anchorCell.X == int.MinValue || anchorCell.Y == int.MinValue
                 || (!CellDataPath.IsEmpty && _cellData is null)
                 || (!NavigationPath.IsEmpty && _navigation is null)
-                || (!PlacementRootPath.IsEmpty && _placementRoot is null))
+                || (!PlacementRootPath.IsEmpty && _placementRoot is null)
+                || (RestrictBuildToStartArea && _startArea?.HasCells != true))
                 return "not_ready";
 
             int anchorLevel = ReliefAt(anchorCell);
+            // A map with no reservations at all - generated without start areas, or a native map
+            // published without the gameplay baseline - has nothing to be outside of, so the
+            // restriction is inert there rather than refusing every cell on the map. Said once:
+            // it is a property of the map, and WhyNot runs on every mouse move.
+            int activeStart = -1;
+            if (RestrictBuildToStartArea)
+            {
+                if (_startArea!.HasAreas) activeStart = _startArea.ActiveStartIndex;
+                else if (!_warnedWithoutStartAreas)
+                {
+                    _warnedWithoutStartAreas = true;
+                    StartAreaWarnings++;
+                    GD.PushWarning($"[{Name}] RestrictBuildToStartArea is on, but this map reserves no start areas; builds are not restricted.");
+                }
+            }
 
             foreach (Vector2I cell in GridFootprint.Cells(anchorCell, EffectiveFootprint))
             {
@@ -362,6 +393,10 @@ namespace Beep.ECS
 
                 if (!_grid.CellToWorld(cell).IsFinite())
                     return "off_grid";
+
+                // The generated reservation, not ownership: territory is a live fact of its own.
+                if (activeStart >= 0 && !_startArea!.IsInArea(cell, activeStart))
+                    return "outside_start_area";
 
                 if (RequireLevelFootprint && ReliefAt(cell) != anchorLevel)
                     return "not_level";
@@ -425,6 +460,7 @@ namespace Beep.ECS
             EntityComponent.ResolveLive(this, ResourceWalletPath, ref _resourceWallet);
             EntityComponent.ResolveLive(this, CellDataPath, ref _cellData);
             EntityComponent.ResolveLive(this, NavigationPath, ref _navigation);
+            EntityComponent.ResolveLive(this, StartAreaPath, ref _startArea);
         }
 
 

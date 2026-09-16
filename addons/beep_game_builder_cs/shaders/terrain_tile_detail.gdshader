@@ -1,5 +1,7 @@
 shader_type canvas_item;
-render_mode unshaded;
+// No `render_mode unshaded`: Godot skips the scene's CanvasModulate for an
+// unshaded item, so the tile view's ground stayed noon-bright under day/night,
+// weather and seasons while everything standing on it darkened.
 
 uniform sampler2D ground_texture : source_color, repeat_enable, filter_linear_mipmap;
 uniform vec2 cell_size = vec2(64.0);

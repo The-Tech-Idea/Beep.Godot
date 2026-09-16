@@ -18,13 +18,15 @@ public partial class TerrainGenerationBaselineSmoke : Node
     // A world a game would ask for: the axes go through ApplyMapSetup, and the
     // dials that gate whole stages are on so every stage is in the hash. The
     // generator's own defaults leave coherence, scale rules and lake shores off.
-    private static TerrainGenerationSettings Settings(Vector2I size, int seed, int shape)
+    private static TerrainGenerationSettings Settings(Vector2I size, int seed, int shape,
+        int startAreaRadius = 0, TerrainStartKit? kit = null)
     {
         var generator = new TerrainGeneratorComponent
         {
             BoundsSize = size, Seed = seed,
             UseClimateBiomeMaps = true, UseScaleRules = true,
             BiomeCoherencePasses = 2, LakeShoreWidth = 0.5f,
+            StartAreaRadius = startAreaRadius, StartKit = kit,
         };
         try
         {
@@ -36,8 +38,22 @@ public partial class TerrainGenerationBaselineSmoke : Node
 
     /// <summary>SHA-256 per published layer, keyed by layer name.</summary>
     public Godot.Collections.Dictionary Snapshot(Vector2I size, int seed, int shape)
+        => SnapshotOf(size, TerrainFieldBuilder.Build(Settings(size, seed, shape)));
+
+    /// <summary>
+    /// The same fingerprint with FEAT-09 start areas on: radius 8 and the default kit plus two
+    /// entries - two wheat within 2..6 cells, critical, and one stone within 3..8 cells.
+    /// </summary>
+    public Godot.Collections.Dictionary SnapshotWithStartAreas(Vector2I size, int seed, int shape)
     {
-        GeneratedTerrainField field = TerrainFieldBuilder.Build(Settings(size, seed, shape));
+        var kit = new TerrainStartKit();
+        kit.Entries.Add(new TerrainStartKitEntry { ResourceId = "wheat", Count = 2, MinDistance = 2, MaxDistance = 6, Critical = true });
+        kit.Entries.Add(new TerrainStartKitEntry { ResourceId = "stone", Count = 1, MinDistance = 3, MaxDistance = 8 });
+        return SnapshotOf(size, TerrainFieldBuilder.Build(Settings(size, seed, shape, 8, kit)));
+    }
+
+    private static Godot.Collections.Dictionary SnapshotOf(Vector2I size, GeneratedTerrainField field)
+    {
         int samples = field.Diagnostics.SamplesPerCell;
         var layers = new Godot.Collections.Dictionary();
 
@@ -67,6 +83,25 @@ public partial class TerrainGenerationBaselineSmoke : Node
             Single(starts, field.LakeShoreWidth);
             layers["starts_and_shores"] = Convert.ToHexString(starts.GetHashAndReset());
         }
+
+        // FEAT-09. Without start areas both layers hash an all-zero area and no reports, so
+        // every case recorded before the feature keeps each of its earlier layers byte-identical.
+        layers["start_area"] = Cells(size, (h, c) => Int(h, field.StartAreaAtCell(c)));
+        using (IncrementalHash reports = IncrementalHash.CreateHash(HashAlgorithmName.SHA256))
+        {
+            foreach (TerrainStartAreaReport report in field.StartAreas)
+            {
+                Int(reports, report.Index); Int(reports, report.Origin.X); Int(reports, report.Origin.Y);
+                Int(reports, report.CellCount); Int(reports, report.Exits);
+                foreach (TerrainStartAreaPlacement placement in report.Placements)
+                {
+                    Text(reports, placement.ResourceId);
+                    Int(reports, placement.Cell.X); Int(reports, placement.Cell.Y); Int(reports, placement.Relaxation);
+                }
+                foreach (string problem in report.Problems) Text(reports, problem);
+            }
+            layers["start_reports"] = Convert.ToHexString(reports.GetHashAndReset());
+        }
         return layers;
     }
 
@@ -78,7 +113,8 @@ public partial class TerrainGenerationBaselineSmoke : Node
     {
         TerrainGenerationSettings settings = Settings(size, seed, shape);
         TerrainResourceRules resources = TerrainResourceRules.Capture(settings);
-        TerrainGenerationSettings detached = settings with { ResourceCatalog = null };
+        TerrainStartKitRules startKit = TerrainStartKitRules.Capture(settings);
+        TerrainGenerationSettings detached = settings with { ResourceCatalog = null, StartKit = null };
         var stages = new Dictionary<string, long>();
         string stage = "Buffer";
         long start = GC.GetAllocatedBytesForCurrentThread();
@@ -90,7 +126,7 @@ public partial class TerrainGenerationBaselineSmoke : Node
             stage = next;
             mark = now;
         }
-        GeneratedTerrainField field = TerrainFieldBuilder.BuildPrepared(detached, resources, default, Progress);
+        GeneratedTerrainField field = TerrainFieldBuilder.BuildPrepared(detached, resources, startKit, default, Progress);
         long end = GC.GetAllocatedBytesForCurrentThread();
         stages[stage] = stages.GetValueOrDefault(stage) + (end - mark);
         GC.KeepAlive(field);

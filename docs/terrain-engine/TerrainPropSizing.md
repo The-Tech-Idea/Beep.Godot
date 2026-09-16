@@ -43,7 +43,8 @@ terrain, change cell records, move logical anchors or alter navigation.
 
 `terrain_prop_sizing_probe.gd` checks transparent padding, finite bounds, measured flat/tile/
 isometric sprite extents, shared-resource edits and unchanged live cells. The isometric
-autotile view currently has no feature renderer; this does not claim otherwise.
+autotile view draws the flat feature and relief renderers on its diamond cells (VIEW-01). Their
+sprites are sized from the grid's cell corners, a path this probe does not measure separately.
 `terrain_art_styles_probe.gd` checks original/pixel/cartoon switches, extreme jitter and
 pixel-identical restoration of the original presentation within the updated sizing policy.
 These checks establish consistent dimensions, not completion of visual art direction.

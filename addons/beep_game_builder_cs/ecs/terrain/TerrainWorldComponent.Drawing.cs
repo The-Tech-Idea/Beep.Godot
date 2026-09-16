@@ -21,10 +21,14 @@ namespace Beep.ECS
         /// this method is not "left alone" - it is left to whatever the last
         /// projection happened to do to it.
         ///
-        /// The flat projections share the top-down feature renderer and the map
-        /// overlay, because both stamp on the square grid; the isometric view has
-        /// its own feature renderer drawing the same vegetation in its own
-        /// projection.
+        /// Every view the gameplay grid is bound to - Painted, Tiles and
+        /// IsometricAutotile - shares the companions: vegetation, relief props,
+        /// resource icons and the map overlay. They place and size every stamp
+        /// through the grid's CellToWorld/CellCorners, so they stand on a square
+        /// cell or a diamond alike. Only the block view has its own feature
+        /// renderer, because its props stand on a stacked surface rather than on
+        /// the grid. Gating the companions on "flat" left IsometricAutotile a
+        /// bare map with no trees, rocks, resources or start markers.
         /// </summary>
         private TerrainDataLayersComponent? _drawnDataLayers;
         private TerrainGeneratorComponent? _drawnDataGenerator;
@@ -33,10 +37,18 @@ namespace Beep.ECS
         {
             RefreshStructureVisibility();
             bool propsFollowSurface = _iso is not null && _isometricFeatures?.FollowsSurface(_iso) == true;
-            bool flat = Projection is not (TerrainProjection.Isometric or TerrainProjection.IsometricAutotile);
+            // The companions are drawn wherever the grid binds a native layer - see
+            // BindGameplayGrid. The block view binds its own elevated surface instead.
+            bool gridBound = Projection is not TerrainProjection.Isometric;
             if (_features is not null) _features.PropSizing = PropSizing;
             if (_relief is not null) _relief.PropSizing = PropSizing;
             if (_isometricFeatures is not null) _isometricFeatures.PropSizing = PropSizing;
+            // One sea for the world, pushed exactly as PropSizing is: the views that draw water
+            // read the same dials, so switching view cannot change the ocean (VIEW-04).
+            if (_painted is not null) _painted.WaterLook = WaterLook;
+            if (_tiles is not null) _tiles.WaterLook = WaterLook;
+            if (_iso is not null) _iso.WaterLook = WaterLook;
+            if (_isometricAutotile is not null) _isometricAutotile.WaterLook = WaterLook;
             if (_painted is not null) _painted.MapArt = MapArt;
             if (_features is not null) _features.MapArt = Projection == TerrainProjection.Painted ? MapArt : null;
             if (_relief is not null) _relief.MapArt = Projection == TerrainProjection.Painted ? MapArt : null;
@@ -49,18 +61,13 @@ namespace Beep.ECS
                 _isometricFeatures.Visible = Projection == TerrainProjection.Isometric;
             }
 
-            // The tile size of whichever FLAT renderer is actually visible right
-            // now, not always the painted one. Gating this on _painted alone left
-            // a Tiles- or Isometric-only scene - one that never wires a painted
-            // renderer - with its data-layer and overlay TileSize stuck on
-            // whatever default they started at, unchecked against the renderer
-            // actually on screen.
-            int? flatTileSize = Projection switch
-            {
-                TerrainProjection.Painted => _painted?.TileSize,
-                TerrainProjection.Tiles => _tiles is not null ? Mathf.Max(1, _tiles.AtlasTileSize.X) : null,
-                _ => null,
-            };
+            // No tile size is owned here. Each surface owns its cell geometry, the
+            // gameplay grid reports it (GridProjectionComponent.EffectiveTileSize,
+            // CellToWorld, CellCorners), and the companions place and size through
+            // the grid. This method used to derive a flat size from whichever
+            // renderer was active and copy it into the data layers - whose TileSize
+            // is their own metadata atlas size, not a view fact - and into four
+            // companion exports, keeping five copies in step with the surface.
 
             // Cell data first, and for EVERY projection. It is what a game reads,
             // so it must not depend on which view happens to be drawn - that is
@@ -72,13 +79,10 @@ namespace Beep.ECS
                     || _drawnDataGenerator != _generator
                     || _dataLayers.TerrainGeneratorPath.ToString() != dataGeneratorPath.ToString()
                     || _dataLayers.BoundsOrigin != (_generator?.BoundsOrigin ?? Vector2I.Zero)
-                    || _dataLayers.BoundsSize != size
-                    || (flatTileSize.HasValue && _dataLayers.TileSize != flatTileSize.Value);
+                    || _dataLayers.BoundsSize != size;
                 _dataLayers.BoundsSize = size;
                 _dataLayers.BoundsOrigin = _generator?.BoundsOrigin ?? Vector2I.Zero;
                 _dataLayers.TerrainGeneratorPath = dataGeneratorPath;
-                if (flatTileSize is { } dataTileSize)
-                    _dataLayers.TileSize = dataTileSize;
                 if (dataChanged)
                 {
                     _dataLayers.Rebuild();
@@ -102,7 +106,7 @@ namespace Beep.ECS
                 _features.Seed = Mathf.Max(0, Seed);
                 _features.BoundsSize = size;
                 _features.BoundsOrigin = _generator?.BoundsOrigin ?? Vector2I.Zero;
-                _features.Visible = flat;
+                _features.Visible = gridBound;
             }
 
             if (_tiles is not null)
@@ -153,31 +157,30 @@ namespace Beep.ECS
                 }
             }
 
-            // Relief objects and resource icons are stamped on the square grid,
-            // so they belong to the flat projections for the same reason the
-            // top-down feature renderer does.
+            // Relief objects, resource icons and the overlay are stamped through
+            // the grid binding, so they follow the same rule as the feature
+            // renderer above. The block view is the exception: its relief is the
+            // blocks themselves, and an overlay there would sit on the flat grid
+            // beneath a raised surface.
             if (_relief is not null)
             {
                 _relief.BoundsSize = size;
                 _relief.BoundsOrigin = _generator?.BoundsOrigin ?? Vector2I.Zero;
-                _relief.Visible = flat;
+                _relief.Visible = gridBound;
             }
 
             if (_resources is not null)
             {
                 _resources.BoundsSize = size;
                 _resources.BoundsOrigin = _generator?.BoundsOrigin ?? Vector2I.Zero;
-                _resources.Visible = flat;
+                _resources.Visible = gridBound;
             }
 
-            // The flat overlay is drawn on the square tile grid, so it lines up
-            // with the flat projections only. Left on for the isometric view it
-            // would sit over the map in the wrong projection.
             if (_overlay is not null)
             {
                 _overlay.BoundsSize = size;
                 _overlay.BoundsOrigin = _generator?.BoundsOrigin ?? Vector2I.Zero;
-                _overlay.Visible = flat;
+                _overlay.Visible = gridBound;
             }
 
             var grid = BindGameplayGrid(size);
@@ -192,41 +195,62 @@ namespace Beep.ECS
                 if (queueCollision) collision.RequestRebuild();
                 else collision.Rebuild();
             }
-            if (_features is not null && flat)
+            if (_features is not null && gridBound)
             {
                 _features.BoundsSize = size;
                 _features.BoundsOrigin = _generator?.BoundsOrigin ?? Vector2I.Zero;
                 _features.GridPath = GridPathFrom(_features);
-                if (flatTileSize is { } featureTileSize) _features.TileSize = featureTileSize;
                 _features.Rebuild();
             }
-            if (_resources is not null && flat)
+            if (_resources is not null && gridBound)
             {
                 _resources.BoundsSize = size;
                 _resources.BoundsOrigin = _generator?.BoundsOrigin ?? Vector2I.Zero;
                 _resources.GridPath = GridPathFrom(_resources);
-                if (flatTileSize is { } resourceTileSize) _resources.TileSize = resourceTileSize;
                 _resources.Rebuild();
             }
-            if (_overlay is not null && flat)
+            if (_overlay is not null && gridBound)
             {
                 _overlay.BoundsSize = size;
                 _overlay.BoundsOrigin = _generator?.BoundsOrigin ?? Vector2I.Zero;
                 _overlay.GridPath = GridPathFrom(_overlay);
-                if (flatTileSize is { } overlayTileSize)
-                    _overlay.TileSize = overlayTileSize;
                 _overlay.Rebuild();
             }
+            // After the grid is bound: a marker's position comes from the grid's own geometry.
+            if (!SpawnsPath.IsEmpty) EmitSpawnMarkers(grid);
+
             // Bind the new projection before relief queries gameplay cell positions.
-            if (_relief is not null && flat)
+            if (_relief is not null && gridBound)
             {
                 _relief.BoundsSize = size;
                 _relief.BoundsOrigin = _generator?.BoundsOrigin ?? Vector2I.Zero;
                 _relief.Seed = Mathf.Max(0, Seed);
                 _relief.GridPath = GridPathFrom(_relief);
-                if (flatTileSize is { } reliefTileSize) _relief.TileSize = reliefTileSize;
                 _relief.Rebuild();
             }
+        }
+
+        /// <summary>
+        /// Publishes this world's starts as scene nodes under SpawnsPath. Rewritten on every
+        /// draw, because the starts belong to the world that was last built: a map redrawn after
+        /// a new world must not keep the previous one's markers.
+        /// </summary>
+        private void EmitSpawnMarkers(GridProjectionComponent? grid)
+        {
+            if (GetNodeOrNull<Node2D>(SpawnsPath) is not { } spawns)
+            {
+                GD.PushWarning($"[{Name}] SpawnsPath '{SpawnsPath}' is not a Node2D; no start markers were written.");
+                return;
+            }
+            if (_generator is null || grid is null)
+            {
+                // Nothing to publish, and nothing to publish it against: leave whatever is there
+                // rather than clearing an authored map's own markers.
+                GD.PushWarning($"[{Name}] start markers need a generator and a gameplay grid; none were written.");
+                return;
+            }
+
+            TerrainSpawnMarkers.Emit(spawns, _generator.ResolveField().StartAreas, grid, _generator.BoundsOrigin);
         }
 
         private GridProjectionComponent? BindGameplayGrid(Vector2I size)
@@ -250,13 +274,9 @@ namespace Beep.ECS
             }
             else
             {
-                TileMapLayer? layer = Projection switch
-                {
-                    TerrainProjection.Painted => _painted?.GetTerrainLayer(),
-                    TerrainProjection.Tiles => _tiles?.GetTerrainLayer(),
-                    TerrainProjection.IsometricAutotile => _isometricAutotile?.GetTerrainLayer(),
-                    _ => null
-                };
+                TileMapLayer? layer = Projection == TerrainProjection.IsometricAutotile
+                    ? _isometricAutotile?.GetTerrainLayer()
+                    : FlatTerrainLayer();
                 // An explicitly unavailable view must not silently use the manual grid.
                 grid.TileMapLayerPath = layer is null ? GetPath() : grid.GetPathTo(layer);
             }
@@ -276,14 +296,25 @@ namespace Beep.ECS
         /// Falls back to the middle of the map only when the generator produced
         /// no start position at all.
         /// </summary>
-        public Vector2 StartPositionView()
+        public Vector2 StartPositionView() => StartPositionViewAt(0);
+
+        /// <summary>
+        /// Where start <paramref name="index"/> begins, in the coordinates the renderers draw
+        /// in - start k of the generator's order, the same k GridStartAreaComponent and the
+        /// cells' terrain_start_area name. A map with no starts answers the middle of the map,
+        /// as above; an index past the last start warns and answers the same, because a camera
+        /// sent to a start that does not exist has nowhere truer to look.
+        /// </summary>
+        public Vector2 StartPositionViewAt(int index)
         {
             Resolve();
             if (_generator is null)
                 return Vector2.Zero;
 
             Godot.Collections.Array<Vector2I> starts = _generator.GetStartPositions();
-            Vector2I cell = starts.Count > 0 ? starts[0] : BuiltSize / 2;
+            if (starts.Count > 0 && (index < 0 || index >= starts.Count))
+                GD.PushWarning($"[{Name}] start {index} does not exist - the map has {starts.Count}; showing the middle of the map.");
+            Vector2I cell = index >= 0 && index < starts.Count ? starts[index] : BuiltSize / 2;
 
             if (Projection == TerrainProjection.Isometric && _iso is not null)
                 return _iso.Transform * _iso.SurfacePosition(_iso.BoundsOrigin + cell);
@@ -291,9 +322,11 @@ namespace Beep.ECS
             if (Projection == TerrainProjection.IsometricAutotile && _isometricAutotile is not null)
                 return _isometricAutotile.Transform * _isometricAutotile.CellPosition(_isometricAutotile.BoundsOrigin + cell);
 
-            Vector2 tile = FlatViewTileSize();
-            cell += _generator.BoundsOrigin;
-            return RendererTransform() * new Vector2((cell.X + 0.5f) * tile.X, (cell.Y + 0.5f) * tile.Y);
+            // A flat view's cell centre is its logical layer's, the geometry the grid binds.
+            // A projection whose renderer is not wired has no position to give.
+            if (FlatTerrainLayer() is not { } layer)
+                return Vector2.Zero;
+            return RendererTransform() * (layer.Transform * layer.MapToLocal(_generator.BoundsOrigin + cell));
         }
 
         /// <summary>
@@ -321,15 +354,28 @@ namespace Beep.ECS
                 return _iso.Transform * _iso.SurfaceExtent;
             }
 
-            Vector2 tile = FlatViewTileSize();
-            return RendererTransform() * new Rect2(
-                new Vector2((_generator?.BoundsOrigin.X ?? 0) * tile.X, (_generator?.BoundsOrigin.Y ?? 0) * tile.Y),
-                new Vector2(Mathf.Max(1, size.X * tile.X), Mathf.Max(1, size.Y * tile.Y)));
+            // A projection whose renderer is not wired draws nothing, so it has no extent.
+            if (FlatTerrainLayer() is not { TileSet: { } tiles } layer)
+                return new Rect2();
+            Vector2 tile = tiles.TileSize;
+            Vector2I origin = _generator?.BoundsOrigin ?? Vector2I.Zero;
+            return RendererTransform() * (layer.Transform * new Rect2(
+                new Vector2(origin.X * tile.X, origin.Y * tile.Y),
+                new Vector2(Mathf.Max(1, size.X * tile.X), Mathf.Max(1, size.Y * tile.Y))));
         }
 
-        private Vector2 FlatViewTileSize() => Projection == TerrainProjection.Tiles && _tiles is not null
-            ? new Vector2(Mathf.Max(1, _tiles.AtlasTileSize.X), Mathf.Max(1, _tiles.AtlasTileSize.Y))
-            : Vector2.One * Mathf.Max(1, _painted?.TileSize ?? 64);
+        /// <summary>
+        /// The square logical layer of the active flat view - the surface's own statement of its
+        /// cell size, which the gameplay grid binds. Null when the projection is not flat or its
+        /// renderer is not wired. This replaced a private re-derivation that fell back to the
+        /// painted renderer's size, or 64, for a view that was not the one on screen.
+        /// </summary>
+        private TileMapLayer? FlatTerrainLayer() => Projection switch
+        {
+            TerrainProjection.Painted => _painted?.GetTerrainLayer(),
+            TerrainProjection.Tiles => _tiles?.GetTerrainLayer(),
+            _ => null
+        };
 
         private Node2D? ActiveRenderer() => Projection switch
         {
@@ -351,9 +397,12 @@ namespace Beep.ECS
                 : renderer.GlobalTransform * renderer.Transform.AffineInverse();
         }
 
-        public Vector2 StartPositionGlobal()
+        public Vector2 StartPositionGlobal() => StartPositionGlobalAt(0);
+
+        /// <summary>Start <paramref name="index"/> in global coordinates, for a camera. See StartPositionViewAt.</summary>
+        public Vector2 StartPositionGlobalAt(int index)
         {
-            Vector2 position = StartPositionView();
+            Vector2 position = StartPositionViewAt(index);
             return ViewToGlobalTransform() * position;
         }
 

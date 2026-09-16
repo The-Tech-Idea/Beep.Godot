@@ -113,7 +113,7 @@ namespace Beep.ECS
         private TerrainRelief[]? _cellRelief;
         private float[]? _cellElevation, _cellShade, _cellUndergroundRichness;
         private int[]? _cellContinent;
-        private byte[]? _cellUndergroundDepth;
+        private byte[]? _cellUndergroundDepth, _cellStartArea;
         private int[]? _intScratchA, _intScratchB;
         private float[]? _floatScratchA, _floatScratchB;
         private bool[]? _boolScratch;
@@ -254,6 +254,18 @@ namespace Beep.ECS
 
         /// <summary>Fair player start tiles, in gameplay cell coordinates.</summary>
         public List<Vector2I> StartPositions { get; }
+
+        /// <summary>
+        /// Which start's reserved area a tile belongs to: 0 none, k+1 start k. Allocated only
+        /// by the start-area stage, so a map without start areas carries no array at all.
+        /// </summary>
+        public byte[] CellStartArea => CellValues(ref _cellStartArea);
+
+        /// <summary>The start-area array when the stage allocated it, else null.</summary>
+        internal byte[]? CellStartAreaIfGenerated => _cellStartArea;
+
+        /// <summary>One report per start position when start areas were generated, in start order.</summary>
+        public List<TerrainStartAreaReport> StartAreas { get; } = new();
 
         // The gameplay-resolution view of the world. These are the authoritative
         // outputs: one value per tile, which is what a game actually moves,

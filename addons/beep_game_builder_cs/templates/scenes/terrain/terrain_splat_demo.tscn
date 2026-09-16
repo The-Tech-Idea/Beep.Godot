@@ -1,6 +1,7 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=14 format=3]
 
 [ext_resource type="Resource" path="res://addons/beep_game_builder_cs/textures/terrain/painted_ground_tiling.tres" id="material_tiling"]
+[ext_resource type="Resource" path="res://addons/beep_game_builder_cs/textures/terrain/terrain_water_look.tres" id="water_look"]
 
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainWorldComponent.cs" id="world_builder"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainWorldCameraComponent.cs" id="world_camera"]
@@ -12,6 +13,7 @@
 [ext_resource type="PackedScene" path="res://addons/beep_game_builder_cs/templates/scenes/terrain/terrain_rock_objects.tscn" id="relief"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainResourceRendererComponent.cs" id="resources"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridCameraControllerComponent.cs" id="camera_controller"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/grid/GridProjectionComponent.cs" id="grid"]
 
 [node name="TerrainSplatDemo" type="Node2D"]
 
@@ -52,14 +54,10 @@ StartPositionCount = 6
 
 [node name="Splat" type="Node2D" parent="World"]
 script = ExtResource("splat")
-FoamSheetPath = "res://addons/beep_game_builder_cs/textures/water/surf_foam_streaks.png"
-WaveIntensity = 1.0
 RefreshOnReady = false
 TerrainGeneratorPath = NodePath("../TerrainGenerator")
 BoundsSize = Vector2i(96, 60)
 TileSize = 64
-GroundTextureTiles = 12.0
-WaterTextureTiles = 6.0
 BlendWidth = 0.42
 EdgeNoise = 0.55
 NoiseScale = 5.0
@@ -116,6 +114,11 @@ BoundsSize = Vector2i(96, 60)
 TileSize = 64
 IconScale = 0.5
 
+[node name="Grid" type="Node2D" parent="World"]
+script = ExtResource("grid")
+DrawGrid = false
+TrackMouseCell = false
+
 [node name="Camera" type="Camera2D" parent="."]
 
 [node name="CameraController" type="Node" parent="Camera"]
@@ -151,10 +154,12 @@ text = "Mouse wheel: zoom  |  Middle-drag: pan  |  WASD / arrows: pan  |  R: res
 [node name="WorldBuilder" type="Node" parent="."]
 script = ExtResource("world_builder")
 GeneratorPath = NodePath("../World/TerrainGenerator")
+GridPath = NodePath("../World/Grid")
 PaintedRendererPath = NodePath("../World/Splat")
 FeaturesPath = NodePath("../World/Features")
 ReliefRendererPath = NodePath("../World/Relief")
 ResourceRendererPath = NodePath("../World/Resources")
+WaterLook = ExtResource("water_look")
 MapType = 0
 MapSize = 3
 Seed = 31415

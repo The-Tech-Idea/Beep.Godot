@@ -237,9 +237,69 @@ namespace Beep.ECS
             return System.Array.Empty<string>();
         }
 
-        public Vector2 EffectiveTileSize => new(
+        /// <summary>
+        /// The size of one cell in this grid's local units, answered by the surface that owns
+        /// cell geometry: a bound elevated surface's CellSize, else a bound native layer's
+        /// TileSet.TileSize, each carried through that surface's transform relative to this grid
+        /// so a scaled surface reports the size it draws. The TileSize export answers only for an
+        /// unbound grid - it is the no-binding value, not a second opinion. A binding that does
+        /// not resolve has no geometry and reports zero, the way CellToWorld reports NaN.
+        ///
+        /// This used to return the export whatever was bound, while CellToWorld on the same
+        /// component answered from the layer, so a grid bound to a 96x48 layer placed props at
+        /// 96x48 and measured their detail cutoff at the export's 64x64.
+        /// </summary>
+        public Vector2 EffectiveTileSize
+        {
+            get
+            {
+                if (!ElevatedTerrainPath.IsEmpty)
+                    return ElevatedTerrain is { } terrain ? SurfaceCellSize(terrain, terrain.CellSize) : Vector2.Zero;
+                if (!TileMapLayerPath.IsEmpty)
+                    return NativeLayer is { TileSet: { } tiles } layer ? SurfaceCellSize(layer, tiles.TileSize) : Vector2.Zero;
+                return ManualTileSize;
+            }
+        }
+
+        /// <summary>The TileSize export, bounded: the geometry of an unbound grid only.</summary>
+        private Vector2 ManualTileSize => new(
             Mathf.Max(1f, float.IsFinite(TileSize.X) ? Mathf.Abs(TileSize.X) : 64f),
             Mathf.Max(1f, float.IsFinite(TileSize.Y) ? Mathf.Abs(TileSize.Y) : 64f));
+
+        private Vector2 SurfaceCellSize(Node2D surface, Vector2 size)
+        {
+            // Outside the tree there is no global transform to relate; the surface's own size is all there is.
+            if (!IsInsideTree() || !surface.IsInsideTree()) return size.Abs();
+            Transform2D relative = GlobalTransform.AffineInverse() * surface.GlobalTransform;
+            return new Vector2((relative.X * size.X).Length(), (relative.Y * size.Y).Length());
+        }
+
+        /// <summary>
+        /// Whether a TileSet's cells tile the plane as affine runs of one quadrilateral, so any
+        /// rectangular block of cells has an exact four-vertex outline taken from its corner
+        /// cells' corners: top-left of the first, then the matching corner of the last cell
+        /// along each axis. True for square TileSets (their layout and offset axis only apply
+        /// to half-offset shapes) and for diamond-down, horizontal-offset isometric ones, the
+        /// two layouts TerrainTileSets.Create produces. Stacked, staired and diamond-right
+        /// isometric layouts are not.
+        ///
+        /// ONE rule, read by both consumers that need it: terrain collision merges same-class
+        /// cell runs into one shape on it, and surface streaming draws one quad per chunk on it.
+        /// </summary>
+        public static bool HasAffineCellRuns(TileSet tiles)
+            => tiles.TileShape == TileSet.TileShapeEnum.Square
+                || tiles is { TileShape: TileSet.TileShapeEnum.Isometric, TileLayout: TileSet.TileLayoutEnum.DiamondDown,
+                    TileOffsetAxis: TileSet.TileOffsetAxisEnum.Horizontal };
+
+        /// <summary>
+        /// Whether this grid's cells form affine runs (see <see cref="HasAffineCellRuns"/>):
+        /// an unbound grid does in either manual projection, a bound native layer does when its
+        /// TileSet does, and an elevated surface never does - neighbouring cells stand at
+        /// different heights, so a run of them has no single flat outline.
+        /// </summary>
+        public bool CellsFormAffineRuns
+            => ElevatedTerrainPath.IsEmpty
+                && (TileMapLayerPath.IsEmpty || NativeLayer?.TileSet is { } tiles && HasAffineCellRuns(tiles));
 
         public Vector2 EffectiveOrigin => new(
             float.IsFinite(Origin.X) ? Origin.X : 0f,
@@ -392,7 +452,7 @@ namespace Beep.ECS
         private Vector2 CellToLocal(Vector2I cell)
         {
             Vector2 origin = EffectiveOrigin;
-            Vector2 tileSize = EffectiveTileSize;
+            Vector2 tileSize = ManualTileSize;
             return Projection == GridProjection.Isometric
                 ? origin + new Vector2((cell.X - cell.Y) * HalfWidth, (cell.X + cell.Y) * HalfHeight)
                 : origin + new Vector2((cell.X + 0.5f) * tileSize.X, (cell.Y + 0.5f) * tileSize.Y);
@@ -404,7 +464,7 @@ namespace Beep.ECS
                 return InvalidCell;
 
             Vector2 origin = EffectiveOrigin;
-            Vector2 tileSize = EffectiveTileSize;
+            Vector2 tileSize = ManualTileSize;
             Vector2 p = localPosition - origin;
             if (Projection == GridProjection.TopDown)
             {
@@ -445,7 +505,7 @@ namespace Beep.ECS
 
         private void TopDownCellCorners(Vector2I cell, System.Span<Vector2> corners)
         {
-            Vector2 tileSize = EffectiveTileSize;
+            Vector2 tileSize = ManualTileSize;
             Vector2 topLeft = EffectiveOrigin + new Vector2(cell.X * tileSize.X, cell.Y * tileSize.Y);
             corners[0] = topLeft;
             corners[1] = topLeft + new Vector2(tileSize.X, 0f);
@@ -464,7 +524,7 @@ namespace Beep.ECS
         private void DrawTopDownGrid(int radius)
         {
             Vector2 origin = EffectiveOrigin;
-            Vector2 tileSize = EffectiveTileSize;
+            Vector2 tileSize = ManualTileSize;
             for (int x = -radius; x <= radius; x++)
             {
                 DrawLine(
@@ -505,7 +565,7 @@ namespace Beep.ECS
         // IsEmpty rather than ToString(), which allocated a string every frame SnapTarget ran.
         private bool HasSnapTargetPath() => !SnapTargetPath.IsEmpty;
 
-        private float HalfWidth => Mathf.Max(1f, EffectiveTileSize.X * 0.5f);
-        private float HalfHeight => Mathf.Max(1f, EffectiveTileSize.Y * 0.5f);
+        private float HalfWidth => Mathf.Max(1f, ManualTileSize.X * 0.5f);
+        private float HalfHeight => Mathf.Max(1f, ManualTileSize.Y * 0.5f);
     }
 }

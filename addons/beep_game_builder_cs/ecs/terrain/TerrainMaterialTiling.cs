@@ -2,7 +2,8 @@ using Godot;
 
 namespace Beep.ECS;
 
-/// <summary>Optional tiles-per-repeat overrides for painted ground textures. Zero inherits GroundTextureTiles.</summary>
+/// <summary>Optional tiles-per-repeat overrides for painted ground textures. Zero inherits the
+/// world's <see cref="TerrainWaterLook.GroundTextureTiles"/>, which every view reads (VIEW-04).</summary>
 [Tool]
 [GlobalClass]
 public partial class TerrainMaterialTiling : Resource

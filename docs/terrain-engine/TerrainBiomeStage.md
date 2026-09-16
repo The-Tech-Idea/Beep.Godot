@@ -11,6 +11,23 @@ Climate cooling can still produce snow/tundra. Explicit Rock/Lava and other them
 presets retain their own elevation-based ground palettes. Water is shallow beside
 land and deep farther out; lakes and rivers are always shallow.
 
+## `shallow_water`/`deep_water` is a wading classification, not a depth
+
+`WaterKind` writes one of two kinds per water sample, and the rule is deliberately not a distance:
+lake and river water is **always** `shallow_water`, whatever its size or how far a sample sits from
+the bank, and sea water is `shallow_water` exactly where it touches land (`TouchesLand`) and
+`deep_water` everywhere else. So the two kinds answer *can something wade here* — which is how
+gameplay reads them: `GridNavigationComponent` leaves `shallow_water` wadeable at a raised cost
+while the build-side `BlockedTerrainKinds` defaults block it, and nothing in the engine may treat
+`deep_water` as "further from shore than `shallow_water`". A one-cell pond is shallow; the middle
+of a wide river is shallow; a sea cell one tile past the beach is already deep.
+
+**How far a cell is from the waterline is a different fact with a different owner**:
+[`TerrainCoastField`](TerrainCoastField.md), whose R channel carries signed distance in tiles. That
+is what every sea shades its shallows by, and since VIEW-05 (2026-09-16) it is also what the
+isometric block view shelves its seabed by. A renderer that wants depth reads the field; a rule
+that wants "may a unit walk into this" reads the kind.
+
 ## Public API
 
 - `static void Apply(TerrainGenerationBuffer world, TerrainGenerationSettings settings)` — the sole entry point. Computes ocean and lake distance fields via `TerrainGeometry.DistanceTo`, converts `settings.BeachWidth`/`settings.LakeShoreWidth` from tiles to samples using `world.SamplesPerCell`, then iterates every `(x, y)` in `world` and writes `world.Terrain[index]` by calling the internal `LandKind`/`WaterKind` classifiers.

@@ -83,8 +83,31 @@ public partial class GridProjectionSmoke : Node
             return Fail("A freed native layer must re-resolve to none, not be served from cache");
         grid.TileMapLayerPath = new NodePath("");
 
+        // VIEW-02: EffectiveTileSize is answered by the bound surface, carried through its
+        // transform into grid-local units; the manual TileSize export answers only when
+        // nothing is bound, and an unresolved binding has no geometry (zero).
+        var bound = new TileMapLayer { Name = "BoundLayer", TileSet = new TileSet { TileSize = new Vector2I(96, 48) } };
+        grid.AddChild(bound);
+        grid.TileMapLayerPath = "BoundLayer";
+        if (grid.EffectiveTileSize != new Vector2(96, 48))
+            return Fail($"A grid bound to a 96x48 layer must report 96x48, not {grid.EffectiveTileSize}");
+        bound.Scale = new Vector2(0.5f, 2f);
+        if (!grid.EffectiveTileSize.IsEqualApprox(new Vector2(48, 96)))
+            return Fail($"A scaled bound layer must report its drawn size 48x96, not {grid.EffectiveTileSize}");
+        Span<Vector2> boundCorners = stackalloc Vector2[4];
+        if (grid.CellCorners(new Vector2I(2, 1), boundCorners) != 4
+            || !new Vector2((boundCorners[1] - boundCorners[0]).Length(), (boundCorners[3] - boundCorners[0]).Length()).IsEqualApprox(grid.EffectiveTileSize))
+            return Fail("EffectiveTileSize disagrees with the bound layer's cell corners");
+        grid.TileMapLayerPath = "MissingLayer";
+        if (grid.EffectiveTileSize != Vector2.Zero)
+            return Fail($"An unresolved binding must report no cell size, not {grid.EffectiveTileSize}");
+        grid.TileMapLayerPath = new NodePath("");
+        if (grid.EffectiveTileSize != new Vector2(48, 32))
+            return Fail("An unbound grid must report its TileSize export");
+        bound.Free();
+
         grid.Free();
-        GD.Print($"[grid-projection] CellCorners span/array agree (top-down + isometric); span 10000 calls allocated {spanAllocated} bytes, array {arrayAllocated} bytes; freed native layer re-resolves");
+        GD.Print($"[grid-projection] CellCorners span/array agree (top-down + isometric); span 10000 calls allocated {spanAllocated} bytes, array {arrayAllocated} bytes; freed native layer re-resolves; bound layer answers EffectiveTileSize");
         return true;
     }
 

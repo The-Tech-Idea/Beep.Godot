@@ -48,7 +48,7 @@ func run() -> void:
 	var overlay := make("terrain/TerrainMapOverlayComponent", host, "Overlay", {
 		"TerrainGeneratorPath": NodePath("../Generator"), "ProspectingPath": NodePath("../Survey"),
 		"SubsurfaceStorePath": NodePath("../Store"), "BoundsSize": Vector2i(32, 32),
-		"RefreshOnReady": false, "ShowResources": false, "ShowStartPositions": false})
+		"RefreshOnReady": false, "ShowStartPositions": false})
 	overlay.call("Rebuild")
 	check(overlay.get("UndergroundPatchCount") == 0, "Unsurveyed map leaked deposits")
 	survey.call("Survey", deposit)

@@ -23,6 +23,31 @@ res://resources/maps/valley/definition.tres        editor provenance
 res://resources/maps/valley/gameplay_baseline.*    optional Beep profile
 ```
 
+### Spawns (implemented, FEAT-09/FEAT-12)
+
+`Spawns` holds one `Marker2D` per player start, named `Start_<k>` where k is the start's index in
+the generator's start order. Each marker stands on that start's headquarters anchor, positioned in
+the **map root's** space, and carries metadata:
+
+| Key | Type | Meaning |
+|---|---|---|
+| `start_index` | int | Which start this is. Read in preference to the node name, which a designer may rename. |
+| `hq_footprint` | Vector2I | The headquarters footprint the start was validated for. |
+| `unusable` | bool | Present only on a start the generator reported as unplayable (too small, no exit). |
+
+`TerrainSpawnMarkers` writes them and `TerrainWorldComponent.SpawnsPath` publishes them on every
+build, so a generated map saved as a `.tscn` keeps its starts with no generator present. A designer
+can author the same nodes by hand. `GridStartAreaComponent.SpawnsRootPath` reads them back, and a
+marker wins over the generated start order where a map has both.
+
+Markers are the native profile's whole record of a start: the per-cell reservation
+(`terrain_start_area`) belongs to the Beep gameplay baseline. A native map therefore has starts and
+no reserved ground, which `GridStartAreaComponent.HasAreas` reports as false, and a build
+restriction keyed on areas goes inert rather than refusing the entire map.
+
+The playable area is the navigation bounds inset by `GridNavigationComponent.PlayableInset` — the
+map's cordon, zero by default. Everything already reading `IsInBounds` inherits it.
+
 Layer roles are explicit. They are not a requirement to emit empty layers or exactly one layer per biome. Existing transition rendering may need additional display layers; list all populated output layers, offsets and purposes in the generated manifest. An empty `LogicalGrid` helper is not the output map.
 
 ## Two output profiles

@@ -55,6 +55,12 @@ namespace Beep.ECS
             /// <summary>True on a generator-recommended player start cell.</summary>
             public const string StartPosition = "start_position";
 
+            /// <summary>Which start a start cell is - its index in the generator's start order.</summary>
+            public const string StartIndex = "start_index";
+
+            /// <summary>Which start's reserved area the cell is in: 0 none, k+1 start k.</summary>
+            public const string StartArea = "start_area";
+
             /// <summary>Liquid-stratum resource id in the water column, or empty.</summary>
             public const string LiquidResource = "liquid_resource";
 
@@ -82,6 +88,9 @@ namespace Beep.ECS
             (Cell.UndergroundResource, Variant.Type.String),
             (Cell.UndergroundRichness, Variant.Type.Float),
             (Cell.UndergroundDepth, Variant.Type.Int),
+            // Appended, as layer indices are what authored tiles reference.
+            (Cell.StartIndex, Variant.Type.Int),
+            (Cell.StartArea, Variant.Type.Int),
         };
 
         /// <summary>
@@ -177,13 +186,23 @@ namespace Beep.ECS
             data.SetCustomData(Cell.Continent, continent);
         }
 
-        /// <summary>Marks a tile as standing on a recommended start cell.</summary>
-        public static void DescribeStart(TileData? data)
+        /// <summary>Marks a tile as standing on recommended start <paramref name="index"/>.</summary>
+        public static void DescribeStart(TileData? data, int index)
         {
             if (data is null)
                 return;
 
             data.SetCustomData(Cell.StartPosition, true);
+            data.SetCustomData(Cell.StartIndex, index);
+        }
+
+        /// <summary>Writes a start-area id (k+1 for start k) onto the tile that stands for it.</summary>
+        public static void DescribeStartArea(TileData? data, int area)
+        {
+            if (data is null)
+                return;
+
+            data.SetCustomData(Cell.StartArea, area);
         }
 
         /// <summary>Writes a liquid-stratum resource id onto its tile.</summary>

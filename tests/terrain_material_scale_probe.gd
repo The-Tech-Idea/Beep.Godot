@@ -21,13 +21,18 @@ func run() -> void:
 	view.set("CellDataPath", NodePath("../Cells"))
 	view.set("BoundsSize", Vector2i(16, 8))
 	view.set("TileSize", 32)
-	view.set("ShallowTiles", 0.0)
-	view.set("DeepTiles", 0.5)
-	view.set("FoamStrength", 0.0)
-	view.set("WaveIntensity", 0.0)
+	# The sea's dials are the world's one TerrainWaterLook since VIEW-04; a still water with no
+	# surf is what makes the texture scales below measurable.
+	var look: Resource = load(BASE + "terrain/TerrainWaterLook.cs").new()
+	look.set("ShallowTiles", 0.0)
+	look.set("DeepTiles", 0.5)
+	look.set("FoamStrength", 0.0)
+	look.set("WaveIntensity", 0.0)
+	view.set("WaterLook", look)
 	viewport.add_child(view)
-	assert(view.get("GroundTextureTiles") == 12.0 and view.get("WaterTextureTiles") == 6.0)
+	assert(look.get("GroundTextureTiles") == 12.0 and look.get("WaterTextureTiles") == 6.0)
 	for property in view.get_property_list(): assert(property.name != "TextureTiles", "Obsolete combined scale retained")
+	for property in view.get_property_list(): assert(property.name != "GroundTextureTiles", "The painted view kept its own copy of a look dial")
 	view.call("Rebuild")
 	var material: ShaderMaterial = view.get_node("SplatSurface").material
 	material.set_shader_parameter("wave_speed", 0.0)
@@ -47,8 +52,8 @@ func run() -> void:
 		view.scale = Vector2.ONE * zoom
 		var images: Array[Image] = []
 		for scales in [Vector2(6, 6), Vector2(12, 6), Vector2(12, 12)]:
-			view.set("GroundTextureTiles", scales.x)
-			view.set("WaterTextureTiles", scales.y)
+			look.set("GroundTextureTiles", scales.x)
+			look.set("WaterTextureTiles", scales.y)
 			view.call("Rebuild")
 			assert(material.get_shader_parameter("ground_texture_tiles") == scales.x)
 			assert(material.get_shader_parameter("water_texture_tiles") == scales.y)
@@ -93,11 +98,13 @@ func check_material_profiles() -> void:
 	view.set("CellDataPath", NodePath("../Cells"))
 	view.set("BoundsSize", Vector2i(32, 32))
 	view.set("TileSize", 16)
-	view.set("GroundTextureTiles", 12.0)
-	view.set("ShallowTiles", 0.0)
 	view.set("ShadeStrength", 0.0)
-	view.set("FoamStrength", 0.0)
-	view.set("WaveIntensity", 0.0)
+	var look: Resource = load(BASE + "terrain/TerrainWaterLook.cs").new()
+	look.set("GroundTextureTiles", 12.0)
+	look.set("ShallowTiles", 0.0)
+	look.set("FoamStrength", 0.0)
+	look.set("WaveIntensity", 0.0)
+	view.set("WaterLook", look)
 	viewport.add_child(view)
 	view.call("Rebuild")
 	var material: ShaderMaterial = view.get_node("SplatSurface").material
@@ -158,7 +165,7 @@ func check_material_profiles() -> void:
 	assert(var_to_bytes(cells.call("GetCells")) == snapshot, "Material tiling changed live grid state")
 	# Explicit sand tiling also feeds the shared submerged-sand texture sample.
 	view.set("MaterialTiling", profile)
-	view.set("ShallowTiles", 8.0)
+	look.set("ShallowTiles", 8.0)
 	var water_images: Array[Image] = []
 	for sand_tiles in [0.0, 4.0]:
 		profile.set("Sand", sand_tiles)

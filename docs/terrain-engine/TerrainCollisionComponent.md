@@ -23,9 +23,13 @@ through native shape owners. There is no Node per cell. Cell corners come from
 GridProjectionComponent and are transformed into body-local coordinates, including
 the active elevated surface. Collision masks on the terrain bodies themselves are 0.
 
-Shape owners are grouped into 32x32 gameplay chunks. Manual top-down and flat
-isometric grids merge same-category rectangles within each chunk; native TileMap
-and elevated grids retain exact per-cell polygons. Individual CellChanged events
+Shape owners are grouped into 32x32 gameplay chunks. Same-category runs merge into one
+polygon per rectangle of cells wherever `GridProjectionComponent.CellsFormAffineRuns` holds:
+manual top-down and isometric grids, and native square or diamond-down isometric layers,
+which covers every terrain view except the block Isometric one. The merged outline takes
+the run's corner cells' corners, so it is the exact union. Elevated grids and other native
+layouts retain per-cell polygons. Until VIEW-02 (2026-09-15) merging required an unbound
+grid, and since every terrain view binds one, every cell got its own shape. Individual CellChanged events
 queue affected chunks. Bulk CellsChanged compares chunk revisions and availability;
 grid GeometryChanged queues a full rebuild. Process-frame updates coalesce edits
 and avoid changing physics shapes inside collision callbacks. Rebuild can be called
@@ -62,14 +66,18 @@ No substitute rectangle or default terrain is published for failed geometry.
 terrain_collision_probe uses actual physics point queries and CharacterBody2D motion
 tests. It covers nonzero/negative bounds, transformed native square/isometric grids,
 live flood/unflood, category masks, source removal, raised terrain, live flattening,
-and missing elevated projection. The authored grid playground includes the bridge.
+and missing elevated projection. It also checks that a uniform 32x32 run on a square and a
+diamond-down native layer builds ONE shape, with every cell centre still colliding and no
+neighbouring cell covered, while a stacked-isometric layer keeps 1024. The authored grid
+playground includes the bridge.
 
 This represents top-surface terrain categories only. It does not generate cliff-side
 barriers, enforce ramp transitions, add building occupancy collision, or replace
 GridNavigationComponent's movement rules. Moving parent transforms independently
 requires an explicit rebuild/geometry notification. A uniform million-cell manual
 grid is verified to merge into 1024 shapes. This is not a worst-case shape-count
-or frame-time guarantee: native/elevated chunks can still contain 1024 polygons.
+or frame-time guarantee: elevated chunks, non-affine native layouts and mixed terrain can
+still contain up to 1024 polygons.
 terrain_collision_budget_probe covers budget clamping, edit coalescing, pending
 readiness, bounds shrink, synchronous cancellation, missing sources, automatic
 scheduling and detach/reattach.

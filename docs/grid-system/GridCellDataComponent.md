@@ -28,9 +28,11 @@ and feature consumers still receive their normal notifications.
 - `[Signal] CellChangedEventHandler(int x, int y)` / `CellsChangedEventHandler()` / `CropMaturedEventHandler(int x, int y, string cropId)` / `DayAdvancedEventHandler(int days)`.
 - `[Export] public string DefaultTerrainKind { get; set; } = "grass"` — terrain kind returned for any cell with no stored record.
 - `[Export] public bool ClearWaterOnNewDay { get; set; } = true` — whether `AdvanceDay` strips the `Watered` flag from every cell each call.
-- `public void ClearCells()` — drops all stored cells; emits `CellsChanged` only if something was actually cleared.
+- `public void ClearCells()` — drops all stored cells and resets `HasStartAreas`; emits `CellsChanged` only if something was actually cleared.
 - `public bool HasCell(Vector2I cell)` / `public int CellCount` — presence/count of stored (non-default) cells.
 - `public string GetTerrainKind(Vector2I cell)` / `public void SetTerrainKind(Vector2I cell, string terrainKind)` — falls back to `DefaultTerrainKind` when empty/whitespace; the setter trims and emits `CellChanged`.
+- `public int GetStartArea(Vector2I cell)` — which generated player start area the cell is reserved for: 0 for none (or no stored record), k+1 for start k (FEAT-09). Reads the generated `terrain_start_area` metadata. It is a static generated fact, like `terrain_relief`: who the map set the land aside for, not who owns it now. `GridStartAreaComponent` reads it for `IsInArea`, placement restriction and spawn cells.
+- `public bool HasStartAreas { get; private set; }` (FEAT-12) — whether this map carries start-area reservations at all. False on a map generated with no start areas and on a native map published without the gameplay baseline: both have starts a game can read from spawn markers, but no reserved ground, and a build restriction asking "is this cell in my area" there would refuse every cell on the map. Set wherever a reservation can enter the store — a `LoadCells` bulk load (`Generated.StartArea > 0`), `LoadGeneratedCells` (`StartArea > 0`), a `GeneratedPublication.Commit` (which replaces the flag, because it replaces the whole store), and a `SetMetadata` write of `terrain_start_area` above 0 — and cleared where the store is emptied or replaced wholesale: `ClearCells`, a `clearExisting` bulk load through either path, and the publication commit. Evicting a chunk does **not** clear it: the map still has areas, this component just is not holding those cells in memory. `GridStartAreaComponent.HasAreas` is the one reader.
 - `public int GetFlags(Vector2I cell)` / `public void SetFlags(Vector2I cell, int flags)` / `public void AddFlag(...)` / `public void RemoveFlag(...)` / `public bool HasFlag(...)` — raw bitmask read/write, all mutators emit `CellChanged` (`RemoveFlag` is a no-op, no signal, on a cell that was never created).
 - `public void ClearLand(Vector2I cell)` — sets `Cleared`, unsets `Blocked`.
 - `public void Till(Vector2I cell)` — sets `Cleared | Tilled`.
@@ -45,13 +47,20 @@ and feature consumers still receive their normal notifications.
 - `public Godot.Collections.Dictionary GetCell(Vector2I cell)` / `public Godot.Collections.Array<Godot.Collections.Dictionary> GetCells()` — full marshalled snapshot(s) for GDScript/save consumers.
 - `public void LoadCells(Godot.Collections.Array cells, bool clearExisting = true)` and the `Array<Dictionary>` overload (which just wraps into the untyped form) — bulk replace/merge from Variant data; single `CellsChanged` at the end.
 - `internal LoadGeneratedCells(...)` receives cell, terrain, feature, relief, shade,
-  elevation, water source and fine water patch through the typed generation handoff;
+  elevation, water source, fine water patch, inland terrain, beach width, lake patch,
+  lake width and start area through the typed generation handoff;
   it retains the single `CellsChanged` bulk-notification contract.
+- Generated metadata key `terrain_start_area` (int, k+1 for start k) is present only on
+  cells inside a start area, so cells outside every area save nothing extra. It is
+  written into `GetCell`/`GetCells` metadata with the other generated `terrain_*` keys,
+  so `GridWorldStateComponent` saves it with the cells, and `LoadCells` folds it back
+  into the typed generated record (clamped to 0..255).
 
 ## Dependencies
 
 - Reads `GridVariantReader.Int`/`.Vector2I` (from `GridVariantReader.cs`) to parse incoming dictionaries in `LoadCells`.
 - No other outbound calls into this batch — it is a leaf data store.
+- `GridStartAreaComponent` reads `GetStartArea`.
 - Called into by three other files read in this same batch: `GridCellOverlayComponent` (`EnumerateFlags`, `GetFlags`), `GridTileMapLayerBridgeComponent` (`GetCells`, `GetFlags`, and the `CellChanged`/`CellsChanged` signals), and `GridWorldStateComponent` (`GetCells`/`LoadCells` for save/restore) and `GridPlacementComponent` (`GetTerrainKind`, `HasFlag(Blocked)`).
 
 ## Notes
@@ -59,3 +68,4 @@ and feature consumers still receive their normal notifications.
 - `GridCellOverlayComponent.ColorForFlags` and `GridTileMapLayerBridgeComponent.AtlasForCell` both independently re-implement the exact same `CellFlags` priority order (`Blocked` > `HarvestReady` > `Planted` > `Watered` > `Tilled` > `Cleared`) to pick one visual per cell — the same decision table exists twice, once per renderer, rather than once on this component or a shared helper.
 - `GetMetadata` on a missing key returns a default `Variant` (null), which is indistinguishable from a key explicitly set to a null `Variant` — callers cannot tell "never set" from "set to null."
 - `HarvestCrop`'s regrow branch silently ignores its own `clearTilled` parameter (documented in an inline comment: the plant still occupies the tilled cell), which is a real, intentional divergence from the non-regrowing branch, not an oversight.
+- `ClearCells()` resets `HasStartAreas` with the cells it drops. It did not at first, and a component whose cells were cleared and not reloaded reported that the map had areas while `GridStartAreaComponent.IsInArea` answered false for every cell — the "refuses the whole map" shape the flag exists to avoid. `tests/terrain_spawn_markers_probe.gd` clears the store, checks the flag follows, and regenerates.

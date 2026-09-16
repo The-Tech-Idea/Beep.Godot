@@ -12,7 +12,9 @@ func check_connections(node: Node, expected: int, phase: String) -> void:
 			failures.append("%s: %s has %d connections, expected %d" % [phase, signal_name, count, expected])
 
 func run() -> void:
-	for component in ["TerrainMapOverlayComponent", "TerrainResourceRendererComponent"]:
+	# The resource renderer is the one view binding a live resource subtree; the map
+	# overlay stopped drawing surface resources in VIEW-13 and holds no such binding.
+	for component in ["TerrainResourceRendererComponent"]:
 		var container = Node.new()
 		root.add_child(container)
 		var resources = Node.new()
@@ -42,5 +44,5 @@ func run() -> void:
 	for failure in failures:
 		push_error(failure)
 	if failures.is_empty():
-		print("[terrain-resource-reload] OK: both views release and restore subtree subscriptions across three serialization cycles.")
+		print("[terrain-resource-reload] OK: the resource view releases and restores subtree subscriptions across three serialization cycles.")
 	quit(0 if failures.is_empty() else 1)

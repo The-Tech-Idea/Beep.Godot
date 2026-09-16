@@ -4,13 +4,18 @@ using System.Collections.Generic;
 namespace Beep.ECS
 {
     /// <summary>
-    /// Draws the generator's gameplay layers over the painted terrain: resource
-    /// markers and player start positions.
+    /// Draws the generator's gameplay layers over the terrain: player start
+    /// positions, their reserved start areas, and the underground survey.
     ///
     /// This draws with the primitive canvas API rather than sprites so it needs
-    /// no art, and it lives on its own node so the painted terrain layers are
-    /// untouched. It reads the generator directly, which is the one owner of
-    /// this data.
+    /// no art, and it lives on its own node so the terrain layers are untouched.
+    /// It reads the generator directly, which is the one owner of this data.
+    ///
+    /// It draws NO surface resources. TerrainResourceRendererComponent is the one
+    /// resource drawer (icons from the resource set's sheet, live or generated).
+    /// This overlay used to draw the same cells a second time as category-coloured
+    /// discs, so a scene wiring both showed discs under icons, and a scene wiring
+    /// only this showed a classification the icon sheet does not (VIEW-13).
     /// </summary>
     [Tool]
     [GlobalClass]
@@ -18,8 +23,6 @@ namespace Beep.ECS
     {
         [Export] public NodePath TerrainGeneratorPath { get; set; } = new("");
         [Export] public NodePath GridPath { get; set; } = new("");
-        /// <summary>Optional subtree of live gatherable resources; empty previews generated resources.</summary>
-        [Export] public NodePath ResourceRootPath { get; set; } = new("");
 
         [ExportGroup("Map")]
         [Export] public Vector2I BoundsSize { get; set; } = new(48, 30);
@@ -27,7 +30,6 @@ namespace Beep.ECS
         [Export(PropertyHint.Range, "1,256,1")] public int TileSize { get; set; } = 64;
 
         [ExportGroup("Display")]
-        [Export] public bool ShowResources { get; set; } = true;
         [Export] public bool ShowStartPositions { get; set; } = true;
 
         /// <summary>
@@ -40,8 +42,26 @@ namespace Beep.ECS
         [Export] public NodePath ProspectingPath { get; set; } = new("");
         /// <summary>Optional live drawdown store. Depleted underground cells are not shown.</summary>
         [Export] public NodePath SubsurfaceStorePath { get; set; } = new("");
-        [Export(PropertyHint.Range, "0.05,0.5,0.01")] public float ResourceRadiusTiles { get; set; } = 0.16f;
         [Export(PropertyHint.Range, "0.1,1.0,0.01")] public float StartRadiusTiles { get; set; } = 0.42f;
+
+        /// <summary>
+        /// Each start's generated area outlined in the start's colour, with its headquarters
+        /// footprint, and its start ring in the same colour - so which start a region belongs
+        /// to reads at a glance. Draws nothing on a map generated without start areas.
+        /// </summary>
+        [Export] public bool ShowStartAreas { get; set; }
+
+        /// <summary>
+        /// The GridStartAreaComponent holding the faction catalog and the start assignment. Wired,
+        /// a start is drawn in the colour of the FACTION that holds it rather than in this
+        /// overlay's fixed per-index palette - so a player's region here, their tint on the
+        /// minimap and their colour in a lobby are one fact.
+        ///
+        /// Not a catalog path: the catalog maps a faction to a colour, and only the assignment
+        /// knows which faction holds start k. Reading the catalog directly would mean assuming
+        /// catalog order IS start order, which is exactly what LockedStart breaks.
+        /// </summary>
+        [Export] public NodePath StartAreaPath { get; set; } = new("");
 
         /// <summary>
         /// Whether this overlay builds itself once the scene is ready. Turn it
@@ -55,9 +75,6 @@ namespace Beep.ECS
         /// got to configure it.
         /// </summary>
 
-        /// <summary>One baked resource marker: where, how big, what colour.</summary>
-        private readonly record struct ResourceMarker(Vector2 Centre, float Radius, float RimRadius, Color Colour);
-
         /// <summary>One baked underground patch: which tile, what colour.</summary>
         private readonly record struct UndergroundPatch(Vector2[] Corners, Color Colour);
 
@@ -65,11 +82,48 @@ namespace Beep.ECS
         private GridProspectingComponent? _prospecting;
         private GridSubsurfaceStoreComponent? _store;
         private GridProjectionComponent? _grid;
-        private bool RequiresGenerator => ShowStartPositions || ShowUndergroundResources
-            || (ShowResources && ResourceRootPath.IsEmpty);
-        private TerrainResourceViewBinding? _liveResources;
-        public int ResourceMarkerCount => _resourceMarkers.Count;
+        private GridStartAreaComponent? _startArea;
+        private bool RequiresGenerator => ShowStartPositions || ShowUndergroundResources || ShowStartAreas;
         public int UndergroundPatchCount => _undergroundPatches.Count;
+        /// <summary>Start rings baked by the last rebuild, one per placed start position.</summary>
+        public int StartMarkerCount => _startMarkers.Count;
+        /// <summary>Area border and headquarters outline segments baked by the last rebuild.</summary>
+        public int StartAreaSegmentCount => _areaSegments.Count;
+
+        /// <summary>One baked segment's colour (transparent when there is no such segment). Test hook.</summary>
+        internal Color StartAreaSegmentColour(int index)
+            => index >= 0 && index < _areaSegments.Count ? _areaSegments[index].Colour : Colors.Transparent;
+
+        /// <summary>The start a baked segment belongs to, as a start index. Test hook.</summary>
+        internal int StartAreaSegmentStart(int index)
+            => index >= 0 && index < _areaSegments.Count ? _areaSegments[index].Start : -1;
+
+        /// <summary>
+        /// One colour per start index, fixed so start k is the same colour on every map and in
+        /// every session. Past 24 starts the palette repeats.
+        /// </summary>
+        private static readonly Color[] StartPalette =
+        {
+            new("3f6fe0"), new("e03c31"), new("3db54a"), new("f2c618"), new("2ec4d6"), new("9b4fd6"),
+            new("f28a1e"), new("e85aa8"), new("1e9e86"), new("a6d62e"), new("9c6b3c"), new("24408f"),
+            new("8f2430"), new("7a8f24"), new("7fb8f0"), new("f09a7f"), new("7ff0b8"), new("b8a0f0"),
+            new("d6a62e"), new("d62eb8"), new("6a7a8c"), new("2e6b3a"), new("f06a5a"), new("ede6c8"),
+        };
+
+        /// <summary>
+        /// The colour of start k: its faction's when one holds it, else the fixed palette. The
+        /// palette is not a fallback for missing configuration - it is the answer on a map with no
+        /// factions at all, which is most of them, and it is why an unassigned start still reads as
+        /// a distinct start rather than as nothing.
+        /// </summary>
+        private Color StartColour(int index)
+        {
+            if (_startArea is not null && _startArea.ColourOfStart(index) is { A: > 0f } faction)
+                return faction;
+            return StartPalette[Mathf.PosMod(index, StartPalette.Length)];
+        }
+
+        private readonly record struct AreaSegment(Vector2 From, Vector2 To, Color Colour, bool Headquarters, int Start);
 
         /// <summary>
         /// Built once per Rebuild rather than read from the generator on every
@@ -78,9 +132,9 @@ namespace Beep.ECS
         /// map, so re-scanning the whole bounds and re-querying the generator
         /// per cell there paid the cost of a full rebuild for free, repeatedly.
         /// </summary>
-        private readonly List<ResourceMarker> _resourceMarkers = new();
         private readonly List<UndergroundPatch> _undergroundPatches = new();
-        private readonly List<Vector2> _startMarkers = new();
+        private readonly List<(Vector2 Centre, int Index)> _startMarkers = new();
+        private readonly List<AreaSegment> _areaSegments = new();
         private float _startRadius;
         private float _startThickness;
 
@@ -94,23 +148,21 @@ namespace Beep.ECS
         public override void _ExitTree()
         {
             DisconnectSources();
-            _liveResources?.Dispose();
             ClearRebuildQueued();
         }
 
-        // The helper is a managed object, not a GodotObject whose signal target can
-        // be restored by the engine. _ExitTree is not called on assembly reload.
+        // The grid, prospecting and store subscriptions are C# events whose targets the
+        // engine does not restore across an assembly reload, and _ExitTree is not called on
+        // one - so they are released before serialization and rebound after it.
         public void OnBeforeSerialize()
         {
             DisconnectSources();
-            _liveResources?.Dispose();
-            _liveResources = null;
             ClearRebuildQueued();
         }
 
-        public void OnAfterDeserialize() => CallDeferred(nameof(RestoreResourceView));
+        public void OnAfterDeserialize() => CallDeferred(nameof(RestoreSources));
 
-        private void RestoreResourceView()
+        private void RestoreSources()
         {
             if (!IsInsideTree()) return;
             ResolveSources();
@@ -150,9 +202,9 @@ namespace Beep.ECS
 
             ResolveSources();
 
-            _resourceMarkers.Clear();
             _undergroundPatches.Clear();
             _startMarkers.Clear();
+            _areaSegments.Clear();
 
             if ((RequiresGenerator && _generator is null) || (!GridPath.IsEmpty && _grid is null))
             {
@@ -174,37 +226,18 @@ namespace Beep.ECS
                 tile = Mathf.Min(firstCorners[0].DistanceTo(firstCorners[1]), firstCorners[1].DistanceTo(firstCorners[2]));
             Vector2I size = new(Mathf.Max(1, BoundsSize.X), Mathf.Max(1, BoundsSize.Y));
 
-            if ((ShowResources && ResourceRootPath.IsEmpty) || ShowUndergroundResources)
+            if (ShowUndergroundResources)
             {
                 // Resolved ONCE for the whole scan rather than once per cell;
                 // see TerrainGeneratorComponent.ResolveField.
                 GeneratedTerrainField field = _generator!.ResolveField();
-                float radius = Mathf.Max(1.0f, ResourceRadiusTiles * tile);
-                float rim = radius + Mathf.Max(1.0f, tile * 0.03f);
-
                 for (int y = 0; y < size.Y; y++)
                 {
                     for (int x = 0; x < size.X; x++)
                     {
                         var sample = new Vector2I(x, y);
                         Vector2I cell = BoundsOrigin + sample;
-                        if (ShowResources && ResourceRootPath.IsEmpty)
-                        {
-                            // Surface and liquid alike: a marker means "there
-                            // is something here", whichever stratum holds it.
-                            string resource = field.ResourceAtCell(sample);
-                            if (resource.Length == 0)
-                                resource = field.LiquidResourceAtCell(sample);
-                            if (resource.Length > 0)
-                            {
-                                Vector2 centre = CellPosition(cell, _grid);
-                                if (centre.IsFinite())
-                                    _resourceMarkers.Add(new ResourceMarker(centre, radius, rim, ColourFor(resource)));
-                            }
-                        }
-
-                        if (ShowUndergroundResources
-                            && (ProspectingPath.IsEmpty || _prospecting?.IsDiscovered(cell) == true)
+                        if ((ProspectingPath.IsEmpty || _prospecting?.IsDiscovered(cell) == true)
                             && (SubsurfaceStorePath.IsEmpty || _store?.RemainingAt(cell) > 0))
                         {
                             string underground = field.UndergroundResourceAtCell(sample);
@@ -220,31 +253,48 @@ namespace Beep.ECS
                 }
             }
 
-            if (ShowResources && !ResourceRootPath.IsEmpty && _liveResources is not null)
-            {
-                var bounds = new Rect2I(BoundsOrigin, size);
-                float radius = Mathf.Max(1.0f, ResourceRadiusTiles * tile);
-                foreach (var (cell, resource) in _liveResources.Entries())
-                {
-                    if (!bounds.HasPoint(cell)) continue;
-                    Vector2 centre = CellPosition(cell, _grid);
-                    if (centre.IsFinite()) _resourceMarkers.Add(new ResourceMarker(
-                        centre, radius, radius + Mathf.Max(1.0f, tile * 0.03f), ColourFor(resource)));
-                }
-            }
-
+            _startRadius = Mathf.Max(2.0f, StartRadiusTiles * tile);
+            _startThickness = Mathf.Max(2.0f, tile * 0.07f);
             if (ShowStartPositions)
             {
-                _startRadius = Mathf.Max(2.0f, StartRadiusTiles * tile);
-                _startThickness = Mathf.Max(2.0f, tile * 0.07f);
-                foreach (Vector2I cell in _generator!.GetStartPositions())
+                Godot.Collections.Array<Vector2I> starts = _generator!.GetStartPositions();
+                for (int index = 0; index < starts.Count; index++)
                 {
-                    Vector2 centre = CellPosition(BoundsOrigin + cell, _grid);
-                    if (centre.IsFinite()) _startMarkers.Add(centre);
+                    Vector2 centre = CellPosition(BoundsOrigin + starts[index], _grid);
+                    if (centre.IsFinite()) _startMarkers.Add((centre, index));
                 }
             }
 
+            if (ShowStartAreas)
+                BakeStartAreas(_generator!.ResolveField(), size);
+
             QueueRedraw();
+        }
+
+        /// <summary>
+        /// Every area's border and every headquarters footprint's outline, as the shared sides of
+        /// neighbouring cell polygons - so the lines follow a square or a diamond grid alike.
+        /// </summary>
+        private void BakeStartAreas(GeneratedTerrainField field, Vector2I size)
+        {
+            Vector2I origin = BoundsOrigin;
+            var bounds = new Rect2I(origin, size);
+            foreach (TerrainOverlayEdges.Edge edge in TerrainOverlayEdges.Collect(bounds, cell => field.StartAreaAtCell(cell - origin)))
+                AddSegment(edge, edge.Id - 1, headquarters: false);
+
+            foreach (TerrainStartAreaReport report in field.StartAreas)
+            {
+                var footprint = new Rect2I(origin + report.Origin, report.Footprint);
+                foreach (TerrainOverlayEdges.Edge edge in TerrainOverlayEdges.Collect(footprint, _ => 1))
+                    AddSegment(edge, report.Index, headquarters: true);
+            }
+        }
+
+        private void AddSegment(TerrainOverlayEdges.Edge edge, int start, bool headquarters)
+        {
+            if (TerrainOverlayEdges.SharedSide(CellOutline(edge.Cell, _grid), CellOutline(edge.Neighbour, _grid), out Vector2 from, out Vector2 to)
+                && from.IsFinite() && to.IsFinite())
+                _areaSegments.Add(new AreaSegment(from, to, StartColour(start), headquarters, start));
         }
 
         public override void _Draw()
@@ -253,26 +303,41 @@ namespace Beep.ECS
             foreach (UndergroundPatch patch in _undergroundPatches)
                 DrawColoredPolygon(patch.Corners, patch.Colour);
 
-            DrawResources();
+            DrawStartAreas();
             DrawStartPositions();
+        }
+
+        private void DrawStartAreas()
+        {
+            var shadow = new Color(0.05f, 0.05f, 0.07f, 0.85f);
+            // The shadow pass first for every segment, so one border's shadow never covers
+            // another's colour where they meet at a corner.
+            foreach (AreaSegment segment in _areaSegments)
+                DrawLine(segment.From, segment.To, shadow, _startThickness * (segment.Headquarters ? 2.4f : 1.8f));
+            foreach (AreaSegment segment in _areaSegments)
+                DrawLine(segment.From, segment.To, segment.Headquarters ? segment.Colour.Lightened(0.35f) : segment.Colour,
+                    _startThickness * (segment.Headquarters ? 1.4f : 1.0f));
         }
 
         private void ResolveSources()
         {
-            _liveResources ??= new TerrainResourceViewBinding(QueueRebuild);
-            _liveResources.Bind(ResourceRootPath.IsEmpty ? null : GetNodeOrNull<Node>(ResourceRootPath));
             _generator = TerrainGeneratorPath.IsEmpty ? null : GetNodeOrNull<TerrainGeneratorComponent>(TerrainGeneratorPath);
             var prospecting = ProspectingPath.IsEmpty ? null : GetNodeOrNull<GridProspectingComponent>(ProspectingPath);
             var store = SubsurfaceStorePath.IsEmpty ? null : GetNodeOrNull<GridSubsurfaceStoreComponent>(SubsurfaceStorePath);
             var grid = GridPath.IsEmpty ? null : GetNodeOrNull<GridProjectionComponent>(GridPath);
-            if (_prospecting == prospecting && _store == store && _grid == grid) return;
+            var startArea = StartAreaPath.IsEmpty ? null : GetNodeOrNull<GridStartAreaComponent>(StartAreaPath);
+            if (_prospecting == prospecting && _store == store && _grid == grid && _startArea == startArea) return;
             DisconnectSources();
             _prospecting = prospecting;
             _store = store;
             _grid = grid;
+            _startArea = startArea;
             if (Engine.IsEditorHint()) return;
             if (_prospecting is not null) _prospecting.DiscoveryChanged += QueueRebuild;
             if (_grid is not null) _grid.GeometryChanged += QueueRebuild;
+            // The segments are baked with their colours, so a start changing hands has to re-bake,
+            // not merely redraw.
+            if (_startArea is not null) _startArea.AssignmentChanged += QueueRebuild;
             if (_store is not null)
             {
                 _store.DepositChanged += OnDepositChanged;
@@ -292,6 +357,8 @@ namespace Beep.ECS
             _store = null;
             if (GodotObject.IsInstanceValid(_grid)) _grid!.GeometryChanged -= QueueRebuild;
             _grid = null;
+            if (GodotObject.IsInstanceValid(_startArea)) _startArea!.AssignmentChanged -= QueueRebuild;
+            _startArea = null;
         }
 
         /// <summary>Logical cell center in overlay-local coordinates.</summary>
@@ -341,51 +408,19 @@ namespace Beep.ECS
             return Color.FromHsv(hue, 0.65f, 0.95f, alpha);
         }
 
-        private void DrawResources()
-        {
-            foreach (ResourceMarker marker in _resourceMarkers)
-            {
-                // A dark rim keeps a marker legible on any biome under it.
-                DrawCircle(marker.Centre, marker.RimRadius, new Color(0.05f, 0.05f, 0.07f, 0.75f));
-                DrawCircle(marker.Centre, marker.Radius, marker.Colour);
-            }
-        }
-
         private void DrawStartPositions()
         {
-            var ring = new Color(1.0f, 0.98f, 0.85f);
+            var cream = new Color(1.0f, 0.98f, 0.85f);
             var shadow = new Color(0.05f, 0.05f, 0.07f, 0.85f);
 
-            foreach (Vector2 centre in _startMarkers)
+            foreach ((Vector2 centre, int index) in _startMarkers)
             {
+                // A ring takes its start's colour when the areas are shown, so ring and region match.
+                Color ring = ShowStartAreas ? StartColour(index) : cream;
                 DrawArc(centre, _startRadius + (_startThickness * 0.5f), 0.0f, Mathf.Tau, 32, shadow, _startThickness * 1.8f);
                 DrawArc(centre, _startRadius, 0.0f, Mathf.Tau, 32, ring, _startThickness);
                 DrawCircle(centre, _startThickness * 0.9f, ring);
             }
-        }
-
-        /// <summary>
-        /// Category colours rather than one per resource: at map zoom the useful
-        /// question is "is that strategic or luxury", not which of twenty it is.
-        /// </summary>
-        // Asks the SAME catalog the generator actually placed this resource
-        // from, falling back to a cross-catalog search only for an id that
-        // predates the generator's current ResourceSet (a saved map re-opened
-        // under a different one). TerrainResourceStage.CategoryOf alone only
-        // ever searches the three shipped catalogs, so a game with its own
-        // custom ResourceCatalog (Resources) had every marker it placed read
-        // back as the default Bonus colour regardless of its real category.
-        private Color ColourFor(string resource)
-        {
-            ResourceCategory category = (_generator?.Resources ?? ResourceCatalogs.For(_generator?.ResourceSet ?? ResourceSet.Historical))
-                .Find(resource)?.Category
-                ?? TerrainResourceStage.CategoryOf(resource);
-            return category switch
-            {
-                ResourceCategory.Strategic => new Color(0.92f, 0.32f, 0.26f),
-                ResourceCategory.Luxury => new Color(0.86f, 0.62f, 0.95f),
-                _ => new Color(0.98f, 0.84f, 0.32f),
-            };
         }
     }
 }

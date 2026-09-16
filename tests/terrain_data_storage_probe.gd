@@ -3,7 +3,7 @@ extends SceneTree
 const BASE := "res://addons/beep_game_builder_cs/ecs/terrain/"
 const QUERIES := ["GeneratedTerrainAt", "ResourceAt", "FeatureAt", "ReliefAt", "ContinentAt",
 	"IsStartPositionAt", "LiquidResourceAt", "UndergroundResourceAt", "UndergroundRichnessAt",
-	"UndergroundDepthAt", "IsWaterAt", "PassableAt"]
+	"UndergroundDepthAt", "IsWaterAt", "PassableAt", "StartAreaAt"]
 var failures: Array[String] = []
 
 func _initialize() -> void: run.call_deferred()
@@ -22,6 +22,7 @@ func run() -> void:
 	generator.TopologySamplesPerCell = 4
 	generator.ResourceSet = 1
 	generator.ResourceDensity = 4.0
+	generator.StartAreaRadius = 6
 	host.add_child(generator)
 	var compact: Node = load(BASE + "TerrainDataLayersComponent.cs").new()
 	compact.name = "Compact"
@@ -41,16 +42,21 @@ func run() -> void:
 	compact.Rebuild()
 	native.Rebuild()
 	check(compact.get_child_count() == 0, "Default runtime data allocated tile layers")
-	check(native.get_child_count() == 8, "Explicit native metadata view is missing")
+	check(native.get_child_count() == 9, "Explicit native metadata view is missing")
 	check(compact.UndergroundIdentity == native.UndergroundIdentity, "Storage choice changed subsurface identity")
 	var deposits := 0
+	var reserved := 0
 	for y in range(-1, 25):
 		for x in range(-1, 33):
 			var cell := Vector2i(x, y) + Vector2i(-50, 70)
 			for query in QUERIES:
 				check(compact.call(query, cell) == native.call(query, cell), "Storage query differs: %s at %s" % [query, cell])
 			if compact.UndergroundResourceAt(cell) != "": deposits += 1
+			if compact.StartAreaAt(cell) > 0: reserved += 1
 	check(deposits > 0, "Comparison fixture has no subsurface data")
+	check(reserved > 0, "Comparison fixture has no start area")
+	# Start order, not just the start set, is the same in both storage modes.
+	check(compact.StartCells() == native.StartCells(), "Start order differs between storage modes")
 	var deposit := Vector2i.ZERO
 	for y in range(24):
 		for x in range(32):
@@ -77,7 +83,7 @@ func run() -> void:
 	compact.BoundsOrigin = native.BoundsOrigin
 	compact.MaterializeTileLayers = true
 	compact.Rebuild()
-	check(compact.get_child_count() == 8, "Could not materialize native data")
+	check(compact.get_child_count() == 9, "Could not materialize native data")
 	compact.MaterializeTileLayers = false
 	compact.Rebuild()
 	check(compact.get_child_count() == 0 and compact.UndergroundIdentity == identity, "Retiring native data changed identity or retained nodes")

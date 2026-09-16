@@ -1,6 +1,6 @@
 # TerrainReliefRendererComponent
 
-Batched hill and mountain sprites for the flat terrain views. This component renders relief;
+Batched hill and mountain sprites for the grid-bound terrain views (Painted, Tiles, IsometricAutotile). This component renders relief;
 it does not generate terrain or change gameplay cells.
 
 ## Sources
@@ -17,8 +17,10 @@ it does not generate terrain or change gameplay cells.
   smaller transformed cell-axis length, supporting rectangular flat tiles.
 
 `TerrainWorldComponent` binds the shared live source and gameplay grid, propagates bounds and seed,
-and rebuilds relief after binding the selected projection. Relief is hidden in isometric views;
-those views use their own elevated geometry.
+and rebuilds relief after binding the selected projection. Relief is drawn under Painted, Tiles
+and IsometricAutotile. Under IsometricAutotile the rocks stand on the bound diamond cells, placed
+and sized through the grid (VIEW-01). It is hidden only under the block Isometric view, whose
+stacked blocks are the relief.
 
 ## Art And Drawing
 
@@ -103,4 +105,5 @@ rock/gravel ground cells and nine rock objects.
 
 These are decorative draws, not collision bodies, harvestable resources or buildings.
 Dry anchors are checked; the full visible sprite footprint is not yet water-clipped.
-Flat-view rocks are hidden in isometric modes, which still need equivalent object art.
+Under IsometricAutotile the rocks draw with the flat sprite art (isometric object art is the
+terrain art library's); under the block Isometric view they are hidden.

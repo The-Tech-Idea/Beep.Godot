@@ -348,8 +348,47 @@ namespace Beep.ECS
             return true;
         }
 
+        /// <summary>
+        /// How long an offset across the screen is on the GROUND, in the ground's own pixels.
+        /// </summary>
+        /// <remarks>
+        /// <para>The projection's basis laid flat again: a step on screen is a step in cell space
+        /// once it has been solved against the two cell axes, and cell space is square by
+        /// definition, so its length in cells times the length of one cell axis is a distance that
+        /// does not depend on which way it points.</para>
+        ///
+        /// <para>Falls back to the screen length when there is no projection to ask — which is
+        /// exactly what a square projection answers — so a top-down caller sees no difference.</para>
+        /// </remarks>
+        private float GroundLength(Vector2 onScreen)
+        {
+            if (_grid is null)
+                return onScreen.Length();
+
+            Vector2 alongX = _grid.CellToWorld(new Vector2I(1, 0)) - _grid.CellToWorld(Vector2I.Zero);
+            Vector2 alongY = _grid.CellToWorld(new Vector2I(0, 1)) - _grid.CellToWorld(Vector2I.Zero);
+
+            float determinant = (alongX.X * alongY.Y) - (alongX.Y * alongY.X);
+
+            if (Mathf.Abs(determinant) < 0.000001f)
+                return onScreen.Length();
+
+            var cells = new Vector2(
+                ((onScreen.X * alongY.Y) - (onScreen.Y * alongY.X)) / determinant,
+                ((alongX.X * onScreen.Y) - (alongX.Y * onScreen.X)) / determinant);
+
+            return cells.Length() * alongX.Length();
+        }
+
         private bool AdvanceDirectPath(double delta)
         {
+            // GROUND PIXELS, NOT SCREEN PIXELS. A projection makes one cell step a different length
+            // on each axis — a 2:1 oblique draws a tile 64 wide and 32 deep — so a speed in screen
+            // pixels is a different GROUND speed depending on which way the machine happens to be
+            // driving: a vehicle crossing the slope of the map covers twice the ground per second
+            // that one crossing the flat does. The step is taken as a FRACTION of the segment
+            // instead, measured in the lattice's own units, so a cell step costs the same time in
+            // every direction.
             double remaining = delta > 0 && double.IsFinite(delta) ? EffectiveSpeed * delta : 0;
             int version = _pathVersion;
             // Visit every crossed edge: callbacks may change terrain or replace the route.
@@ -363,11 +402,15 @@ namespace Beep.ECS
                 {
                     if (remaining <= 0) return true;
                     Vector2 direction = offset / distance;
-                    float step = (float)System.Math.Min(remaining, distance);
-                    bool reached = distance - step <= 0.0001f;
+                    float ground = GroundLength(offset);
+                    float fraction = ground > 0.0f
+                        ? (float)System.Math.Min(remaining / ground, 1.0)
+                        : 1.0f;
+                    float step = fraction * distance;
+                    bool reached = fraction >= 1.0f || distance - step <= 0.0001f;
                     _body.GlobalPosition = reached ? target : _body.GlobalPosition + direction * step;
                     ActorComponent.ForBody(_body)?.SynchronizePosition();
-                    remaining -= step;
+                    remaining -= fraction * ground;
                     if (RotateToMovement) _body.Rotation = direction.Angle();
                     if (SetZIndexFromY && float.IsFinite(_body.GlobalPosition.Y))
                         _body.ZIndex = ZIndexOffset + Mathf.RoundToInt(_body.GlobalPosition.Y);

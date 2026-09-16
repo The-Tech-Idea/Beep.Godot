@@ -45,8 +45,11 @@ func check_pixels() -> void:
 	painted.set("BoundsSize", Vector2i(32, 32))
 	painted.set("TileSize", 16)
 	painted.set("ShadeStrength", 0.0)
-	painted.set("FoamStrength", 0.0)
-	painted.set("WaveIntensity", 0.0)
+	# Still water with no surf: the sea's dials are the world's one look (VIEW-04).
+	var look: Resource = load(BASE + "terrain/TerrainWaterLook.cs").new()
+	look.set("FoamStrength", 0.0)
+	look.set("WaveIntensity", 0.0)
+	painted.set("WaterLook", look)
 	host.add_child(painted)
 	for seed in [31415, 12345, 98765, 8675309]:
 		generator.set("Seed", seed)

@@ -133,15 +133,8 @@ namespace Beep.ECS
         /// <summary>The sea surface shader. Without it there is no water at all.</summary>
         [Export(PropertyHint.File, "*.gdshader")] public string WaterShaderPath { get; set; } = "";
 
-        /// <summary>
-        /// Water materials, shared with the flat renderer so both views draw the
-        /// same sea. Left unset the shader falls back to white and the tints
-        /// alone colour the water, which is flatter but not broken.
-        /// </summary>
-        [Export(PropertyHint.File, "*.png,*.webp")] public string ShallowTexturePath { get; set; } = "";
-        [Export(PropertyHint.File, "*.png,*.webp")] public string DeepTexturePath { get; set; } = "";
-        [Export(PropertyHint.File, "*.png,*.webp")] public string SandTexturePath { get; set; } = "";
-        [Export(PropertyHint.File, "*.png,*.webp")] public string FoamSheetPath { get; set; } = "";
+        // The water textures moved to TerrainWaterLook (VIEW-04): they were authored per renderer
+        // and had to be kept in step by hand for both views to draw one sea.
 
         /// <summary>Sub-tile samples per tile edge when measuring the coastline.</summary>
         [Export(PropertyHint.Range, "1,16,1")] public int CoastDetail { get; set; } = TerrainCoastField.DefaultDetail;
@@ -184,34 +177,12 @@ namespace Beep.ECS
         /// </summary>
         [Export(PropertyHint.Range, "0,8,0.25")] public float WaterOverscan { get; set; } = 2.5f;
 
-        [Export(PropertyHint.Range, "0,2,0.05")] public float WaveIntensity { get; set; } = 1.0f;
-        [Export(PropertyHint.Range, "0,1,0.01")] public float FoamStrength { get; set; } = 0.50f;
-        [Export(PropertyHint.Range, "0.5,12,0.1")] public float DeepTiles { get; set; } = 4.5f;
-        [Export(PropertyHint.Range, "0,8,0.1")] public float ShallowTiles { get; set; } = 1.8f;
-        /// <summary>Tiles per sandy-bottom texture repeat; does not resize atlas blocks.</summary>
-        [Export(PropertyHint.Range, "1,32,0.5")] public float GroundTextureTiles { get; set; } = 12.0f;
-        /// <summary>Tiles per animated water-texture repeat.</summary>
-        [Export(PropertyHint.Range, "1,32,0.5")] public float WaterTextureTiles { get; set; } = 6.0f;
-
-        // The same five foam-sheet dials the painted renderer exposes, feeding
-        // the same shader uniforms. The two views deliberately share one water
-        // shader so one map has one sea; leaving these authorable in only one
-        // view was the same drift, one layer up - a foam sheet tuned in the
-        // painted view silently reverted to defaults here.
-        /// <summary>Tiles covered by one repeat of the foam texture ALONG the shore.</summary>
-        [Export(PropertyHint.Range, "1,48,0.5")] public float FoamTilesAlong { get; set; } = 11.0f;
-        /// <summary>Tiles covered by one repeat ACROSS the shore - short on purpose; see the painted renderer.</summary>
-        [Export(PropertyHint.Range, "0.3,8,0.1")] public float FoamTilesAcross { get; set; } = 1.6f;
-        /// <summary>How fast the authored crests advance onto the beach.</summary>
-        [Export(PropertyHint.Range, "0,4,0.01")] public float FoamScroll { get; set; } = 0.055f;
-        /// <summary>How strongly the surf pulses as crests arrive, 0 for a steady band.</summary>
-        [Export(PropertyHint.Range, "0,1,0.05")] public float FoamPulse { get; set; } = 0.34f;
-        /// <summary>How fast arriving crests follow one another.</summary>
-        [Export(PropertyHint.Range, "0,4,0.05")] public float FoamArrivalRate { get; set; } = 0.9f;
-        /// <summary>Direction the swell travels, in degrees, y-down screen space.</summary>
-        [Export(PropertyHint.Range, "0,360,1")] public float SwellDirectionDegrees { get; set; } = 210.0f;
-        /// <summary>How strongly surf favours coasts facing the swell. 0 puts surf on every shore alike.</summary>
-        [Export(PropertyHint.Range, "0,1,0.01")] public float SwellDirectionality { get; set; } = 0.65f;
+        /// <summary>
+        /// How the sea LOOKS - the thirteen dials and four textures every view of this world
+        /// shares (VIEW-04). Unassigned, the shipped defaults are used, which this view already
+        /// drew: the look's defaults are the values this renderer and the painted one carried.
+        /// </summary>
+        [Export] public TerrainWaterLook? WaterLook { get; set; }
 
         /// <summary>
         /// The stack this renderer draws into lives in TerrainLayers, shared
@@ -336,9 +307,7 @@ namespace Beep.ECS
         private ShaderMaterial? _waterMaterial;
         // Keep an owning managed reference while the river material is attached.
         private ShaderMaterial? _riverMaterial;
-        private ImageTexture? _coastMap;
-        private readonly TerrainCoastField.RenderCache _renderCoast = new();
-        private readonly TerrainCoastField.LiveCache _liveCoast = new();
+        private readonly TerrainSeaSurface _sea = new();
 
         /// <summary>Steps from the nearest land, per water cell; 0 on land.</summary>
         private int[] _depth = Array.Empty<int>();
@@ -399,9 +368,7 @@ namespace Beep.ECS
             // copied, so the sea cannot break in one projection and not the
             // other.
             Vector2I bounds = new(Mathf.Max(1, BoundsSize.X), Mathf.Max(1, BoundsSize.Y));
-            _coastMap = _cells is not null
-                ? _liveCoast.Resolve(_cells, BoundsOrigin, bounds, CoastDetail, CoastRangeTiles)
-                : TerrainCoastField.Build(_generator!, bounds, CoastDetail, CoastRangeTiles);
+            _sea.ResolveCoast(_cells, _generator, BoundsOrigin, bounds, CoastDetail, CoastRangeTiles);
 
             EnsureLayers();
             foreach (TileMapLayer existing in _layers)
@@ -409,7 +376,7 @@ namespace Beep.ECS
             _seabed?.Clear();
 
             Vector2I size = new(Mathf.Max(1, BoundsSize.X), Mathf.Max(1, BoundsSize.Y));
-            MeasureWaterDepth(field, size);
+            ReadWaterDepth(field, size);
             MeasureSummitFloor(field, size);
             bool extentStarted = false;
             var riverVertices = new List<Vector2>();
@@ -661,51 +628,68 @@ namespace Beep.ECS
         }
 
         /// <summary>
-        /// Steps from the nearest land for every water cell, by breadth-first
-        /// sweep out from the coast. Depth is not something the generator
-        /// records, and taking it from the deep/shallow kind alone gives two
-        /// flat terraces instead of a slope.
+        /// How deep the bed lies under each water cell, in steps from the waterline - read from
+        /// the coast field this view's own sea is drawn from.
+        ///
+        /// It used to be measured here instead, by a four-neighbour sweep out from land. Those
+        /// are Manhattan steps; the water over the bed shades its depth from the coast field,
+        /// which is Euclidean. Along a diagonal coast the two disagreed by up to a step, so the
+        /// bed's band changed where the water's tint did not. Depth is not something the
+        /// generator records, and the deep/shallow terrain KIND is a wading classification for
+        /// gameplay rather than a depth - the field is the one thing that measures distance from
+        /// the waterline, and every sea already draws from it (VIEW-05).
         /// </summary>
-        private void MeasureWaterDepth(ITerrainSurfaceData field, Vector2I size)
+        private void ReadWaterDepth(ITerrainSurfaceData field, Vector2I size)
         {
             int count = size.X * size.Y;
             if (_depth.Length != count)
                 _depth = new int[count];
             Array.Clear(_depth);
 
-            var queue = new Queue<int>();
-            for (int y = 0; y < size.Y; y++)
+            float[] distances = _sea.CellDistances(size, CoastRangeTiles);
+            if (distances.Length != count)
             {
-                for (int x = 0; x < size.X; x++)
-                {
-                    string kind = field.TerrainAtCell(new Vector2I(x, y));
-                    if (!TerrainTileSets.IsLandKind(kind))
-                        continue;
-
-                    // Land is the source: its water neighbours are one step deep.
-                    queue.Enqueue((y * size.X) + x);
-                }
+                // No coast field: without WaterShaderPath there is no sea over the bed either, so
+                // the bed simply is not drawn. Said once here rather than per cell.
+                GD.PushWarning($"[{Name}] no coast field, so the seabed has no depth to shelve by; no bed was drawn.");
+                return;
             }
 
-            System.Span<int> around = stackalloc int[4];
-            while (queue.Count > 0)
+            // The field's encoding saturates at the range it was built with, so a cell further out
+            // than that carries no magnitude - only "at least this far". Those cells are past the
+            // bed's own cut-off anyway, and they must not all read as the deepest expressible step:
+            // clamping every water cell to one step is what once put a bed under the whole ocean,
+            // hundreds of tiles that opaque water can never reveal, whose only visible effect was
+            // the straight line where the bed stopped and the overscanned sea ran on.
+            float range = Mathf.Max(1.0f, CoastRangeTiles);
+            int beyond = Mathf.Max(1, SeabedDepth) + 1;
+            for (int i = 0; i < count; i++)
             {
-                int index = queue.Dequeue();
-                int sides = TerrainGeometry.Neighbours4(index, size.X, size.Y, around);
-                for (int side = 0; side < sides; side++)
-                {
-                    int next = around[side];
-                    if (_depth[next] != 0)
-                        continue;
-
-                    string kind = field.TerrainAtCell(new Vector2I(next % size.X, next / size.X));
-                    if (!TerrainTileSets.IsWaterKind(kind))
-                        continue;
-
-                    _depth[next] = _depth[index] + 1;
-                    queue.Enqueue(next);
-                }
+                // Positive is water. Ceil so the first step out from the waterline is 1, which is
+                // what SeabedFrameFor's bands and the SeabedDepth cut-off are written against.
+                if (!TerrainTileSets.IsWaterKind(field.TerrainAtCell(new Vector2I(i % size.X, i / size.X))))
+                    continue;
+                // At least the shore band. The field measures the SUB-TILE coastline, so a cell
+                // the generator calls water can have its centre on the land side of its own water
+                // patch and read a negative distance - and a water cell draws no block, so a
+                // missing bed there is a transparent hole at the shore rather than a shallow.
+                _depth[i] = distances[i] >= range ? beyond : Mathf.Max(1, Mathf.CeilToInt(distances[i]));
             }
+        }
+
+        /// <summary>
+        /// How deep the bed lies under an absolute cell, in steps from the waterline: 0 on land
+        /// and off the map, 1 at the shore, and past <see cref="SeabedDepth"/> where the water is
+        /// opaque and no bed is drawn. Read from the coast field, so it is the same distance the
+        /// sea over it shades by (VIEW-05).
+        /// </summary>
+        public int SeabedDepthAt(Vector2I cell)
+        {
+            Vector2I local = cell - BoundsOrigin;
+            Vector2I size = new(Mathf.Max(1, BoundsSize.X), Mathf.Max(1, BoundsSize.Y));
+            if (local.X < 0 || local.Y < 0 || local.X >= size.X || local.Y >= size.Y) return 0;
+            int index = (local.Y * size.X) + local.X;
+            return index < _depth.Length ? _depth[index] : 0;
         }
 
         /// <summary>
@@ -1033,11 +1017,8 @@ namespace Beep.ECS
                 0,
                 MaxWaterMarginCells);
 
-            Vector2 Project(float x, float y) => new(
-                cell.X * 0.5f * (1 + x - y), cell.Y * 0.5f * (x + y));
             _water.Position = OriginPosition;
-            _water.Polygon = new[] { Project(-margin, -margin), Project(size.X + margin, -margin),
-                Project(size.X + margin, size.Y + margin), Project(-margin, size.Y + margin) };
+            _water.Polygon = TerrainSeaSurface.Polygon(cell, size, margin);
 
             _waterMaterial = BuildWaterMaterial();
             _water.Material = _waterMaterial;
@@ -1086,79 +1067,16 @@ namespace Beep.ECS
         /// </summary>
         private ShaderMaterial? BuildWaterMaterial()
         {
-            // Adopt the material saved with the scene before building a fresh
-            // one: replacing it wiped every uniform hand-tuned in the
-            // Inspector on each reload. Exported dials are still written below
-            // and win; only the uniforms no export covers survive by this.
-            ShaderMaterial material = _waterMaterial
-                ?? (_water?.Material as ShaderMaterial)?.Duplicate() as ShaderMaterial
-                ?? new ShaderMaterial();
-            if (material.Shader is null)
-            {
-                var shader = GD.Load<Shader>(WaterShaderPath);
-                if (shader is null)
-                {
-                    GD.PushWarning($"[{Name}] could not load water shader '{WaterShaderPath}'; there will be no sea.");
-                    return null;
-                }
-                material.Shader = shader;
-            }
-
+            // The quad's own projection: this view composites a transparent sheet over real
+            // seabed geometry, so it is neither flat nor batched. Everything else - the coast
+            // field, the shared look, the adopt-or-create that keeps Inspector-tuned uniforms -
+            // is the sea surface's, shared with the views that draw one on tiles.
             Vector2I size = new(Mathf.Max(1, BoundsSize.X), Mathf.Max(1, BoundsSize.Y));
-
-            // The coast field is what tells the shader where the shore is, and
-            // how far from it each pixel lies. Without it the water has no
-            // shallows: it would draw at open-sea opacity right up to the beach.
-            // Handing the shader a null texture does that SILENTLY, so say so
-            // instead - the caller can see a warning, where it cannot see a
-            // uniform that was never set.
-            if (_coastMap is null)
-            {
-                GD.PushWarning(
-                    $"[{Name}] the coast field is missing; the sea will draw without shallows.");
-            }
-            else
-            {
-                material.SetShaderParameter("coast_map", _renderCoast.Resolve(_coastMap, BoundsSize, _liveCoast.CoastRevision));
-            }
-
-            // The quad's rectangle in THIS renderer's space. The shader resolves
-            // both projections from it and the fragment UV rather than from a
-            // world position, which carries any parent scaling with it.
-            // This surface's OWN uniforms, declared by iso_water.gdshader for a
-            // transparent sheet floating over seabed geometry. The painted view has
-            // no equivalent, so they stay here rather than in the shared block.
-            material.SetShaderParameter("cell_size", new Vector2(CellSize.X, CellSize.Y));
-            material.SetShaderParameter("tile_offset", Vector2.Zero);
-            material.SetShaderParameter("tile_batch", false);
-            material.SetShaderParameter("flat_projection", 0.0f);
-            material.SetShaderParameter("max_opacity", MaxOpacity);
-            material.SetShaderParameter("clarity_tiles", ClarityTiles);
-            material.SetShaderParameter("lake_opacity", LakeOpacity);
-            material.SetShaderParameter("shore_opacity", ShoreOpacity);
-
-            // Everything water_common.gdshaderinc declares, through its one writer.
-            TerrainWaterMaterial.Apply(material, new TerrainWaterMaterial.Settings(
-                Size: size,
-                Origin: BoundsOrigin,
-                CoastRange: CoastRangeTiles,
-                GroundTextureTiles: GroundTextureTiles,
-                WaterTextureTiles: WaterTextureTiles,
-                WaveIntensity: WaveIntensity,
-                FoamStrength: FoamStrength,
-                ShallowTiles: ShallowTiles,
-                DeepTiles: DeepTiles,
-                FoamTilesAlong: FoamTilesAlong,
-                FoamTilesAcross: FoamTilesAcross,
-                FoamScroll: FoamScroll,
-                FoamPulse: FoamPulse,
-                FoamArrivalRate: FoamArrivalRate,
-                SwellDirectionDegrees: SwellDirectionDegrees,
-                SwellDirectionality: SwellDirectionality));
-
-            TerrainWaterMaterial.ApplyTextures(
-                material, Name, ShallowTexturePath, DeepTexturePath, SandTexturePath, FoamSheetPath);
-            return material;
+            return _sea.BuildMaterial(
+                this, WaterShaderPath, WaterLook ?? TerrainWaterLook.Shared,
+                new TerrainSeaSurface.Sheet(MaxOpacity, ClarityTiles, LakeOpacity, ShoreOpacity),
+                BoundsOrigin, size, CellSize, CoastRangeTiles,
+                flatProjection: false, tileBatch: false, authored: _water?.Material as ShaderMaterial);
         }
 
         private TileMapLayer MakeLayer(string name)

@@ -13,7 +13,7 @@ The system's one rule: **a resource id means the same thing everywhere it appear
 | `ResourceCatalogs` (static) | The three shipped sets — Historical, OilAndGas, SpaceExploration — plus `FindAnywhere` for ids off a saved map generated under a different set. |
 | `TerrainResourceStage` | Generation: scatters catalog resources onto eligible tiles, weighted and spaced, deterministic per seed. |
 | `TerrainDataLayersComponent` | Publishes per-cell resource ids as tile data — the durable form a saved map keeps. |
-| `TerrainResourceRendererComponent` / `TerrainMapOverlayComponent` | Draw resources: icon sheets per shipped set (or a custom sheet + order), and category-colored markers. |
+| `TerrainResourceRendererComponent` | Draws resources: icon sheets per shipped set (or a custom sheet + order). The one resource drawer; `TerrainMapOverlayComponent` draws start rings and the underground survey, not resources (VIEW-13). |
 | `GridResourceScatterComponent` | Turns published map resources into gatherable deposit nodes (or seeded random scatter when no map data exists). |
 | `GridResourceNodeComponent` | One deposit: its cell, its remaining amount, gather-to-wallet, depletion, cell occupancy. |
 | `GridResourceAmount` (`Resource`) | id + quantity, used by build costs, recipes, starting balances. |
@@ -30,7 +30,7 @@ flowchart TB
     subgraph Map["Map side (generation)"]
         STAGE[TerrainResourceStage<br/>weighted scatter onto supported terrain]
         DL[TerrainDataLayersComponent<br/>resource id per cell, as tile data]
-        ICONS[TerrainResourceRendererComponent<br/>+ TerrainMapOverlayComponent]
+        ICONS[TerrainResourceRendererComponent<br/>the one resource drawer]
     end
 
     subgraph Game["Game side (economy)"]

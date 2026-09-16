@@ -3,6 +3,8 @@
 [ext_resource type="FontFile" uid="uid://dvyxc4rxbq1a4" path="res://addons/beep_game_builder_cs/fonts/NotoSans-Variable.ttf" id="21_uuasi"]
 [ext_resource type="Resource" path="res://addons/beep_game_builder_cs/textures/map_art/cartoon.tres" id="cartoon"]
 [ext_resource type="Script" uid="uid://blx2f3jmkyxg" path="res://addons/beep_game_builder_cs/ecs/grid/GridCellDataComponent.cs" id="cells"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainCollisionComponent.cs" id="collision"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainResourceRendererComponent.cs" id="resource_icons"]
 [ext_resource type="Script" uid="uid://8qoas56p6i6d" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainDataLayersComponent.cs" id="cell_data"]
 [ext_resource type="Script" uid="uid://brwul0xib4r7b" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainLabComponent.cs" id="controller"]
 [ext_resource type="Script" uid="uid://dvad24l2olf3f" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainFeatureRendererComponent.cs" id="features"]
@@ -21,6 +23,7 @@
 [ext_resource type="Script" uid="uid://bpf7osmh0ttoj" path="res://addons/beep_game_builder_cs/ecs/grid/GridNavigationComponent.cs" id="navigation"]
 [ext_resource type="Resource" path="res://addons/beep_game_builder_cs/textures/map_art/pixel_art.tres" id="pixel_art"]
 [ext_resource type="Resource" path="res://addons/beep_game_builder_cs/textures/terrain/terrain_prop_sizing.tres" id="prop_sizing"]
+[ext_resource type="Resource" path="res://addons/beep_game_builder_cs/textures/terrain/terrain_water_look.tres" id="water_look"]
 [ext_resource type="PackedScene" path="res://addons/beep_game_builder_cs/templates/scenes/terrain/terrain_rock_objects.tscn" id="rock_objects"]
 [ext_resource type="Script" uid="uid://bccr1qv5kumcy" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainPaintedRendererComponent.cs" id="splat"]
 [ext_resource type="Script" uid="uid://difmsbxjojcvg" path="res://addons/beep_game_builder_cs/ecs/ui/ThemePresetComponent.cs" id="theme"]
@@ -2427,6 +2430,7 @@ RandomSeedButtonPath = NodePath("HUD/Settings/Scroll/Controls/Actions/Randomize"
 ResetViewButtonPath = NodePath("HUD/Settings/Scroll/Controls/ResetView")
 StatusPath = NodePath("HUD/Status")
 DiagnosticsButtonPath = NodePath("HUD/Settings/Scroll/Controls/Diagnostics")
+DiagnosticsLayerPath = NodePath("Preview/Diagnostics")
 CancelButtonPath = NodePath("HUD/Settings/Scroll/Controls/Generation/Cancel")
 GenerationProgressPath = NodePath("HUD/Settings/Scroll/Controls/Generation/Progress")
 
@@ -2435,6 +2439,7 @@ script = ExtResource("world")
 GeneratorPath = NodePath("../Preview/TerrainGenerator")
 GridPath = NodePath("../Preview/Grid")
 NavigationPath = NodePath("../Preview/Navigation")
+CollisionPath = NodePath("../Preview/Collision")
 PaintedRendererPath = NodePath("../Preview/Splat")
 TileRendererPath = NodePath("../Preview/TileRenderer")
 IsometricRendererPath = NodePath("../Preview/Iso")
@@ -2443,8 +2448,10 @@ FeaturesPath = NodePath("../Preview/Features")
 IsometricFeaturesPath = NodePath("../Preview/IsoFeatures")
 MapOverlayPath = NodePath("../Preview/MapOverlay")
 ReliefRendererPath = NodePath("../Preview/RockObjects")
+ResourceRendererPath = NodePath("../Preview/Diagnostics/Resources")
 DataLayersPath = NodePath("../Preview/CellData")
 PropSizing = ExtResource("prop_sizing")
+WaterLook = ExtResource("water_look")
 BuildOnReady = false
 
 [node name="PreviewBackdrop" type="ColorRect" parent="." unique_id=56226296]
@@ -2485,7 +2492,6 @@ CellDataPath = NodePath("../Cells")
 script = ExtResource("splat")
 TerrainGeneratorPath = NodePath("../TerrainGenerator")
 MaterialTiling = ExtResource("material_tiling")
-FoamSheetPath = "res://addons/beep_game_builder_cs/textures/water/surf_foam_streaks.png"
 GrassTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/meadow_ground.png"
 DryGrassTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/dry_meadow_ground.png"
 SandTexturePath = "res://addons/beep_game_builder_cs/textures/terrain/sand.png"
@@ -2544,11 +2550,6 @@ GroundTexturePaths = Dictionary[String, String]({
 GroundDetailStrength = 0.65
 TerrainGeneratorPath = NodePath("../TerrainGenerator")
 WaterShaderPath = "res://addons/beep_game_builder_cs/shaders/iso_water.gdshader"
-FoamStrength = 0.4
-ShallowTexturePath = "res://addons/beep_game_builder_cs/textures/water/seamless_turquoise_shallow_water_texture.png"
-DeepTexturePath = "res://addons/beep_game_builder_cs/textures/water/seamless_deep_blue_ocean_texture.png"
-SandTexturePath = "res://addons/beep_game_builder_cs/textures/water/seamless_golden_desert_sand_texture.png"
-FoamSheetPath = "res://addons/beep_game_builder_cs/textures/water/surf_foam_streaks.png"
 RefreshOnReady = false
 
 [node name="CellData" type="Node2D" parent="Preview" unique_id=1585326300]
@@ -2563,9 +2564,21 @@ z_as_relative = false
 script = ExtResource("map_overlay")
 TerrainGeneratorPath = NodePath("../TerrainGenerator")
 BoundsSize = Vector2i(96, 60)
-ShowResources = false
 ShowStartPositions = false
 ShowUndergroundResources = false
+RefreshOnReady = false
+
+[node name="Diagnostics" type="Node2D" parent="Preview"]
+visible = false
+
+[node name="Resources" type="Node2D" parent="Preview/Diagnostics"]
+script = ExtResource("resource_icons")
+TerrainGeneratorPath = NodePath("../../TerrainGenerator")
+BoundsSize = Vector2i(96, 60)
+RefreshOnReady = false
+
+[node name="Collision" type="Node2D" parent="Preview"]
+script = ExtResource("collision")
 RefreshOnReady = false
 
 [node name="Features" type="Node2D" parent="Preview" unique_id=805128735]
@@ -2586,6 +2599,7 @@ TerrainGeneratorPath = NodePath("../TerrainGenerator")
 Tiles = ExtResource("iso_tileset")
 UseTerrainConnections = false
 TerrainBindings = PackedStringArray("grass=0", "dry_grass=1", "sand=2", "desert=3", "jungle=4", "swamp,mud,dirt=5", "tundra=6", "snow=7", "ice=8", "gravel=9", "rock=10", "water,shallow_water,sea,ocean=11", "deep_water=12")
+WaterShaderPath = "res://addons/beep_game_builder_cs/shaders/iso_water.gdshader"
 RefreshOnReady = false
 
 [node name="Iso" type="Node2D" parent="Preview" unique_id=361766441]
@@ -2612,11 +2626,6 @@ RockFrame = 49
 TerrainVariants = PackedStringArray("grass=54", "dry_grass=2,2,4,22", "gravel=28,28,8,16", "rock=49,49,29", "sand=24,24,19", "snow=20,20,1,12", "swamp=10,10,52,27", "tundra=48,48,47", "ice=5,5,6")
 SeabedStep = 10
 WaterShaderPath = "res://addons/beep_game_builder_cs/shaders/iso_water.gdshader"
-ShallowTexturePath = "res://addons/beep_game_builder_cs/textures/water/seamless_turquoise_shallow_water_texture.png"
-DeepTexturePath = "res://addons/beep_game_builder_cs/textures/water/seamless_deep_blue_ocean_texture.png"
-SandTexturePath = "res://addons/beep_game_builder_cs/textures/water/seamless_golden_desert_sand_texture.png"
-FoamSheetPath = "res://addons/beep_game_builder_cs/textures/water/surf_foam_streaks.png"
-FoamStrength = 0.4
 RefreshOnReady = false
 
 [node name="IsoFeatures" type="Node2D" parent="Preview" unique_id=1865494715]

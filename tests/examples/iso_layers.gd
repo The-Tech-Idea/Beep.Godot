@@ -209,41 +209,51 @@ func _initialize() -> void:
 		if entry["kind"] == "terrain" and int(entry["cells"]) == 0:
 			empty += 1
 	check(empty == 0, "no terrain layer is empty (%d are)" % empty)
-	# A bed under every water cell WITHIN the see-through band, and none beyond
-	# it. Beyond, the water is opaque and a bed is invisible - except at its own
-	# edge, which stops at the map border and drew a straight cut across the
-	# shallows. Depth here is the same breadth-first sweep out from the coast
-	# that the renderer uses.
-	var depth := {}
-	var queue: Array[Vector2i] = []
-	for y in range(size.y):
-		for x in range(size.x):
-			var k: String = gen.TerrainKindAt(Vector2i(x, y))
-			if k != "deep_water" and k != "shallow_water":
-				depth[Vector2i(x, y)] = 0
-				queue.append(Vector2i(x, y))
-	var head := 0
-	while head < queue.size():
-		var c: Vector2i = queue[head]
-		head += 1
-		for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
-			var n: Vector2i = c + d
-			if n.x < 0 or n.y < 0 or n.x >= size.x or n.y >= size.y: continue
-			if depth.has(n): continue
-			var nk: String = gen.TerrainKindAt(n)
-			if nk != "deep_water" and nk != "shallow_water": continue
-			depth[n] = int(depth[c]) + 1
-			queue.append(n)
-
+	# A bed under every water cell WITHIN the see-through band, and none beyond it. Beyond, the
+	# water is opaque and a bed is invisible - except at its own edge, which stops at the map
+	# border and drew a straight cut across the shallows.
+	#
+	# Depth is distance from the waterline, owned by the coast field the sea itself is shaded
+	# from (VIEW-05). This check used to carry its own four-neighbour sweep and call it "the same
+	# one the renderer uses" - a copy of the implementation, which went stale the moment the
+	# renderer stopped counting steps. It asks the renderer for the depth now, and measures the
+	# things that do not depend on which metric that is.
+	var seabed_layer: TileMapLayer = iso.get_node_or_null("IsoSeabed")
+	check(seabed_layer != null, "the block view has a seabed layer")
 	var bedded := 0
-	for c in depth:
-		var d: int = int(depth[c])
-		if d >= 1 and d <= int(iso.SeabedDepth):
-			bedded += 1
+	var painted_wrong := 0
+	var shore_without_bed := 0
+	var deep_without_bed := 0
+	if seabed_layer != null:
+		for y in range(size.y):
+			for x in range(size.x):
+				var c := Vector2i(x, y)
+				var kind: String = gen.TerrainKindAt(c)
+				var wet: bool = kind == "deep_water" or kind == "shallow_water"
+				var d: int = int(iso.SeabedDepthAt(c))
+				var has_bed: bool = seabed_layer.get_cell_source_id(c) != -1
+				# The paint rule: a bed exactly where the depth is inside the shelf.
+				if has_bed != (wet and d >= 1 and d <= int(iso.SeabedDepth)):
+					painted_wrong += 1
+				if has_bed:
+					bedded += 1
+				# Whatever the metric, a water cell against the shore is the shallowest water
+				# there is, and one far out in open water is past any shelf.
+				if wet and not has_bed:
+					var touches_land := false
+					for step in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+						var n: Vector2i = c + step
+						if n.x < 0 or n.y < 0 or n.x >= size.x or n.y >= size.y: continue
+						var nk: String = gen.TerrainKindAt(n)
+						if nk != "deep_water" and nk != "shallow_water": touches_land = true
+					if touches_land: shore_without_bed += 1
+					else: deep_without_bed += 1
 
-	check(bed_cells == bedded,
-		"a seabed under every see-through water cell, and none beyond (%d of %d)"
-			% [bed_cells, bedded])
+	check(painted_wrong == 0, "the seabed is painted exactly where the shelf reaches (%d cells disagree)" % painted_wrong)
+	check(shore_without_bed == 0, "every water cell against the shore has a bed (%d do not)" % shore_without_bed)
+	check(bedded > 0 and deep_without_bed > 0,
+		"the shelf ends: %d cells bedded, %d open-water cells left bare" % [bedded, deep_without_bed])
+	check(bed_cells == bedded, "the seabed layer's own count agrees with the map (%d of %d)" % [bed_cells, bedded])
 	check(counts.get(1, 0) == land,
 		"ground covers exactly the land cells (%d of %d)" % [counts.get(1, 0), land])
 	for entry in stack:

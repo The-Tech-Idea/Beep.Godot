@@ -30,6 +30,19 @@ namespace Beep.ECS
         [Export] public bool UseBounds { get; set; } = true;
         [Export] public Vector2I BoundsOrigin { get; set; } = Vector2I.Zero;
         [Export] public Vector2I BoundsSize { get; set; } = new(64, 64);
+
+        /// <summary>
+        /// Cells of the bounds rectangle held out of play on every side - the map's cordon. A map
+        /// is drawn to its edge and played inside it: the outermost ring is scenery a unit may
+        /// not stand on, which is how an RTS map keeps a camera and a pathfinder from working
+        /// against the very edge of the world. Zero, the default, leaves the whole rectangle in
+        /// play, so an existing map is unchanged.
+        ///
+        /// ONE owner: the bounds are this component's, so the inset is read by IsInBounds and
+        /// every existing consumer of it inherits the cordon - placement's out_of_bounds, the
+        /// job bounds, the worker spawner and the camera's framing.
+        /// </summary>
+        [Export(PropertyHint.Range, "0,16,1")] public int PlayableInset { get; set; }
         [Export] public DiagonalPolicy Diagonals { get; set; } = DiagonalPolicy.NoCornerCutting;
         [Export] public bool TreatPlacementOccupiedAsBlocked { get; set; } = true;
         [Export] public bool TreatCellDataBlockedAsBlocked { get; set; } = true;
@@ -120,10 +133,13 @@ namespace Beep.ECS
 
         public override string[] _GetConfigurationWarnings()
         {
+            var warnings = new List<string>();
             if (UseBounds && (BoundsSize.X <= 0 || BoundsSize.Y <= 0))
-                return new[] { "BoundsSize must be greater than zero when UseBounds is enabled." };
+                warnings.Add("BoundsSize must be greater than zero when UseBounds is enabled.");
+            if (UseBounds && PlayableInset != EffectivePlayableInset)
+                warnings.Add($"PlayableInset {PlayableInset} would leave no playable cell in a {BoundsSize.X}x{BoundsSize.Y} map; {EffectivePlayableInset} is applied.");
 
-            return System.Array.Empty<string>();
+            return warnings.ToArray();
         }
 
         /// <summary>
@@ -357,11 +373,20 @@ namespace Beep.ECS
             if (!UseBounds)
                 return true;
 
-            return cell.X >= BoundsOrigin.X
-                && cell.Y >= BoundsOrigin.Y
-                && cell.X < BoundsOrigin.X + BoundsSize.X
-                && cell.Y < BoundsOrigin.Y + BoundsSize.Y;
+            int inset = EffectivePlayableInset;
+            return cell.X >= BoundsOrigin.X + inset
+                && cell.Y >= BoundsOrigin.Y + inset
+                && cell.X < BoundsOrigin.X + BoundsSize.X - inset
+                && cell.Y < BoundsOrigin.Y + BoundsSize.Y - inset;
         }
+
+        /// <summary>
+        /// The cordon actually applied: never negative, and never so wide that it would leave no
+        /// playable cell at all - a map with nowhere to stand is a configuration mistake, and
+        /// _GetConfigurationWarnings names it rather than this quietly swallowing it.
+        /// </summary>
+        public int EffectivePlayableInset
+            => Mathf.Clamp(PlayableInset, 0, (Mathf.Max(1, Mathf.Min(BoundsSize.X, BoundsSize.Y)) - 1) / 2);
 
         public void SetBlocked(Vector2I cell, bool blocked)
         {

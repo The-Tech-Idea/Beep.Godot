@@ -39,6 +39,10 @@ $probes = [ordered]@{
     terrain_live_coast_shape_probe = "[terrain-live-coast-shape] OK"
     terrain_feature_grid_probe = "[terrain-feature-grid] OK"
     terrain_data_origin_probe = "[terrain-data-origin] OK"
+    terrain_start_area_probe = "[terrain-start-area] OK"
+    terrain_start_area_play_probe = "[terrain-start-area-play] OK"
+    terrain_spawn_markers_probe = "[terrain-spawn-markers] OK"
+    terrain_faction_assignment_probe = "[terrain-faction-assignment] OK"
     terrain_navigation_binding_probe = "[terrain-navigation-binding] OK"
     terrain_navigation_height_probe = "[terrain-navigation-height] OK"
     terrain_follower_live_probe = "[terrain-follower-live] OK"
@@ -51,21 +55,28 @@ $probes = [ordered]@{
     terrain_live_resource_view_probe = "[terrain-live-resource-view] OK"
     terrain_survey_overlay_probe = "[terrain-survey-overlay] OK"
     terrain_lab_grid_probe = "[terrain-lab-grid] OK"
+    terrain_view_parity_probe = "[terrain-view-parity] OK"
     terrain_grid_playground_probe = "[terrain-grid-playground] OK"
 }
 
-function Invoke-TerrainProbe([string]$Name, [string]$Script, [string]$Marker, [bool]$Render, [bool]$Capture) {
+function Invoke-TerrainProbe([string]$Name, [string]$Script, [string]$Marker, [bool]$Render, [bool]$Capture,
+    [string]$RenderingMethod = "gl_compatibility", [int]$QuitAfter = 3600, [int]$ProbeTimeoutSeconds = $TimeoutSeconds) {
     $stdout = Join-Path $outputDirectory "$Name.stdout.log"
     $stderr = Join-Path $outputDirectory "$Name.stderr.log"
-    $arguments = @("--path", "`"$root`"", "--script", "res://tests/$Script.gd", "--quit-after", "3600")
-    if ($Render) { $arguments += @("--rendering-method", "gl_compatibility", "--resolution", "1280x800") }
+    $arguments = @("--path", "`"$root`"", "--script", "res://tests/$Script.gd")
+    if ($QuitAfter -gt 0) { $arguments += @("--quit-after", "$QuitAfter") }
+    if ($Render) {
+        # An empty method leaves the project's own renderer, which is what F6 uses.
+        if ($RenderingMethod) { $arguments += @("--rendering-method", $RenderingMethod) }
+        $arguments += @("--resolution", "1280x800")
+    }
     else { $arguments += "--headless" }
     if ($Capture) { $arguments += @("--", "--capture") }
     $timer = [System.Diagnostics.Stopwatch]::StartNew()
     $process = Start-Process -FilePath $godot -ArgumentList $arguments -WorkingDirectory $root -WindowStyle Hidden -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
     # Keep the native handle open so Windows PowerShell can read exit status after termination.
     $null = $process.Handle
-    $timedOut = -not $process.WaitForExit($TimeoutSeconds * 1000)
+    $timedOut = -not $process.WaitForExit($ProbeTimeoutSeconds * 1000)
     if ($timedOut) { $process.Kill(); $process.WaitForExit() }
     $exitCode = $process.ExitCode
     $text = (Get-Content -LiteralPath $stdout -Raw) + "`n" + (Get-Content -LiteralPath $stderr -Raw)
@@ -95,6 +106,7 @@ try {
         @("style_beach", "terrain_style_beach_probe", "[terrain-style-beach] OK", $false),
         @("shoreline_contours", "terrain_shoreline_contour_probe", "[shoreline-contours] GPU threshold, fixed coast, width controls and fixture captures OK", $false),
         @("water_alpha", "terrain_water_alpha_probe", "[terrain-water-alpha] OK", $false),
+        @("item_modulate", "terrain_item_modulate_probe", "[terrain-item-modulate] OK", $false),
         @("painted_blend", "terrain_painted_blend_probe", "[terrain-painted-blend] OK", $false),
         @("painted_shading", "terrain_painted_shading_probe", "[terrain-painted-shading] OK", $false),
         @("material_scale", "terrain_material_scale_probe", "[terrain-material-scale] OK", $false),
@@ -113,6 +125,12 @@ try {
     )) {
         if ($SkipRendering) { $results.Add([pscustomobject]@{name=$render[0]; status="skipped"; rendering=$true}) }
         else { Invoke-TerrainProbe $render[0] $render[1] $render[2] $true $render[3] }
+    }
+    # The lab's tile views as F6 runs them: project renderer, a dozen generations, no frame cap.
+    if ($SkipRendering) { $results.Add([pscustomobject]@{name="lab_tile_views"; status="skipped"; rendering=$true}) }
+    else {
+        Invoke-TerrainProbe "lab_tile_views" "terrain_lab_tile_views_probe" "[terrain-lab-tile-views] OK" $true $false `
+            -RenderingMethod "" -QuitAfter 0 -ProbeTimeoutSeconds 600
     }
 } finally {
     $env:GODOT_MCP_BRIDGE_AUTO_CONNECT_RUNTIME = $previousBridge

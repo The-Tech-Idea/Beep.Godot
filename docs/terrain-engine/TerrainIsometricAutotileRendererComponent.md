@@ -53,6 +53,40 @@ The first explicit rebuild discovers an already-authored `IsoTerrain` child
 before validation, so a missing source cannot leave its old tiles on screen.
 Only that owned layer is cleared, not unrelated authored children.
 
+## Sea
+
+This view gained a sea in VIEW-04 (implemented 2026-09-16); before it, it drew ground and
+nothing else. Set `WaterShaderPath` and the renderer builds a `TileWater` layer over the terrain
+it just painted, running the same shader the other three views use. Leave it empty and the tiles
+are all that draws — the contract the flat tile view already states, and what a game wanting a
+flat stylised sea asks for.
+
+The water layer fills its own cells from (0,0) — one rendering quadrant, so the shader's `VERTEX`
+does not restart mid-map — and is then MOVED so its cell (0,0) lands exactly where the terrain
+layer draws `BoundsOrigin`. The offset is taken by asking both layers where a cell is
+(`terrain.MapToLocal(BoundsOrigin) - water.MapToLocal(Vector2I.Zero)`) rather than re-deriving
+the isometric projection, so it stays aligned whatever an authored TileSet's layout is. Its blank
+tile is a diamond, sized from the terrain TileSet's own `TileSize`; a terrain layer with no
+TileSet warns and draws no water rather than guessing a cell shape.
+
+Under a `LibraryPack` the sea is cleared. A pack brings its own shoreline tiles, so the shader
+sea would draw a second one over them — the same rule the flat tile view applies.
+
+- `[Export(File,*.gdshader)] string WaterShaderPath` — the sea shader; empty means no sea.
+- `[Export] TerrainWaterLook? WaterLook` — how the sea looks, shared with every other view of
+  this world. `TerrainWorldComponent.Draw()` pushes the world's look here on every build, so
+  assign it on the world; unassigned, `TerrainWaterLook.Shared` is used. See
+  [TerrainWaterLook](TerrainWaterLook.md).
+- `[Export] int CoastDetail`, `[Export] float CoastRangeTiles` — the coast window this view
+  resolves for itself, from live cells when they are bound and from the generator otherwise.
+- `[Export] float MaxOpacity = 1.0`, `ClarityTiles = 3.0`, `LakeOpacity = 0.42`,
+  `ShoreOpacity = 0.55` — the transparent-sheet uniforms, per surface rather than per look.
+
+The coast resolve, the material and the tile geometry all come from the shared
+[`TerrainSeaSurface`](TerrainSeaSurface.md) (`TileBatched(isometric: true)`,
+`BuildMaterial(flatProjection: false, tileBatch: true)`), so this sea cannot drift from the other
+three.
+
 ## Public Methods
 
 - Rebuild clears and validates the view, samples each source cell once, groups
@@ -64,10 +98,15 @@ Only that owned layer is cleared, not unrelated authored children.
 - GridExtent accepts dimensions and returns the logical tile extent starting at
   BoundsOrigin, in renderer-local coordinates. It includes staggered perimeter
   cells, but not sprite overhang. World adds BoundsOrigin to local generator start
-  cells before using CellPosition for camera targeting.
+  cells before using CellPosition for camera targeting. It returns an empty
+  rectangle while the layer has never published a TileSet, for example on a
+  first draw with a rejected `LibraryPack`.
 - GetPaintDiagnostics returns a copy containing `valid`, `requested`,
-  `missing` and `unmapped`. Early validation failures also provide `reason`.
-  Valid requires both missing and unmapped counts to be zero.
+  `missing` and `unmapped`. Validation failures, packs that cannot draw a cell and
+  failed time-sliced builds also provide `reason`. Valid requires both missing and
+  unmapped counts to be zero. A failed pack build keeps the published layer;
+  TerrainWorldComponent reports the reason as `View incomplete: …` in its status
+  line and fails world generation with it.
 
 ## Verification And Limits
 
@@ -85,9 +124,17 @@ The lab now uses `textures/iso/lab_terrain_tileset.tres`: native 111x64 diamond
 tiles from the existing Kenney tops atlas, with explicit terrain assignments
 and bindings for all generated biomes, including water. It uses complete-tile
 mode, not terrain-connect mode. The old unassigned grass-only resource is no
-longer used by the lab. This is a flat isometric tile view; elevated blocks and
-isometric props remain in the separate Isometric view. Hard tile boundaries
+longer used by the lab. This is a flat isometric tile view. Elevated blocks and the
+per-level isometric feature renderer stay with the separate Isometric view. This view draws the
+grid companions (vegetation, rocks, resource icons, overlay) on its diamond cells through the
+gameplay grid (VIEW-01), and its own shader sea
+(VIEW-04). Hard tile boundaries
 are expected here; smooth transition artwork has not been authored.
+
+`terrain_view_parity_probe.gd` carries this view's sea row: its `IsoAutotile/TileWater` must be
+drawn, carry a coast map, and agree with the other three views on the shared water uniforms.
+`terrain_water_material_probe.gd` builds it on the lab's authored TileSet and checks it receives
+all thirteen dials from one `TerrainWaterLook`. Neither is a judgement on the water artwork.
 
 `terrain_lab_styles_probe.gd` verifies all 1,024 cells are painted, no terrain
 is missing/unmapped, redraw is deterministic, and changing style preserves

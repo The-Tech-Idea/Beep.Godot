@@ -239,7 +239,10 @@ namespace Beep.ECS
                     var ground = TerrainTileSets.GroundOf(kind);
                     if (Mask(ground) != 0) classes[y * ChunkSize + x] = (int)ground + 1;
                 }
-            bool merge = _grid.TileMapLayerPath.IsEmpty && _grid.ElevatedTerrainPath.IsEmpty;
+            // Merge same-class runs wherever the cells form affine runs - the grid owns that
+            // rule. This used to require an UNBOUND grid, and every terrain view binds one, so
+            // under a terrain view every cell got its own shape (10,240 per class on Huge).
+            bool merge = _grid.CellsFormAffineRuns;
             // Hoisted above the loops: the merged-rect corners come from neighbour cells,
             // and a stackalloc in the body would grow the stack per cell.
             Span<Vector2> neighbor = stackalloc Vector2[4];

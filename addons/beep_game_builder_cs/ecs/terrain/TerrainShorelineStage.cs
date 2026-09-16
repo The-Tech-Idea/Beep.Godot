@@ -26,16 +26,20 @@ namespace Beep.ECS
                 for (int i = 0; i < world.Count; i++) body[i] = world.Water[i] == WaterBody.Ocean;
                 TerrainEuclideanDistance.Squared(body, size, true, squared);
                 for (int i = 0; i < world.Count; i++)
-                    if (world.Land[i] && (Math.Sqrt(squared[i]) - 0.5) / world.SamplesPerCell <= settings.BeachWidth)
+                    if (world.Land[i] && TerrainEuclideanDistance.ToTiles(squared[i], world.SamplesPerCell) <= settings.BeachWidth)
                         world.Terrain[i] = "sand";
             }
             if (settings.LakeShoreWidth > 0f)
             {
                 for (int i = 0; i < world.Count; i++) body[i] = world.Water[i] == WaterBody.Lake;
                 TerrainEuclideanDistance.Squared(body, size, true, squared);
+                // Every shore, not only the flat ones. Gating the bank on flat ground left a lake
+                // that runs against rising land with no shore at all: grass met water directly and
+                // the lake read as a stain on the hillside rather than as a body of water with an
+                // edge. A shore is what bounds water; the ground behind it may do what it likes.
                 for (int i = 0; i < world.Count; i++)
-                    if (world.Land[i] && world.Relief[i] == TerrainRelief.Flat
-                        && (Math.Sqrt(squared[i]) - 0.5) / world.SamplesPerCell <= settings.LakeShoreWidth)
+                    if (world.Land[i]
+                        && TerrainEuclideanDistance.ToTiles(squared[i], world.SamplesPerCell) <= settings.LakeShoreWidth)
                         world.Terrain[i] = "sand";
             }
 

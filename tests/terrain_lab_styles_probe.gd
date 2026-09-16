@@ -20,6 +20,7 @@ func run() -> void:
 	var dimensions: Vector2i = world.get("BuiltSize")
 	var cell_count := dimensions.x * dimensions.y
 	var overlay: Node = scene.get_node("Preview/MapOverlay")
+	var resource_icons: CanvasItem = scene.get_node("Preview/Diagnostics/Resources")
 	var diagnostics_toggle: BaseButton = scene.get_node("HUD/Settings/Scroll/Controls/Diagnostics")
 	assert(not diagnostics_toggle.button_pressed)
 	for style in range(3):
@@ -33,12 +34,13 @@ func run() -> void:
 		assert(world.get("Projection") == 0 and view.selected == selected)
 		assert(world.get("MapArt") == ([null, scene.get("PixelArtProfile"), scene.get("CartoonProfile")][style]))
 		assert(cells.get("TerrainRevision") == revision, "Changing style regenerated gameplay terrain")
-		assert(overlay.get("UndergroundPatchCount") == 0 and overlay.get("ResourceMarkerCount") == 0,
+		assert(overlay.get("UndergroundPatchCount") == 0 and not resource_icons.is_visible_in_tree(),
 			"Resource diagnostics stained the normal terrain preview")
 		diagnostics_toggle.button_pressed = true
 		assert(overlay.get("UndergroundPatchCount") > 0, "Survey overlay cannot be enabled explicitly")
+		assert(resource_icons.is_visible_in_tree(), "Resource icons cannot be enabled explicitly")
 		diagnostics_toggle.button_pressed = false
-		assert(overlay.get("UndergroundPatchCount") == 0 and overlay.get("ResourceMarkerCount") == 0)
+		assert(overlay.get("UndergroundPatchCount") == 0 and not resource_icons.is_visible_in_tree())
 		assert(cells.get("TerrainRevision") == revision, "Diagnostics changed gameplay terrain")
 		if large:
 			var surface: TileMapLayer = scene.get_node("Preview/Splat/SplatSurface")

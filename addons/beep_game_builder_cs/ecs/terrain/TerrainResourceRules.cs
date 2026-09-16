@@ -12,6 +12,8 @@ internal sealed class TerrainResourceRules
         public string Id { get; }
         public ResourceStratum Stratum { get; }
         public ResourceDepth Depth { get; }
+        /// <summary>The authored category, captured so a worker never asks the catalog resource.</summary>
+        public ResourceCategory Category { get; }
         public float Weight { get; }
         public float DepositScale { get; }
         private readonly bool _requiresRelief;
@@ -22,6 +24,7 @@ internal sealed class TerrainResourceRules
             Id = definition.Id;
             Stratum = definition.Stratum;
             Depth = definition.Depth;
+            Category = definition.Category;
             Weight = definition.Weight;
             DepositScale = definition.DepositScale;
             _requiresRelief = definition.RequiresRelief;
@@ -50,6 +53,14 @@ internal sealed class TerrainResourceRules
     }
 
     public float WeightOf(string id) => _weights.TryGetValue(id, out float weight) ? weight : 1f;
+
+    /// <summary>The first catalog entry with this id (ResourceCatalog.Find's rule), or null.</summary>
+    public Entry? Find(string id)
+    {
+        foreach (Entry entry in Entries)
+            if (entry.Id == id) return entry;
+        return null;
+    }
 
     public static TerrainResourceRules Capture(TerrainGenerationSettings settings)
     {

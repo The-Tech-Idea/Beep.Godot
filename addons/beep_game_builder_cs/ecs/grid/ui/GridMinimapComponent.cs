@@ -55,6 +55,24 @@ namespace Beep.ECS
         /// once per cell-data change, never per frame.
         /// </summary>
         [Export] public bool ShowTerrain { get; set; } = true;
+
+        /// <summary>
+        /// Tint the baked terrain where the map reserves ground for a start, in the colour of the
+        /// faction that start was assigned. Off by default: a map without a faction catalog has no
+        /// colour to tint with, and a sandbox showing one player's own reservation as a coloured
+        /// patch is noise. Needs StartAreaPath and a cell model that carries start areas.
+        /// </summary>
+        [Export] public bool ShowStartAreas { get; set; }
+
+        /// <summary>The GridStartAreaComponent whose assignment says which faction holds which start.</summary>
+        [Export] public NodePath StartAreaPath { get; set; } = new("");
+
+        /// <summary>
+        /// How far a start area's texel moves toward its faction's colour. A tint, not a fill: the
+        /// terrain underneath must still read, or the minimap stops being a map of the ground.
+        /// </summary>
+        [Export(PropertyHint.Range, "0,1,0.01")] public float StartAreaTint { get; set; } = 0.2f;
+
         [Export] public bool ShowRoads { get; set; } = true;
         [Export] public bool ShowSelection { get; set; } = true;
         [Export] public bool ShowJobs { get; set; } = true;
@@ -74,6 +92,7 @@ namespace Beep.ECS
         private GridSelectionComponent? _selection;
         private GridJobQueueComponent? _jobs;
         private GridCellDataComponent? _cells;
+        private GridStartAreaComponent? _startArea;
         private Node? _unitsRoot;
         private Camera2D? _camera;
 
@@ -81,6 +100,7 @@ namespace Beep.ECS
         private GridJobQueueComponent? _connectedJobs;
         private GridSelectionComponent? _connectedSelection;
         private GridCellDataComponent? _connectedCells;
+        private GridStartAreaComponent? _connectedStartArea;
 
         private readonly List<Vector2I> _roadCells = new();
         private readonly List<Vector2I> _jobCells = new();
@@ -339,32 +359,50 @@ namespace Beep.ECS
             int texH = Mathf.Max(1, (size.Y + scale - 1) / scale);
             var image = Image.CreateEmpty(texW, texH, false, Image.Format.Rgba8);
             var counts = new Dictionary<string, int>(StringComparer.Ordinal);
+            var areas = new Dictionary<int, int>();
+            bool tint = ShowStartAreas && _startArea is not null && _cells.HasStartAreas;
             for (int ty = 0; ty < texH; ty++)
             {
                 for (int tx = 0; tx < texW; tx++)
-                    image.SetPixel(tx, ty, BlockColour(origin, size, tx * scale, ty * scale, scale, counts));
+                    image.SetPixel(tx, ty, BlockColour(origin, size, tx * scale, ty * scale, scale, counts, tint ? areas : null));
             }
 
             _terrainTexture = ImageTexture.CreateFromImage(image);
         }
 
         /// <summary>The overview colour of one s×s cell block: the colour of its majority terrain
-        /// kind (a single cell when scale is 1), or transparent when that kind has no minimap colour.</summary>
-        private Color BlockColour(Vector2I origin, Vector2I size, int cellX, int cellY, int scale, Dictionary<string, int> counts)
+        /// kind (a single cell when scale is 1), or transparent when that kind has no minimap colour;
+        /// tinted toward the faction holding the block's majority start area when
+        /// <paramref name="areas"/> is supplied.</summary>
+        private Color BlockColour(Vector2I origin, Vector2I size, int cellX, int cellY, int scale, Dictionary<string, int> counts, Dictionary<int, int>? areas)
         {
             counts.Clear();
+            areas?.Clear();
             int maxX = Mathf.Min(cellX + scale, size.X);
             int maxY = Mathf.Min(cellY + scale, size.Y);
             for (int y = cellY; y < maxY; y++)
             {
                 for (int x = cellX; x < maxX; x++)
                 {
-                    string kind = GridIds.Normalize(_cells!.GetTerrainKind(new Vector2I(origin.X + x, origin.Y + y)));
+                    var cell = new Vector2I(origin.X + x, origin.Y + y);
+                    string kind = GridIds.Normalize(_cells!.GetTerrainKind(cell));
                     counts[kind] = counts.TryGetValue(kind, out int c) ? c + 1 : 1;
+                    if (areas is null) continue;
+                    int area = _cells.GetStartArea(cell);
+                    areas[area] = areas.TryGetValue(area, out int a) ? a + 1 : 1;
                 }
             }
             string majority = TerrainGeometry.MostCommon(counts, "") ?? "";
-            return TerrainColors.TryGetValue(majority, out Color colour) ? colour : Colors.Transparent;
+            Color ground = TerrainColors.TryGetValue(majority, out Color colour) ? colour : Colors.Transparent;
+            if (areas is null) return ground;
+
+            // The block's majority reservation, counted like its terrain so the two agree at any
+            // downsample. 0 - unreserved - wins on a mostly-open block, and ColourOfStart answers
+            // transparent for a start nobody holds, so TintToward leaves the ground alone in both.
+            int reserved = TerrainGeometry.MostCommon(areas, 0);
+            return reserved <= 0
+                ? ground
+                : GridFactionCatalog.TintToward(ground, _startArea!.ColourOfStart(reserved - 1), StartAreaTint);
         }
 
         private void DrawUnits(Rect2 mapRect, Vector2I origin, Vector2I size)
@@ -441,6 +479,9 @@ namespace Beep.ECS
             EntityComponent.Resolve(this, SelectionPath, ref _selection);
             EntityComponent.Resolve(this, JobQueuePath, ref _jobs);
             EntityComponent.Resolve(this, CellDataPath, ref _cells);
+            // Explicit only: the start areas are a tint this minimap opts into, and finding one in
+            // the scene would colour a map nobody asked to colour.
+            EntityComponent.ResolveLive(this, StartAreaPath, ref _startArea, fallbackWhenEmpty: false);
 
             // Not the shared rule: the units root is an explicit wire only, and
             // the camera falls back to the viewport's current camera.
@@ -509,6 +550,16 @@ namespace Beep.ECS
                 _connectedCells = _cells;
                 _terrainDirty = true;
             }
+
+            if (_startArea != _connectedStartArea)
+            {
+                if (_connectedStartArea != null && GodotObject.IsInstanceValid(_connectedStartArea))
+                    _connectedStartArea.AssignmentChanged -= OnAssignmentChanged;
+                if (_startArea != null)
+                    _startArea.AssignmentChanged += OnAssignmentChanged;
+                _connectedStartArea = _startArea;
+                _terrainDirty = true;
+            }
         }
 
         private void DisconnectSignals()
@@ -527,12 +578,21 @@ namespace Beep.ECS
                 _connectedCells.CellChanged -= OnCellChanged;
                 _connectedCells.CellsChanged -= OnCellsChanged;
             }
+            if (_connectedStartArea != null && GodotObject.IsInstanceValid(_connectedStartArea))
+                _connectedStartArea.AssignmentChanged -= OnAssignmentChanged;
 
             _connectedRoads = null;
             _connectedJobs = null;
             _connectedSelection = null;
             _connectedCells = null;
+            _connectedStartArea = null;
         }
+
+        /// <summary>
+        /// Re-bake when the assignment changes: the tint is a faction's colour, so a start changing
+        /// hands has to repaint, and the bake only runs on cell changes otherwise.
+        /// </summary>
+        private void OnAssignmentChanged() { _terrainDirty = true; QueueRedraw(); }
 
         private void OnRoadChanged(int x, int y, string kind, bool hasRoad) { _roadsDirty = true; QueueRedraw(); }
         private void OnRoadsChanged() { _roadsDirty = true; QueueRedraw(); }

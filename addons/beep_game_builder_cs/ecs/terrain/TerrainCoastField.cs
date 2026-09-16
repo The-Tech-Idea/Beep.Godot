@@ -539,7 +539,7 @@ namespace Beep.ECS
                     field[pixel + 1] = !_lake && _ocean![cell] ? 1f : 0f;
                     double away = toOcean is null ? double.PositiveInfinity : toOcean[local];
                     float oceanDistance = openWater is not null && openWater[local] ? signed
-                        : -(float)Math.Max(0, Math.Sqrt(away) - 0.5) / d;
+                        : -TerrainEuclideanDistance.ToTiles(away, d);
                     field[pixel + 2] = Mathf.Clamp(oceanDistance / _range * 0.5f + 0.5f, 0f, 1f);
                     field[pixel + 3] = _patches![cell] is not null ? 1f : 0f;
                 }
@@ -560,13 +560,54 @@ namespace Beep.ECS
         /// </summary>
         public static ImageTexture Build(
             TerrainGeneratorComponent generator, Vector2I size, int detail, float rangeTiles)
+            => BuildPixels(generator, size, detail, rangeTiles).Upload();
+
+        /// <summary>The generated field before upload, for a caller that also reads it on the CPU.</summary>
+        internal static Pixels BuildPixels(
+            TerrainGeneratorComponent generator, Vector2I size, int detail, float rangeTiles)
         {
             ArgumentNullException.ThrowIfNull(generator);
 
             // All samples in this build share one recipe snapshot. Calling the
             // component per sample repeatedly constructs and compares settings.
             GeneratedTerrainField field = generator.ResolveField();
-            return Build(size, detail, rangeTiles, field.IsWaterAtPosition, OceanCells(field, size));
+            return BuildPixels(size, detail, rangeTiles, field.IsWaterAtPosition, OceanCells(field, size));
+        }
+
+        /// <summary>
+        /// How far each CELL is from the waterline, in tiles, positive out to sea: the R channel
+        /// decoded at the cell's centre sample.
+        ///
+        /// Depth has one owner, and this is it. The block view used to measure its own with a
+        /// four-neighbour sweep out from land - Manhattan steps - while the sea drawn over that
+        /// bed shades its depth from this field, which is Euclidean. Along a diagonal coast the
+        /// two disagreed by up to a step, so the seabed band changed where the water tint did
+        /// not (VIEW-05).
+        ///
+        /// Saturates at the range the field was built with, as the encoding does: a caller
+        /// wanting bands wider than that must build the field with a wider range.
+        /// </summary>
+        internal static float[] CellDistances(Pixels field, Vector2I size, float rangeTiles)
+        {
+            int width = Mathf.Max(1, size.X), height = Mathf.Max(1, size.Y);
+            var distances = new float[checked(width * height)];
+            int detailX = Mathf.Max(1, field.Size.X / width), detailY = Mathf.Max(1, field.Size.Y / height);
+            float range = Mathf.Max(1.0f, rangeTiles);
+            ReadOnlySpan<float> texels = MemoryMarshal.Cast<byte, float>(field.Data.AsSpan());
+
+            for (int y = 0; y < height; y++)
+            {
+                // The sample nearest the cell's centre: samples sit at (x + 0.5) / detail tiles,
+                // so the centre of cell y falls in sample y * detail + detail / 2.
+                int fy = Math.Min(field.Size.Y - 1, (y * detailY) + (detailY / 2));
+                for (int x = 0; x < width; x++)
+                {
+                    int fx = Math.Min(field.Size.X - 1, (x * detailX) + (detailX / 2));
+                    float encoded = texels[((fy * field.Size.X) + fx) * 4];
+                    distances[(y * width) + x] = (encoded - 0.5f) * 2f * range;
+                }
+            }
+            return distances;
         }
 
         /// <summary>Live grid coastline. Boundary-connected water is ocean; enclosed water is inland.</summary>
@@ -793,7 +834,7 @@ namespace Beep.ECS
                     pixels[pixel] = encoded;
                     pixels[pixel + 1] = ocean[((y / detail) * Mathf.Max(1, size.X)) + (x / detail)] ? 1f : 0f;
                     float oceanDistance = openWater[index] ? signed
-                        : -(float)Math.Max(0, Math.Sqrt(toOcean[index]) - 0.5) / detail;
+                        : -TerrainEuclideanDistance.ToTiles(toOcean[index], detail);
                     pixels[pixel + 2] = Mathf.Clamp(oceanDistance / range * 0.5f + 0.5f, 0f, 1f);
                     pixels[pixel + 3] = smoothCells is null || smoothCells[(y / detail) * size.X + x / detail] ? 1f : 0f;
                 }

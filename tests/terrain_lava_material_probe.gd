@@ -43,10 +43,13 @@ func run() -> void:
 	view.set("BoundsOrigin", origin)
 	view.set("BoundsSize", Vector2i(12, 8))
 	view.set("ShadeStrength", 0.0)
-	view.set("FoamStrength", 0.0)
-	view.set("WaveIntensity", 0.0)
-	view.set("ShallowTiles", 0.0)
-	view.set("DeepTiles", 0.5)
+	# Still water with no surf, through the world's one water look (VIEW-04).
+	var look: Resource = load(BASE + "terrain/TerrainWaterLook.cs").new()
+	look.set("FoamStrength", 0.0)
+	look.set("WaveIntensity", 0.0)
+	look.set("ShallowTiles", 0.0)
+	look.set("DeepTiles", 0.5)
+	view.set("WaterLook", look)
 	viewport.add_child(view)
 	view.call("Rebuild")
 	var material: ShaderMaterial = view.get_node("SplatSurface").material
@@ -120,10 +123,11 @@ func capture_volcanic_preset(viewport: SubViewport, cells: Node, generator: Node
 	for property in names:
 		view.set(property, ART + names[property])
 	view.set("ShadeStrength", 0.35)
-	view.set("FoamStrength", 0.5)
-	view.set("WaveIntensity", 1.0)
-	view.set("ShallowTiles", 1.8)
-	view.set("DeepTiles", 4.5)
+	var look: Resource = view.get("WaterLook")
+	look.set("FoamStrength", 0.5)
+	look.set("WaveIntensity", 1.0)
+	look.set("ShallowTiles", 1.8)
+	look.set("DeepTiles", 4.5)
 	var material: ShaderMaterial = view.get_node("SplatSurface").material
 	material.set_shader_parameter("tint_rock", Vector3.ONE * 0.78)
 	generator.set("BoundsSize", Vector2i(32, 32))

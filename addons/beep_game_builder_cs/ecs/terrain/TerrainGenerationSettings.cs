@@ -56,6 +56,12 @@ namespace Beep.ECS
         float LakeShoreWidth,
         float RiverDensity,
         int StartPositionCount,
+        // Cells reserved around each start, 0..32; zero generates no start areas and leaves
+        // start selection exactly as it was.
+        int StartAreaRadius,
+        // What a playable start needs. Null means the kit defaults with no entries. Like
+        // ResourceCatalog, detached (TerrainStartKitRules) before generation leaves the main thread.
+        TerrainStartKit? StartKit,
         float ResourceDensity,
         ResourceSet ResourceSet,
         // The authored catalog, when a game supplies one. Null means the
@@ -149,6 +155,10 @@ namespace Beep.ECS
         int UndergroundCellCount,
         int RequestedStartPositionCount,
         int StartPositionCount,
+        int StartAreaCount,
+        int StartAreaUsableCount,
+        int StartAreaMinCells,
+        int StartAreaMaxCells,
         int FeatureCount,
         int SamplesPerCell,
         int FieldWidth,
@@ -171,6 +181,10 @@ namespace Beep.ECS
             ["underground_cell_count"] = UndergroundCellCount,
             ["requested_start_position_count"] = RequestedStartPositionCount,
             ["start_position_count"] = StartPositionCount,
+            ["start_area_count"] = StartAreaCount,
+            ["start_area_usable_count"] = StartAreaUsableCount,
+            ["start_area_min_cells"] = StartAreaMinCells,
+            ["start_area_max_cells"] = StartAreaMaxCells,
             ["feature_count"] = FeatureCount,
             ["samples_per_cell"] = SamplesPerCell,
             ["field_width"] = FieldWidth,

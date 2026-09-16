@@ -128,6 +128,29 @@ internal static class TerrainEuclideanDistance
     }
 
     /// <summary>
+    /// A squared SAMPLE distance as tiles from the boundary: the half-sample correction, then the
+    /// sample resolution divided out.
+    ///
+    /// The half sample is what puts a straight boundary BETWEEN two sample centres rather than on
+    /// one of them: a sample touching the boundary is half a sample from it, not a whole one. Drop
+    /// it and every band is half a sample too wide, on both sides.
+    ///
+    /// One owner, because this number decides two things that must agree: which samples the
+    /// shoreline stage calls sand, and how far from the waterline the coast field says a point is.
+    /// It was written out four times - here, twice in the stage and twice in the field - and a
+    /// beach the generator made and a beach the painter drew are the same beach or they are a bug
+    /// (VIEW-07).
+    /// </summary>
+    internal static float ToTiles(double squared, int samplesPerTile)
+    {
+        if (samplesPerTile < 1) throw new ArgumentOutOfRangeException(nameof(samplesPerTile));
+        return (float)(Math.Max(0, Math.Sqrt(squared) - 0.5) / samplesPerTile);
+    }
+
+    /// <summary>The same rule for the float scratch the generation stages share.</summary>
+    internal static float ToTiles(float squared, int samplesPerTile) => ToTiles((double)squared, samplesPerTile);
+
+    /// <summary>
     /// Positive water, negative land. The half-sample correction locates a
     /// straight boundary between sample centres. Curves retain sampling error.
     /// An entirely uniform mask saturates at the map diagonal, without NaN/Inf.
@@ -142,9 +165,11 @@ internal static class TerrainEuclideanDistance
         for (int i = 0; i < result.Length; i++)
         {
             if ((i & 1023) == 0) token.ThrowIfCancellationRequested();
-            double distance = Math.Sqrt(water[i] ? toLand[i] : toWater[i]);
-            distance = double.IsPositiveInfinity(distance) ? maximum : Math.Max(0, distance - 0.5);
-            result[i] = (float)(distance / samplesPerCell) * (water[i] ? 1 : -1);
+            double squared = water[i] ? toLand[i] : toWater[i];
+            float tiles = double.IsPositiveInfinity(squared)
+                ? (float)(maximum / samplesPerCell)
+                : ToTiles(squared, samplesPerCell);
+            result[i] = tiles * (water[i] ? 1 : -1);
         }
         return result;
     }

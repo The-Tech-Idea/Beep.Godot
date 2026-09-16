@@ -110,9 +110,14 @@ void vertex() {
 }
 
 void fragment() {
-	// Preserve the tile's diamond cutout and CanvasItem opacity. Replacing
-	// this alpha paints each atlas rectangle over its neighboring diamonds.
-	float surface_alpha = COLOR.a;
+	// What the item was drawn with: the surface tile's diamond cutout times the
+	// node's Modulate, SelfModulate and every modulate inherited from its
+	// parents. The result is multiplied by all of it at the end. Keeping only the
+	// alpha held the cutout and a fade but dropped a tint set through the node;
+	// replacing the alpha paints each atlas rectangle over its neighbouring
+	// diamonds. (The scene's CanvasModulate is applied by Godot after this
+	// function and never passes through COLOR.)
+	vec4 modulate = COLOR;
 	// ADDITION 1. Diamond-down isometric places a tile at
 	//   world = ((x - y) * w/2, (x + y) * h/2)
 	// so inverting it gives the tile back. Sampling by screen UV instead would
@@ -167,7 +172,13 @@ void fragment() {
 	// the land is opaque geometry drawn above the water, and letting the sea run
 	// on underneath is what fills the strip a coastal block would otherwise
 	// leave bare. Same field, same shoreline, different compositing.
-	float on_water = mix(1.0, smoothstep(-0.35, 0.15, sea.sd), flat_projection);
+	// A LAKE ends in a line. The open sea's edge is deliberately soft - a beach, a wash and
+	// surf carry that transition, and a hard line there reads as a cut-out - but a lake has
+	// none of those, so the same softness just smears its water into the ground around it.
+	// open_sea is the same flag that keeps surf off a lake.
+	float edge_out = mix(-0.08, -0.35, sea.open_sea);
+	float edge_in = mix(0.02, 0.15, sea.open_sea);
+	float on_water = mix(1.0, smoothstep(edge_out, edge_in, sea.sd), flat_projection);
 
-	COLOR = vec4(water_col, max(depth_alpha, sea.foam) * on_water * surface_alpha);
+	COLOR = vec4(water_col, max(depth_alpha, sea.foam) * on_water) * modulate;
 }

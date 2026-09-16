@@ -1,5 +1,7 @@
 shader_type canvas_item;
-render_mode unshaded;
+// Shaded, and the result multiplied by the COLOR received, like every terrain
+// shader: an unshaded item skips the scene's CanvasModulate, and replacing COLOR
+// drops the node's own modulate.
 
 uniform sampler2D brick_texture : repeat_enable, filter_linear_mipmap;
 uniform sampler2D terrain_texture : repeat_disable, filter_linear_mipmap;
@@ -13,6 +15,7 @@ float segment_distance(vec2 p, vec2 end) {
 }
 
 void fragment() {
+	vec4 modulate = COLOR;
 	// Native atlas coordinates encode N/E/S/W connections, then material row.
 	vec2 atlas = UV * vec2(16.0, 3.0);
 	int mask = int(floor(atlas.x));
@@ -41,5 +44,5 @@ void fragment() {
 	float edge = pixel_art ? 0.005 : max(fwidth(distance), 0.008);
 	float alpha = 1.0 - smoothstep(0.31 - edge, 0.31 + edge, distance);
 	material_color *= mix(1.0, 0.77, smoothstep(0.26, 0.31, distance));
-	COLOR = vec4(material_color, alpha);
+	COLOR = vec4(material_color, alpha) * modulate;
 }

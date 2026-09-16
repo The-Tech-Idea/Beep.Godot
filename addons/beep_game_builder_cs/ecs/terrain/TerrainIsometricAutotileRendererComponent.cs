@@ -37,6 +37,30 @@ namespace Beep.ECS
         [Export] public Vector2I BoundsOrigin { get; set; } = Vector2I.Zero;
         [Export] public Vector2I BoundsSize { get; set; } = new(48, 48);
 
+        [ExportGroup("Water Surface")]
+        /// <summary>
+        /// The sea, drawn by the SAME shader every other view uses. Leave the path empty and the
+        /// tiles are all that draws, which is the contract the flat tile view already states - a
+        /// game wanting a flat stylised sea asks for exactly that. Under a LibraryPack the sea is
+        /// cleared: a pack brings its own shoreline tiles (VIEW-04).
+        /// </summary>
+        [Export(PropertyHint.File, "*.gdshader")] public string WaterShaderPath { get; set; } = "";
+
+        /// <summary>How the sea looks, shared with every other view of this world.</summary>
+        [Export] public TerrainWaterLook? WaterLook { get; set; }
+
+        /// <summary>Sub-tile samples per tile edge when measuring the coastline.</summary>
+        [Export(PropertyHint.Range, "1,16,1")] public int CoastDetail { get; set; } = TerrainCoastField.DefaultDetail;
+
+        /// <summary>Distance, in tiles, at which the coast field saturates.</summary>
+        [Export(PropertyHint.Range, "1,24,0.5")] public float CoastRangeTiles { get; set; } = TerrainCoastField.DefaultRangeTiles;
+
+        /// <summary>How opaque deep water gets, with ClarityTiles deciding how fast it closes over.</summary>
+        [Export(PropertyHint.Range, "0,1,0.01")] public float MaxOpacity { get; set; } = 1.0f;
+        [Export(PropertyHint.Range, "0.1,12,0.1")] public float ClarityTiles { get; set; } = 3.0f;
+        [Export(PropertyHint.Range, "0,1,0.01")] public float LakeOpacity { get; set; } = 0.42f;
+        [Export(PropertyHint.Range, "0,1,0.01")] public float ShoreOpacity { get; set; } = 0.55f;
+
         [ExportGroup("TileSet")]
         /// <summary>
         /// An authored TileSet: isometric tile shape, one terrain set, and
@@ -94,6 +118,8 @@ namespace Beep.ECS
 
         private TerrainGeneratorComponent? _generator;
         private TileMapLayer? _layer;
+        private TileMapLayer? _water;
+        private readonly TerrainSeaSurface _sea = new();
         private GridCellDataComponent? _cells;
         private Godot.Collections.Dictionary _paintDiagnostics = new();
 
@@ -150,7 +176,9 @@ namespace Beep.ECS
         {
             if (EffectiveTiles == null || size.X <= 0 || size.Y <= 0) return new Rect2();
             var layer = GetTerrainLayer();
-            Vector2 tile = layer.TileSet!.TileSize;
+            // A layer that has never published (a first draw with a rejected pack) has no geometry yet.
+            if (layer.TileSet is null) return new Rect2();
+            Vector2 tile = layer.TileSet.TileSize;
             Rect2 extent = new(layer.MapToLocal(BoundsOrigin) - tile * 0.5f, tile);
             void Include(int x, int y) => extent = extent.Merge(
                 new Rect2(layer.MapToLocal(BoundsOrigin + new Vector2I(x, y)) - tile * 0.5f, tile));
@@ -179,14 +207,14 @@ namespace Beep.ECS
                         PublicationRevision++;
                         TerrainLibraryEditSession.RestoreVisuals(this, _layer);
                     }
-                    catch (Exception error) { problem = error.Message; }
+                    // The painter's failure for a pack that cannot draw these cells.
+                    catch (InvalidOperationException error) { problem = error.Message; }
                 }
                 _libraryDirty.Clear();
                 if (problem.Length > 0)
                 {
                     _publishedPack = null;
-                    _paintDiagnostics = new() { ["valid"] = false, ["reason"] = problem };
-                    GD.PushWarning(problem);
+                    RecordBuildFailure(problem);
                 }
                 return;
             }
@@ -360,12 +388,20 @@ namespace Beep.ECS
                     CellsProcessedLastFrame += _build.Current;
                 }
             }
+            // Frame-loop boundary: an escaping exception would leave the build alive and repeat every frame.
             catch (Exception error)
             {
                 CancelRebuild();
-                _paintDiagnostics = new() { ["valid"] = false, ["reason"] = error.Message };
-                GD.PushError($"[{Name}] terrain publication failed: {error.Message}");
+                RecordBuildFailure($"terrain publication failed: {error.Message}", unexpected: true);
             }
+        }
+
+        /// <summary>Records why a build did not publish; the last published terrain stays on screen.</summary>
+        private void RecordBuildFailure(string reason, bool unexpected = false)
+        {
+            _paintDiagnostics = new() { ["valid"] = false, ["requested"] = 0, ["missing"] = 0, ["unmapped"] = 0, ["reason"] = reason };
+            if (unexpected) GD.PushError($"[{Name}] {reason}");
+            else GD.PushWarning($"[{Name}] {reason}");
         }
 
         private IEnumerable<int> RebuildSteps()
@@ -380,8 +416,7 @@ namespace Beep.ECS
             _layer = GetNodeOrNull<TileMapLayer>("IsoTerrain");
             if ((!CellDataPath.IsEmpty && _cells is null) || (_cells is null && _generator is null))
             {
-                _paintDiagnostics["reason"] = "Configured terrain source is missing.";
-                GD.PushWarning($"[{Name}] configured terrain source is missing; nothing was drawn.");
+                RecordBuildFailure("Configured terrain source is missing.");
                 yield break;
             }
             if (LibraryPack is not null)
@@ -393,8 +428,7 @@ namespace Beep.ECS
             if (validBindings) problem = TileSetProblem(bindings);
             if (problem.Length > 0)
             {
-                _paintDiagnostics["reason"] = problem;
-                GD.PushWarning($"[{Name}] {problem} Nothing was drawn.");
+                RecordBuildFailure(problem);
                 yield break;
             }
             if (_cells is null && _generator is not null)
@@ -489,11 +523,46 @@ namespace Beep.ECS
                 visible.TileSet = Tiles;
                 visible.TileMapData = layer.TileMapData;
                 PublicationRevision++;
+                EnsureWaterSurface(visible);
             }
             finally
             {
                 if (GodotObject.IsInstanceValid(layer)) layer.Free();
             }
+        }
+
+        /// <summary>
+        /// The sea, on the same diamond cells the terrain is painted on.
+        ///
+        /// The water layer fills its own cells from (0,0) - one rendering quadrant, so the
+        /// shader's VERTEX does not restart mid-map - and is MOVED so that its cell (0,0) lands
+        /// exactly where the terrain layer draws BoundsOrigin. Asking both layers where a cell is
+        /// keeps the two aligned whatever the authored TileSet's layout, rather than re-deriving
+        /// the isometric projection here and hoping it matches.
+        /// </summary>
+        private void EnsureWaterSurface(TileMapLayer terrain)
+        {
+            if (string.IsNullOrWhiteSpace(WaterShaderPath))
+            {
+                _water?.Clear();
+                return;
+            }
+            if (terrain.TileSet is not { } tiles)
+            {
+                GD.PushWarning($"[{Name}] the terrain layer has no TileSet, so the sea has no cell geometry; no water was drawn.");
+                return;
+            }
+
+            Vector2I size = new(Mathf.Max(1, BoundsSize.X), Mathf.Max(1, BoundsSize.Y));
+            _sea.ResolveCoast(_cells, _generator, BoundsOrigin, size, CoastDetail, CoastRangeTiles);
+
+            _water = _sea.TileBatched(this, "TileWater", tiles.TileSize, size, Vector2.Zero, isometric: true);
+            _water.Position = terrain.Position + terrain.MapToLocal(BoundsOrigin) - _water.MapToLocal(Vector2I.Zero);
+            _water.Material = _sea.BuildMaterial(
+                this, WaterShaderPath, WaterLook ?? TerrainWaterLook.Shared,
+                new TerrainSeaSurface.Sheet(MaxOpacity, ClarityTiles, LakeOpacity, ShoreOpacity),
+                BoundsOrigin, size, tiles.TileSize, CoastRangeTiles,
+                flatProjection: false, tileBatch: true);
         }
 
         private IEnumerable<int> RebuildLibrarySteps()
@@ -502,8 +571,7 @@ namespace Beep.ECS
             string problem = pack.Validate(TerrainProjection.IsometricAutotile);
             if (problem.Length > 0)
             {
-                _paintDiagnostics["reason"] = problem;
-                GD.PushWarning(problem);
+                RecordBuildFailure(problem);
                 yield break;
             }
             var field = _cells is null ? _generator!.ResolveField() : null;
@@ -515,16 +583,19 @@ namespace Beep.ECS
             {
                 bool more;
                 try { more = steps.MoveNext(); }
-                catch (Exception error)
+                // The painter's failure for a pack that cannot draw this map.
+                catch (InvalidOperationException error)
                 {
-                    _paintDiagnostics["reason"] = error.Message;
-                    GD.PushWarning(error.Message);
+                    RecordBuildFailure(error.Message);
                     yield break;
                 }
                 if (!more) break;
                 yield return steps.Current;
             }
             PublicationRevision++;
+            // A pack brings its own shoreline tiles, so the shader sea would draw a second one
+            // over them - the same rule the flat tile view applies under a pack.
+            _water?.Clear();
             _publishedPack = pack;
             _publishedPackKey = pack.RenderKey();
             _publishedPackBounds = new Rect2I(BoundsOrigin, BoundsSize);

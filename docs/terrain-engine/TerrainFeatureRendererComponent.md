@@ -25,7 +25,7 @@ cell and grid subscriptions. `TerrainWorldComponent` keeps inactive feature boun
 - `PropSizing` uses the shared TerrainPropSizing resource for tree, oasis and reed dimensions.
 - `GetStampBounds()` returns actual frame rectangles in renderer-local units for size diagnostics.
 - `[Export] public Vector2I BoundsSize { get; set; } = new(96, 60)` — how many tiles wide/high to scan for features.
-- `TileSize` is the square-cell fallback when `GridPath` is empty. The world controller binds the selected grid before rebuilding features.
+- `TileSize` is the square-cell spacing used only when `GridPath` is empty. The world controller binds the selected grid before rebuilding features and no longer copies a tile size into this export. With a grid, placement and sprite size come from the grid's cell corners, and the large-map detail cutoff (`MinimumDetailCellPixels`) measures the grid's `EffectiveTileSize`: the bound surface's cell, not the grid's manual export.
 - `[Export] public int Seed { get; set; } = 31415` — seed mixed into the per-stamp hash (frame choice, position jitter, scale jitter).
 - `[Export(File)] public string WoodsSheetPath/JungleSheetPath/OasisSheetPath/MarshSheetPath { get; set; } = ""` — paths to the four feature sprite sheets; a sheet left blank is simply not loaded.
 - `[Export(Range 1..16)] public int WoodsColumns/WoodsRows/JungleColumns/JungleRows/OasisColumns/OasisRows/MarshColumns/MarshRows { get; set; } = 4` — atlas grid size for each sheet, used to slice out a random frame.

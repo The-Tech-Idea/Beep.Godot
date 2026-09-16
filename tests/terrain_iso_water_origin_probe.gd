@@ -1,4 +1,4 @@
-extends SceneTree
+extends "res://tests/terrain_lab_build.gd"
 
 func _initialize() -> void:
 	call_deferred("run")
@@ -8,8 +8,8 @@ func run() -> void:
 	var scene: Node = load("res://addons/beep_game_builder_cs/templates/scenes/terrain/terrain_generator_lab.tscn").instantiate()
 	scene.get_node("World").set("MapSize", 0)
 	root.add_child(scene)
-	await process_frame
-	await process_frame
+	var build := await await_lab_build(scene.get_node("World"))
+	assert(build.success, "the lab's first build did not succeed: %s" % build.message)
 	var chooser: OptionButton = scene.get_node("HUD/Settings/Scroll/Controls/ViewRow/View")
 	chooser.select(2)
 	chooser.item_selected.emit(2)

@@ -12,6 +12,50 @@ The runner builds Beep.Godot.csproj, then runs 47 headless probes (45 registered
 OpenGL checks. -SkipRendering explicitly skips the latter; skipped is not passed.
 Each process has a configurable wall-clock timeout, default 120 seconds.
 
+## Probes that drive the lab wait for its build
+
+`terrain_generator_lab.tscn` builds its world on a worker: `_Ready` defers `Generate()`, and the
+build publishes over several frames before `GenerationFinished`. Every probe that loads the lab
+extends `tests/terrain_lab_build.gd` and waits through its `await_lab_build(world)`, called
+straight after the lab enters the tree or straight after a control starts a build. It returns
+`{finished, success, message, count}` and asserts nothing, so a probe that expects a build to
+fail or be cancelled reads it the same way as one that expects success.
+
+- **Why not a frame count.** Two frames after `add_child` the world has not published: no
+  `Splat/SplatSurface`, no `Iso/IsoSeabed`, `BuiltSize` still `(0, 0)`, and the lab has disabled
+  its own controls. Eight probes read the lab that early and failed with messages that named none
+  of this - "node not found", "lab controls overwrote configured map size", "styles must be
+  reachable from every view", "expected sparse rock objects". Converted on 2026-09-16:
+  `art_styles`, `lab_styles`, `style_beach`, `iso_water_origin`, `iso_art`, `terrain_lab_grid`
+  (headless and `lab_capture`), `terrain_ground_cover` and `terrain_prop_sizing`. Waiting exposed
+  one more fault behind `terrain_lab_grid`'s: its "a projection switch must not rebuild generated
+  data" check compared the `CellData/TerrainData` TileSet, which exists only when the data layers
+  are materialised - they read the published field directly by default - so the probe now sets
+  `MaterializeTileLayers` on its own lab.
+- **Why the signal, not `IsGenerating`.** `BuiltSize` is set partway through publication, before
+  the painted snapshot and collision finish, so "not generating, `BuiltSize` set" is also what a
+  build that failed late looks like. Six earlier copies of this wait polled `IsGenerating` alone
+  and would have passed a failed first build; they now use the helper too (`stack_order`,
+  `cell_data`, `terrain_view_parity_probe`, `terrain_lab_generation_probe`,
+  `terrain_lab_tile_views_probe`, `terrain_water_look_capture`). **Mutations:** a helper that
+  returns without waiting reproduces the original failures word for word; a lab whose
+  `CollisionPath` names a missing node fails the build late, and the probe reports "Configured
+  terrain collision is unavailable" instead of carrying on with a 32x32 `BuiltSize`.
+- **Frame caps.** A rendered probe can run through `--quit-after 3600` frames before a Tiny world
+  has published, and then quits with no marker and no error. The render table's last column is the
+  frame cap; the probes that wait on the lab carry `0` and are bounded by 180 s of wall-clock time
+  instead (the wait itself gives up at 120 s and says why). A failed assert does not end a probe,
+  so a failing one of these runs to that bound - and the runner then kills the whole process
+  tree with `taskkill /T`. It used to call `Process.Kill()` on what `Start-Process` returned,
+  which is the launcher when `godot` on PATH is a `.cmd` shim: the engine survived the kill and
+  kept running beside every probe after it. The frame cap had hidden that, because a capped
+  probe quit on its own.
+- **Not converted, deliberately:** `terrain_world_generation_probe`,
+  `terrain_world_collision_publication_probe`, `terrain_world_iso_publication_probe` and
+  `terrain_painted_publication_probe` test TerrainWorldComponent's generation itself - invariants
+  on every frame of a build, restarts from inside its handlers, a world freed mid-build - so their
+  loops are the thing under test, not a wait.
+
 ## Latest Run
 
 2026-09-06 shoreline/inland update: clean build, 62/64 passed, zero skipped.

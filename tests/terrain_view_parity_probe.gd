@@ -1,4 +1,4 @@
-extends SceneTree
+extends "res://tests/terrain_lab_build.gd"
 
 # VIEW-13: per projection, the lab draws what that projection should - not merely
 # "the right nodes are visible". The lab is the one scene wiring every view, so it is
@@ -18,7 +18,6 @@ const LAB := "res://addons/beep_game_builder_cs/templates/scenes/terrain/terrain
 const VIEW_PATH := "HUD/Settings/Scroll/Controls/ViewRow/View"
 const SIZE_PATH := "HUD/Settings/Scroll/Controls/MapSizeRow/MapSize"
 const DIAGNOSTICS_PATH := "HUD/Settings/Scroll/Controls/Diagnostics"
-const GENERATION_FRAME_LIMIT := 6000
 const TINY := 0
 
 const VIEW_NAMES := ["Painted", "Game tiles", "Isometric", "Isometric tiles"]
@@ -49,20 +48,12 @@ func check(ok: bool, message: String) -> void:
 func _initialize() -> void:
 	call_deferred("run")
 
-func await_idle(world: Node) -> bool:
-	var frames := 0
-	while world.IsGenerating and frames < GENERATION_FRAME_LIMIT:
-		await process_frame
-		frames += 1
-	return not world.IsGenerating
-
 func run() -> void:
 	var lab: Node = load(LAB).instantiate()
 	root.add_child(lab)
-	await process_frame
-	await process_frame
 	var world: Node = lab.get_node("World")
-	check(await await_idle(world), "the lab's first build finishes")
+	var first := await await_lab_build(world)
+	check(first.success, "the lab's first build finishes (%s)" % first.message)
 	var preview: Node = lab.get_node("Preview")
 	var generator: Node = preview.get_node("TerrainGenerator")
 	var grid: Node = preview.get_node("Grid")
@@ -77,14 +68,10 @@ func run() -> void:
 	for index in range(4):
 		var view: String = VIEW_NAMES[index]
 		picker.selected = index
-		var outcome := []
-		var on_finished := func(success: bool, message: String) -> void: outcome.append([success, message])
-		world.GenerationFinished.connect(on_finished)
 		lab.Generate()
 		check(world.IsGenerating, "%s: Generate() started a build" % view)
-		var settled: bool = await await_idle(world)
-		world.GenerationFinished.disconnect(on_finished)
-		check(settled and outcome.size() == 1 and outcome[0][0], "%s: the build finished (%s)" % [view, str(outcome)])
+		var build := await await_lab_build(world)
+		check(build.success and build.count == 1, "%s: the build finished (%s, %d finish signals)" % [view, build.message, build.count])
 		for i in range(3):
 			await process_frame
 

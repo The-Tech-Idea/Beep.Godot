@@ -1,4 +1,4 @@
-extends SceneTree
+extends "res://tests/terrain_lab_build.gd"
 
 var failures: Array[String] = []
 
@@ -34,14 +34,14 @@ func run() -> void:
 	check(controls.get_node("Generation/Progress").visible, "Progress is missing")
 	capture("loading")
 	controls.get_node("Generation/Cancel").pressed.emit()
-	var deadline := Time.get_ticks_msec() + 30000
-	while world.IsGenerating and Time.get_ticks_msec() < deadline: await process_frame
-	check(not world.IsGenerating and world.BuiltSize == Vector2i.ZERO, "Cancelled initial build was published")
+	# The build is already running here, so its GenerationFinished is still to come.
+	var cancelled := await await_lab_build(world)
+	check(cancelled.finished and not cancelled.success, "Cancelling did not end the build as a failure (%s)" % cancelled.message)
+	check(world.BuiltSize == Vector2i.ZERO, "Cancelled initial build was published")
 	check(not controls.get_node("Actions/Generate").disabled, "Controls did not recover after cancellation")
 	controls.get_node("Actions/Generate").pressed.emit()
-	deadline = Time.get_ticks_msec() + 30000
-	while world.IsGenerating and Time.get_ticks_msec() < deadline: await process_frame
-	check(not world.IsGenerating and world.BuiltSize.x > 0, "Lab did not publish generated world")
+	var build := await await_lab_build(world)
+	check(build.success and world.BuiltSize.x > 0, "Lab did not publish generated world (%s)" % build.message)
 	check(not controls.get_node("Generation/Cancel").visible, "Cancel left visible after success")
 	check(not controls.get_node("Actions/Generate").disabled, "Controls left disabled after success")
 	for i in 3: await process_frame

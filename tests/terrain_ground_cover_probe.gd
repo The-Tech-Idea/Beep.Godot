@@ -1,4 +1,4 @@
-extends SceneTree
+extends "res://tests/terrain_lab_build.gd"
 
 func _initialize() -> void:
 	call_deferred("run")
@@ -8,8 +8,8 @@ func run() -> void:
 	scene.get_node("World").set("MapSize", 0)
 	scene.get_node("World").set("Seed", 31415)
 	root.add_child(scene)
-	await process_frame
-	await process_frame
+	var build := await await_lab_build(scene.get_node("World"))
+	assert(build.success, "the lab's first build did not succeed: %s" % build.message)
 	var generator: Node = scene.get_node("Preview/TerrainGenerator")
 	var cells: Node = scene.get_node("Preview/Cells")
 	var rocks: Node = scene.get_node("Preview/RockObjects")

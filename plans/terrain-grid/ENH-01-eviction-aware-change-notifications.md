@@ -2,6 +2,34 @@
 
 **Type:** enhancement (huge-world performance) · **Area:** `GridCellDataComponent` (+`.Eviction`, `.Snapshots`, `.Publication`), all 12 `CellsChanged` listeners · **Status:** **IMPLEMENTED 2026-09-09** (typed signal, classified emitters, eviction storm removed; per-chunk minimisation investigated 2026-09-09 and confirmed blocked on ENH-03/ENH-13 - see the follow-up note) · **Effort:** M–L (3–4 days incl. listener ports) · **Risk:** medium
 
+## Correction (2026-09-16): eviction bumps NavigationRevision
+
+The outcome below says eviction "no longer bumps `TerrainRevision` or `NavigationRevision`", and
+`terrain_change_kind_probe` and a contract pin held it to that. The `TerrainRevision` half is right
+and stands: renderers gate on it, and bumping it was the storm. The `NavigationRevision` half was
+wrong, and it broke `terrain_search_eviction_probe`, which ENH-01's 21-probe verification did not
+run.
+
+The premise was that an evicted chunk "changes no search input". That holds for a demand search
+(`LoadMissingTerrain` on): it pins every chunk it reads, a pinned chunk cannot be evicted, and it
+gates on `PinnedNavigationRevision`, which still does not move. It is false for a search that pins
+nothing - `LoadMissingTerrain` off, the default. `BuildSearch` gives every search the cell store,
+`Search.IsAvailable` falls back to `Cells.IsCellAvailable`, and an evicted chunk's cells go from
+open to closed. A search in flight could finish on a route through cells that no longer exist.
+`NavigationRevision` is read by exactly one thing - the request staleness check, for unpinned
+searches only - so bumping it restarts those searches and nothing else; no renderer reads it. With
+the bump removed the two revisions had also become identical, which contradicted
+`PinnedNavigationRevision`'s own definition ("navigation changes except verified eviction of
+unpinned chunks").
+
+`TryEvictChunk` bumps `NavigationRevision` alone again. The change-kind probe now requires exactly
+that: `TerrainRevision` and `PinnedNavigationRevision` hold, `NavigationRevision` moves. The pin
+forbids `TerrainRevision++`, `PinnedNavigationRevision++` and `MarkNavigationChanged()` in the
+eviction file and requires the unpinned bump. Mutations: no bump failed the pin, the change-kind
+probe and the search-eviction probe; both revisions (`MarkNavigationChanged()`) failed the pin, the
+change-kind probe, and the search-eviction probe's demand half ("Unrelated evictions repeatedly
+restarted the protected search").
+
 ## Outcome
 
 `GridCellDataComponent.CellsChanged` now carries `(int kind, Godot.Collections.Array<Vector2I> chunks)`: a `TerrainChangeKind` bit set (`Residency`, `Terrain`, `Navigation`, `Gameplay`, and the combined `Content`) and the affected chunk coordinates, empty meaning the whole map. The nine emit sites are classified, and the one that mattered is fixed: **`TryEvictChunk` emits `Residency` for its one chunk and no longer bumps `TerrainRevision` or `NavigationRevision`.** That is the eviction storm gone - an evicted chunk's cells are unchanged, only no longer resident, and every listener now skips a residency move instead of rebuilding the whole map.

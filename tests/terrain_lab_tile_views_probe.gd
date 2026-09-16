@@ -1,4 +1,4 @@
-extends SceneTree
+extends "res://tests/terrain_lab_build.gd"
 
 # Drives terrain_generator_lab.tscn the way F6 does: the scene's own map settings,
 # its own first generation, and the View / Map size / Generate controls. Asserts on
@@ -72,9 +72,6 @@ var _failures: Array[String] = []
 var _stage := "start"
 var _scene: Node
 var _world: Node
-var _generation_done := false
-var _generation_success := false
-var _generation_message := ""
 var _extents := {}
 
 
@@ -162,8 +159,9 @@ func regenerate_in_tile_views() -> void:
 		await select_view(view)
 		begin_step()
 		(_scene.get_node(SEED_PATH) as SpinBox).value = REGENERATION_SEEDS[view]
-		if await press_and_wait(GENERATE_PATH):
-			check(_generation_success, "generation failed: %s" % _generation_message)
+		var build := await press_and_wait(GENERATE_PATH)
+		if build.finished:
+			check(build.success, "generation failed: %s" % build.message)
 		await check_drawn_view(view, "S3 %s regenerated" % view_name(view))
 
 
@@ -187,8 +185,9 @@ func unusable_packs() -> void:
 
 			_stage = "%s generate" % name
 			begin_step()
-			if await press_and_wait(GENERATE_PATH):
-				check(not _generation_success, "generation reported success although the view could not draw")
+			var build := await press_and_wait(GENERATE_PATH)
+			if build.finished:
+				check(not build.success, "generation reported success although the view could not draw")
 			await check_failed_view(view, "%s generate" % name, "", published)
 
 			_stage = "%s removed" % name
@@ -383,14 +382,12 @@ func open_lab(tile_pack: Resource = null, iso_pack: Resource = null) -> bool:
 		_scene.get_node("Preview/TileRenderer").set("LibraryPack", tile_pack)
 	if iso_pack != null:
 		_scene.get_node("Preview/IsoAutotile").set("LibraryPack", iso_pack)
-	_world.connect("GenerationFinished", _on_generation_finished)
-	_generation_done = false
 	root.add_child(_scene)
-	var built := await wait_generation()
-	if built:
-		check(_generation_success, "the lab's first generation failed: %s" % _generation_message)
+	var build := await wait_generation()
+	if build.finished:
+		check(build.success, "the lab's first generation failed: %s" % build.message)
 	check_log(false)
-	return built and _generation_success
+	return build.finished and build.success
 
 
 func close_lab() -> void:
@@ -402,20 +399,14 @@ func close_lab() -> void:
 	await process_frame
 
 
-func _on_generation_finished(success: bool, message: String) -> void:
-	_generation_done = true
-	_generation_success = success
-	_generation_message = message
-
-
-func wait_generation() -> bool:
-	var deadline := Time.get_ticks_msec() + GENERATION_TIMEOUT_MS
-	while not _generation_done and Time.get_ticks_msec() < deadline:
-		await process_frame
-	check(_generation_done, "generation did not finish within %d s" % (GENERATION_TIMEOUT_MS / 1000))
+## The build just started by opening the lab or by a control, through the one lab wait. The two
+## frames after it let the views draw what the build published.
+func wait_generation() -> Dictionary:
+	var build := await await_lab_build(_world, GENERATION_TIMEOUT_MS)
+	check(build.finished, "generation did not finish: %s" % build.message)
 	await process_frame
 	await process_frame
-	return _generation_done
+	return build
 
 
 func select_view(index: int) -> void:
@@ -426,21 +417,19 @@ func select_view(index: int) -> void:
 	await process_frame
 
 
-func press_and_wait(button_path: String) -> bool:
-	_generation_done = false
+func press_and_wait(button_path: String) -> Dictionary:
 	(_scene.get_node(button_path) as BaseButton).pressed.emit()
 	return await wait_generation()
 
 
-func select_size_and_wait(index: int) -> bool:
-	_generation_done = false
+func select_size_and_wait(index: int) -> Dictionary:
 	var sizes := _scene.get_node(SIZE_PATH) as OptionButton
 	sizes.select(index)
 	sizes.item_selected.emit(index)
-	var built := await wait_generation()
-	if built:
-		check(_generation_success, "generation at map size %d failed: %s" % [index, _generation_message])
-	return built
+	var build := await wait_generation()
+	if build.finished:
+		check(build.success, "generation at map size %d failed: %s" % [index, build.message])
+	return build
 
 
 func renderer_for(view: int) -> Node:

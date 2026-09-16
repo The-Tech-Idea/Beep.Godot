@@ -1,4 +1,4 @@
-extends SceneTree
+extends "res://tests/terrain_lab_build.gd"
 
 # ONE layer stack, obeyed by every renderer in the scene.
 #
@@ -52,27 +52,20 @@ func z_span(node: Node) -> Array:
 # several frames. A fixed frame count after Generate() read a half-built lab -
 # and because the lab ignores Generate() while a build is running, every later
 # view "switch" was silently dropped too, so each row measured whichever view
-# the first build happened to be showing. Wait for the world to say it is done.
-const GENERATION_FRAME_LIMIT := 6000
-
-func await_idle(world: Node) -> bool:
-	var frames := 0
-	while world.IsGenerating and frames < GENERATION_FRAME_LIMIT:
-		await process_frame
-		frames += 1
-	return not world.IsGenerating
+# the first build happened to be showing. Every wait goes through
+# await_lab_build, which waits for the world to say it is done AND whether it
+# worked.
 
 func _initialize() -> void:
 	var root_node = load("res://addons/beep_game_builder_cs/templates/scenes/terrain/terrain_generator_lab.tscn").instantiate()
 	get_root().add_child(root_node)
-	await process_frame
-	await process_frame
 	var world = root_node.find_child("World", true, false)
 	check(world != null, "the lab has a World")
 	if world == null:
 		quit(1)
 		return
-	check(await await_idle(world), "the lab's first build finishes")
+	var first := await await_lab_build(world)
+	check(first.success, "the lab's first build finishes (%s)" % first.message)
 
 	var preview = root_node.find_child("Preview", true, false)
 	check(preview != null, "the lab has a Preview holding every renderer")
@@ -110,15 +103,11 @@ func _initialize() -> void:
 	if picker != null:
 		for index in range(4):
 			picker.selected = index
-			var outcome := []
-			var on_finished := func(success: bool, message: String) -> void: outcome.append([success, message])
-			world.GenerationFinished.connect(on_finished)
 			root_node.Generate()
 			check(world.IsGenerating, "%s: Generate() started a build" % view_names[index])
-			var settled: bool = await await_idle(world)
-			world.GenerationFinished.disconnect(on_finished)
-			check(settled and outcome.size() == 1 and outcome[0][0],
-				"%s: the build finished successfully (%s)" % [view_names[index], str(outcome)])
+			var build := await await_lab_build(world)
+			check(build.success and build.count == 1,
+				"%s: the build finished successfully (%s, %d finish signals)" % [view_names[index], build.message, build.count])
 
 			for node_name in expected[index]:
 				var n = preview.find_child(node_name, true, false)

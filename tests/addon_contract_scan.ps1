@@ -2316,11 +2316,19 @@ foreach ($file in Get-ChildItem -Path (Join-Path $root "addons/beep_game_builder
         Fail "$($file.Name) has a QueueCoast copy; only the tile view's water requeue is expected."
     }
 }
-# ENH-01: CellsChanged says what changed and where, and eviction is a residency move
-# that touches neither global revision. Bumping TerrainRevision/NavigationRevision in
-# TryEvictChunk restarted every renderer and every search when an actor walked out of a
-# chunk's pin radius - the eviction storm. A residency-only signal, and revisions the
-# renderers gate on that agree nothing changed, are what let a listener skip it.
+# ENH-01: CellsChanged says what changed and where, and eviction is a residency move.
+# Bumping TerrainRevision in TryEvictChunk restarted every renderer when an actor walked
+# out of a chunk's pin radius - the eviction storm - and PinnedNavigationRevision, which
+# demand searches gate on, must hold for the same reason: they pin every chunk they read,
+# so an eviction removes nothing they were watching.
+#
+# NavigationRevision is the exception, and it MUST move (corrected 2026-09-16). ENH-01
+# first forbade it too, on the premise that an evicted chunk "changes no search input".
+# That is false for a search that pins nothing - LoadMissingTerrain off, the default -
+# because its Search reads Cells.IsCellAvailable, and an evicted chunk's cells go from
+# open to closed under it. Forbidding the bump let such a search finish on ground that no
+# longer existed, and made the two revisions identical. Pinned on a word boundary: the
+# unpinned bump's text is a suffix of the pinned one's.
 $cellData = Read "addons/beep_game_builder_cs/ecs/grid/GridCellDataComponent.cs"
 if ($cellData -notmatch [regex]::Escape("CellsChangedEventHandler(int kind, Godot.Collections.Array<Vector2I> chunks)")) {
     Fail "GridCellDataComponent.CellsChanged must carry (int kind, Array<Vector2I> chunks); ENH-01 needs the payload."
@@ -2335,10 +2343,13 @@ $eviction = Read "addons/beep_game_builder_cs/ecs/grid/GridCellDataComponent.Evi
 if ($eviction -notmatch [regex]::Escape("EmitCellsChanged(TerrainChangeKind.Residency")) {
     Fail "TryEvictChunk must emit TerrainChangeKind.Residency; an eviction is not a content change."
 }
-foreach ($bump in @("TerrainRevision++", "NavigationRevision++")) {
+foreach ($bump in @("TerrainRevision++", "PinnedNavigationRevision++", "MarkNavigationChanged()")) {
     if ($eviction -match [regex]::Escape($bump)) {
-        Fail "GridCellDataComponent.Eviction bumps $bump; eviction is a residency move and must not (ENH-01, the storm)."
+        Fail "GridCellDataComponent.Eviction calls $bump; eviction is a residency move for renderers and demand searches and must not (ENH-01, the storm)."
     }
+}
+if ($eviction -notmatch '(?<![A-Za-z])NavigationRevision\+\+') {
+    Fail "GridCellDataComponent.Eviction must bump NavigationRevision: a search that pins nothing reads the evicted cells as unavailable (ENH-01, corrected 2026-09-16)."
 }
 # No terrain file may still raise the payload-less signal.
 foreach ($folder in @("ecs/terrain", "ecs/grid")) {

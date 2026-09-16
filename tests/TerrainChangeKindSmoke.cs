@@ -4,10 +4,16 @@ using System.Collections.Generic;
 
 /// <summary>
 /// The CellsChanged contract: an edit says Terrain and bumps the content revision;
-/// an eviction says Residency, names its one chunk, and moves NEITHER global revision.
-/// The last is the whole point of ENH-01 - eviction is where the rebuild storm came
-/// from, and a listener can only skip it if the signal, and the revisions renderers
-/// gate on, agree that nothing changed.
+/// an eviction says Residency, names its one chunk, and leaves TerrainRevision and
+/// PinnedNavigationRevision where they were. That is the point of ENH-01 - eviction is
+/// where the rebuild storm came from, and a renderer or a demand search can only skip
+/// it if the signal and the revisions they gate on agree that nothing changed.
+///
+/// NavigationRevision is the one that moves (corrected 2026-09-16). ENH-01 first held
+/// that an eviction "changes no search input", which is true only of a search that pins
+/// what it reads. A search with LoadMissingTerrain off pins nothing and reads
+/// IsCellAvailable, so for it the evicted cells went from open to closed - and the
+/// search_eviction probe, which had asserted exactly that since before ENH-01, failed.
 /// </summary>
 public partial class TerrainChangeKindSmoke : Node
 {
@@ -81,11 +87,13 @@ public partial class TerrainChangeKindSmoke : Node
         // Put it back to land so the chunk is evictable and land-typed.
         cells.FillTerrain(new Rect2I(2, 2, 1, 1), "desert");
 
-        // Evict that chunk. Residency only; its one chunk named; neither revision moves.
+        // Evict that chunk. Residency only; its one chunk named; the renderers' revision and the
+        // demand searches' revision hold, and the unpinned searches' revision moves.
         var chunk = new Vector2I(0, 0);
         long chunkRevision = cells.GetChunkRevision(chunk);
         ulong terrainMark = cells.TerrainRevision;
         ulong navigationMark = cells.NavigationRevision;
+        ulong pinnedMark = cells.PinnedNavigationRevision;
         emits = 0;
         if (!cells.CanEvictChunk(chunk)) return Fail("Freshly filled land chunk was not evictable");
         if (!cells.TryEvictChunk(chunk, chunkRevision)) return Fail("TryEvictChunk refused a current, evictable chunk");
@@ -96,8 +104,10 @@ public partial class TerrainChangeKindSmoke : Node
             return Fail($"Eviction named {lastChunks.Count} chunks, expected only {chunk}");
         if (cells.TerrainRevision != terrainMark)
             return Fail("Eviction bumped TerrainRevision; a residency move must not read as content");
-        if (cells.NavigationRevision != navigationMark)
-            return Fail("Eviction bumped NavigationRevision; an evicted unpinned chunk changes no search input");
+        if (cells.PinnedNavigationRevision != pinnedMark)
+            return Fail("Eviction bumped PinnedNavigationRevision; a demand search pins what it reads, so an eviction changes nothing it can see");
+        if (cells.NavigationRevision == navigationMark)
+            return Fail("Eviction left NavigationRevision alone; a search that pins nothing reads the evicted cells as unavailable now");
 
         // A gameplay first-touch of never-generated ground is NOT a terrain change:
         // GetOrCreate must not bump the global terrain revision, only the chunk token.
@@ -112,7 +122,7 @@ public partial class TerrainChangeKindSmoke : Node
             return Fail("Till of a virgin cell did not advance the chunk content token");
 
         cells.Free();
-        GD.Print("[terrain-change-kind] per-cell kinds, no-op early-outs, daily-index crop/water, bulk edit=Terrain(+Navigation), eviction=Residency OK");
+        GD.Print("[terrain-change-kind] per-cell kinds, no-op early-outs, daily-index crop/water, bulk edit=Terrain(+Navigation), eviction=Residency (unpinned navigation revision only) OK");
         return true;
     }
 

@@ -28,11 +28,19 @@ public partial class GridCellDataComponent
         _cells.RemoveChunk(coordinate);
         _evictedChunks.Add(coordinate);
         _unavailableChunks.Add(coordinate);
-        // Residency, not content: the chunk's cells are unchanged, only no longer
-        // resident. Bumping TerrainRevision/NavigationRevision here restarted every
-        // renderer and every search on a change that moved nothing - the eviction
-        // storm this signal exists to end. Scheduled demand searches pin every
-        // observed chunk, so an eviction only removes data nothing was watching.
+        // Residency, not content: the chunk's cells are unchanged, only no longer resident.
+        // Bumping TerrainRevision here restarted every renderer on a change that moved nothing -
+        // the eviction storm this signal exists to end - and PinnedNavigationRevision stays put
+        // for the same reason: a demand search pins every chunk it observes, so an eviction only
+        // removes data it was not watching.
+        //
+        // NavigationRevision DOES move, and that is the one difference between the two revisions
+        // (see their declarations). A search that does not pin - LoadMissingTerrain off - reads an
+        // evicted chunk as the default terrain kind, so for it this eviction changed what the
+        // ground is, and a route it finishes could cross water it can no longer see. It is told
+        // "navigation_changed" instead. Removing this bump along with the other two made the two
+        // revisions identical and let such a search complete on stale ground.
+        NavigationRevision++;
         EmitCellsChanged(TerrainChangeKind.Residency, new Godot.Collections.Array<Vector2I> { coordinate });
         return true;
     }

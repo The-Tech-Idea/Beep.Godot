@@ -1,4 +1,4 @@
-extends SceneTree
+extends "res://tests/terrain_lab_build.gd"
 
 const DIR := "res://addons/beep_game_builder_cs/templates/scenes/terrain/"
 const OUT := "res://tests/output/art_styles/"
@@ -28,8 +28,8 @@ func run() -> void:
 	var world: Node = scene.get_node("World")
 	world.set("MapSize", 0)
 	root.add_child(scene)
-	await process_frame
-	await process_frame
+	var build := await await_lab_build(world)
+	assert(build.success, "the lab's first build did not succeed: %s" % build.message)
 	assert(world.get("MapArt") == null, "Original must remain the default")
 	var snapshot := var_to_bytes(scene.get_node("Preview/Cells").call("GetCells"))
 	var baseline := await capture(scene, "original")

@@ -1,4 +1,4 @@
-extends SceneTree
+extends "res://tests/terrain_lab_build.gd"
 
 # VIEW-04's evidence, rendered from the LAB - the one scene that wires all four views.
 #
@@ -21,7 +21,6 @@ const SIZE_PATH := "HUD/Settings/Scroll/Controls/MapSizeRow/MapSize"
 const OUT := "res://tests/output/water_look"
 const LOOK_SCRIPT := "res://addons/beep_game_builder_cs/ecs/terrain/TerrainWaterLook.cs"
 const WATER := "res://addons/beep_game_builder_cs/textures/water/"
-const GENERATION_FRAME_LIMIT := 6000
 const SMALL := 1
 
 const VIEW_NAMES := ["painted", "tiles", "isometric", "isometric_tiles"]
@@ -41,13 +40,6 @@ var preview: Node
 func _initialize() -> void:
 	call_deferred("run")
 
-func await_idle() -> bool:
-	var frames := 0
-	while world.IsGenerating and frames < GENERATION_FRAME_LIMIT:
-		await process_frame
-		frames += 1
-	return not world.IsGenerating
-
 func before_look() -> Resource:
 	var look: Resource = load(LOOK_SCRIPT).new()
 	for property in BEFORE:
@@ -61,8 +53,9 @@ func build(view: int) -> void:
 	var picker: OptionButton = lab.get_node(VIEW_PATH)
 	picker.selected = view
 	lab.Generate()
-	if not await await_idle():
-		print("[water-look] view %d did not finish generating" % view)
+	var result := await await_lab_build(world)
+	if not result.success:
+		print("[water-look] view %d did not build: %s" % [view, result.message])
 	for i in range(30):
 		await process_frame
 	await RenderingServer.frame_post_draw
@@ -88,11 +81,11 @@ func shoot(name: String) -> void:
 func run() -> void:
 	lab = load(LAB).instantiate()
 	root.add_child(lab)
-	await process_frame
-	await process_frame
 	world = lab.get_node("World")
 	preview = lab.get_node("Preview")
-	await await_idle()
+	var first := await await_lab_build(world)
+	if not first.success:
+		print("[water-look] the lab's first build did not succeed: %s" % first.message)
 	var size_picker: OptionButton = lab.get_node(SIZE_PATH)
 	size_picker.selected = SMALL
 	# The map, not the panel over it.

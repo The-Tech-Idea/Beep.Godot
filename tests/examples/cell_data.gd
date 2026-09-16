@@ -1,4 +1,4 @@
-extends SceneTree
+extends "res://tests/terrain_lab_build.gd"
 
 # A cell must be able to say what it is, through Godot's own tile data.
 #
@@ -24,10 +24,8 @@ func _initialize() -> void:
 	var root_node = load("res://addons/beep_game_builder_cs/templates/scenes/terrain/terrain_generator_lab.tscn").instantiate()
 	root_node.get_node("Preview/CellData").MaterializeTileLayers = true
 	get_root().add_child(root_node)
-	await process_frame
-	await process_frame
-	var deadline := Time.get_ticks_msec() + 30000
-	while root_node.get_node("World").IsGenerating and Time.get_ticks_msec() < deadline: await process_frame
+	var build := await await_lab_build(root_node.get_node("World"))
+	check(build.success, "the lab's first build finishes (%s)" % build.message)
 
 	var preview = root_node.find_child("Preview", true, false)
 	var gen = preview.find_child("TerrainGenerator", true, false)

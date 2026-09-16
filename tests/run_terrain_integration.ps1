@@ -77,7 +77,14 @@ function Invoke-TerrainProbe([string]$Name, [string]$Script, [string]$Marker, [b
     # Keep the native handle open so Windows PowerShell can read exit status after termination.
     $null = $process.Handle
     $timedOut = -not $process.WaitForExit($ProbeTimeoutSeconds * 1000)
-    if ($timedOut) { $process.Kill(); $process.WaitForExit() }
+    if ($timedOut) {
+        # Kill the whole tree. $godot is often a launcher (a .cmd shim on PATH): Start-Process
+        # hands back the launcher, and killing it alone leaves the engine it started running -
+        # and competing with every probe after it. taskkill /T works under Windows PowerShell and
+        # PowerShell 7 alike, where Process.Kill(true) exists only in the latter.
+        & taskkill /PID $process.Id /T /F 2>&1 | Out-Null
+        $process.WaitForExit()
+    }
     $exitCode = $process.ExitCode
     $text = (Get-Content -LiteralPath $stdout -Raw) + "`n" + (Get-Content -LiteralPath $stderr -Raw)
     $passed = -not $timedOut -and $exitCode -eq 0 -and
@@ -98,33 +105,40 @@ try {
     }
     Invoke-TerrainProbe "iso_layers" "examples/iso_layers" "PASS: sea -> ground -> hills -> peaks -> props by level" $false $false
     Invoke-TerrainProbe "landmass" "examples/landmass" "RESULT: all checks passed" $false $false
+    # The last column is the frame cap. 0 marks a probe that waits on the terrain lab's world build
+    # (tests/terrain_lab_build.gd): that build runs on a worker and takes wall-clock seconds, while
+    # --quit-after counts frames, and a rendered probe can run through 3600 of them before a Tiny
+    # world has published - the process then quits with no marker and no error. Those are bounded
+    # by time instead, long enough for the lab wait (two minutes) to give up first and say why. A
+    # failed assert does not end a probe, so a failing one of these runs to that bound.
     foreach ($render in @(
-        @("shader_alignment", "terrain_shader_alignment_probe", "[terrain-shader-alignment] OK", $false),
-        @("art_styles", "terrain_art_styles_probe", "[terrain-art-styles] OK", $false),
-        @("lab_styles", "terrain_lab_styles_probe", "[terrain-lab-styles] OK", $false),
-        @("lake_banks", "terrain_lake_bank_probe", "[terrain-lake-bank] OK", $false),
-        @("style_beach", "terrain_style_beach_probe", "[terrain-style-beach] OK", $false),
-        @("shoreline_contours", "terrain_shoreline_contour_probe", "[shoreline-contours] GPU threshold, fixed coast, width controls and fixture captures OK", $false),
-        @("water_alpha", "terrain_water_alpha_probe", "[terrain-water-alpha] OK", $false),
-        @("item_modulate", "terrain_item_modulate_probe", "[terrain-item-modulate] OK", $false),
-        @("painted_blend", "terrain_painted_blend_probe", "[terrain-painted-blend] OK", $false),
-        @("painted_shading", "terrain_painted_shading_probe", "[terrain-painted-shading] OK", $false),
-        @("material_scale", "terrain_material_scale_probe", "[terrain-material-scale] OK", $false),
-        @("material_origin", "terrain_material_origin_probe", "[terrain-material-origin] OK", $false),
-        @("lava_material", "terrain_lava_material_probe", "[terrain-lava-material] OK", $false),
-        @("bedrock_repeat", "terrain_bedrock_texture_probe", "[terrain-bedrock-texture] OK", $false),
-        @("coast_centres", "terrain_live_coast_shape_probe", "[terrain-live-coast-shape] OK", $false),
-        @("coast_filter", "terrain_coast_filter_probe", "[terrain-coast-filter] OK", $false),
-        @("generated_coast_centres", "terrain_water_surface_probe", "[terrain-water-surface] OK", $false),
-        @("iso_water_origin", "terrain_iso_water_origin_probe", "[terrain-iso-water-origin] OK", $false),
-        @("iso_art", "terrain_iso_art_probe", "[terrain-iso-art] OK", $false),
-        @("iso_river", "terrain_iso_river_probe", "[terrain-iso-river] OK", $false),
-        @("iso_cliff", "terrain_iso_cliff_probe", "[terrain-iso-cliff] OK", $false),
-        @("lab_capture", "terrain_lab_grid_probe", "[terrain-lab-grid] OK", $true),
-        @("playground_capture", "terrain_grid_playground_probe", "[terrain-grid-playground] OK", $true)
+        @("shader_alignment", "terrain_shader_alignment_probe", "[terrain-shader-alignment] OK", $false, 3600),
+        @("art_styles", "terrain_art_styles_probe", "[terrain-art-styles] OK", $false, 0),
+        @("lab_styles", "terrain_lab_styles_probe", "[terrain-lab-styles] OK", $false, 0),
+        @("lake_banks", "terrain_lake_bank_probe", "[terrain-lake-bank] OK", $false, 3600),
+        @("style_beach", "terrain_style_beach_probe", "[terrain-style-beach] OK", $false, 0),
+        @("shoreline_contours", "terrain_shoreline_contour_probe", "[shoreline-contours] GPU threshold, fixed coast, width controls and fixture captures OK", $false, 3600),
+        @("water_alpha", "terrain_water_alpha_probe", "[terrain-water-alpha] OK", $false, 3600),
+        @("item_modulate", "terrain_item_modulate_probe", "[terrain-item-modulate] OK", $false, 3600),
+        @("painted_blend", "terrain_painted_blend_probe", "[terrain-painted-blend] OK", $false, 3600),
+        @("painted_shading", "terrain_painted_shading_probe", "[terrain-painted-shading] OK", $false, 3600),
+        @("material_scale", "terrain_material_scale_probe", "[terrain-material-scale] OK", $false, 3600),
+        @("material_origin", "terrain_material_origin_probe", "[terrain-material-origin] OK", $false, 3600),
+        @("lava_material", "terrain_lava_material_probe", "[terrain-lava-material] OK", $false, 3600),
+        @("bedrock_repeat", "terrain_bedrock_texture_probe", "[terrain-bedrock-texture] OK", $false, 3600),
+        @("coast_centres", "terrain_live_coast_shape_probe", "[terrain-live-coast-shape] OK", $false, 3600),
+        @("coast_filter", "terrain_coast_filter_probe", "[terrain-coast-filter] OK", $false, 3600),
+        @("generated_coast_centres", "terrain_water_surface_probe", "[terrain-water-surface] OK", $false, 3600),
+        @("iso_water_origin", "terrain_iso_water_origin_probe", "[terrain-iso-water-origin] OK", $false, 0),
+        @("iso_art", "terrain_iso_art_probe", "[terrain-iso-art] OK", $false, 0),
+        @("iso_river", "terrain_iso_river_probe", "[terrain-iso-river] OK", $false, 3600),
+        @("iso_cliff", "terrain_iso_cliff_probe", "[terrain-iso-cliff] OK", $false, 3600),
+        @("lab_capture", "terrain_lab_grid_probe", "[terrain-lab-grid] OK", $true, 0),
+        @("playground_capture", "terrain_grid_playground_probe", "[terrain-grid-playground] OK", $true, 3600)
     )) {
         if ($SkipRendering) { $results.Add([pscustomobject]@{name=$render[0]; status="skipped"; rendering=$true}) }
-        else { Invoke-TerrainProbe $render[0] $render[1] $render[2] $true $render[3] }
+        elseif ($render[4] -eq 0) { Invoke-TerrainProbe $render[0] $render[1] $render[2] $true $render[3] -QuitAfter 0 -ProbeTimeoutSeconds 180 }
+        else { Invoke-TerrainProbe $render[0] $render[1] $render[2] $true $render[3] -QuitAfter $render[4] }
     }
     # The lab's tile views as F6 runs them: project renderer, a dozen generations, no frame cap.
     if ($SkipRendering) { $results.Add([pscustomobject]@{name="lab_tile_views"; status="skipped"; rendering=$true}) }

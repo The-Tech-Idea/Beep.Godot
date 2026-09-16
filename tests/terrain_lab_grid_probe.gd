@@ -1,4 +1,4 @@
-extends SceneTree
+extends "res://tests/terrain_lab_build.gd"
 
 func _initialize() -> void:
 	call_deferred("run")
@@ -7,9 +7,14 @@ func run() -> void:
 	root.size = Vector2i(1280, 800)
 	var scene = load("res://addons/beep_game_builder_cs/templates/scenes/terrain/terrain_generator_lab.tscn").instantiate()
 	scene.get_node("World").set("MapSize", 0)
+	# The recipe data is read straight off the published field unless it is materialised, and a
+	# rebuild of the unmaterialised layers leaves nothing behind to compare. Materialised, a rebuild
+	# makes a new TileSet - which is what "a projection switch must not rebuild generated data"
+	# below is measured by.
+	scene.get_node("Preview/CellData").set("MaterializeTileLayers", true)
 	root.add_child(scene)
-	await process_frame
-	await process_frame
+	var build := await await_lab_build(scene.get_node("World"))
+	assert(build.success, "the lab's first build did not succeed: %s" % build.message)
 	var world = scene.get_node("World")
 	assert(world.get("BuiltSize") == Vector2i(32, 32), "Lab controls overwrote configured map size")
 	assert(not scene.get_node("Preview/Iso").get("HasSurface"), "Startup built an inactive view despite RefreshOnReady=false")

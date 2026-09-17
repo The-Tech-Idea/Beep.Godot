@@ -73,11 +73,14 @@ above.
   sign on a uniform mask.
 - `terrain_generation_baseline_probe`: every recorded layer hash identical across the VIEW-07
   refactor — the proof that folding five copies into one changed no generated map. (The VIEW-07
-  plan calls this "96 hashes"; the fixture as it stands holds eighteen layers over eight cases.)
+  plan calls this "96 hashes"; the fixture held eighteen layers over eight cases at VIEW-07, and
+  holds twenty over ten since FEAT-14.)
 
 ## Dependencies
 
 - Depends on no other file in this directory: it operates purely on caller-supplied
   `bool[]`/`double[]`/`float[]` buffers plus Godot's `Vector2I`.
 - Read by `TerrainShorelineStage` (band tests), `TerrainCoastField` (signed field and ocean
-  distance) and `TerrainShorelineField` (the presentation snapshot, through `Signed`).
+  distance), `TerrainShorelineField` (the presentation snapshot, through `Signed`) and
+  `TerrainStartAreaStage` (FEAT-14: every cell's distance to the nearest start, through the float
+  `Squared` overload into `FloatScratchA`, square-rooted and rounded to whole cells).

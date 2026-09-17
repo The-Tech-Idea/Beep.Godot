@@ -52,6 +52,11 @@ func run() -> void:
 	for size_name in SIZES:
 		var areas: Dictionary = smoke.call("SnapshotWithStartAreas", SIZES[size_name], SEEDS[0], 0)
 		snapshot[case_name(SEEDS[0], size_name, 0) + "_start_areas"] = areas
+	# FEAT-14: the start-area case with StartDistanceScaling 1 and two Neutral kit entries. Every
+	# case above runs with the scaling at zero, and so pins that the feature is opt-in.
+	for size_name in SIZES:
+		var distance: Dictionary = smoke.call("SnapshotWithStartDistance", SIZES[size_name], SEEDS[0], 0)
+		snapshot[case_name(SEEDS[0], size_name, 0) + "_start_distance"] = distance
 
 	if recording:
 		DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://tests/fixtures"))

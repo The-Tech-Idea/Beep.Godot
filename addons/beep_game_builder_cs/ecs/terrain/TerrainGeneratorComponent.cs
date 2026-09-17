@@ -101,6 +101,14 @@ namespace Beep.ECS
         /// <summary>What every start area must provide. Empty uses the kit defaults with no resources.</summary>
         [Export] public TerrainStartKit? StartKit { get; set; }
 
+        /// <summary>
+        /// How strongly the far country is richer, 0 to 2 (FEAT-14). Above zero the generator measures
+        /// every cell's distance to the nearest start (StartDistanceAt) and scales underground richness
+        /// by it - from (1 - s/2) at a start to (1 + s/2) at the farthest cell. Zero measures nothing
+        /// and leaves every deposit as laid. Not derived by ApplyMapSetup.
+        /// </summary>
+        [Export(PropertyHint.Range, "0,2,0.05")] public float StartDistanceScaling { get; set; }
+
         [Export(PropertyHint.Range, "0,4,0.05")] public float ResourceDensity { get; set; } = 1.0f;
 
         /// <summary>
@@ -478,6 +486,21 @@ namespace Beep.ECS
             => FieldFor(CurrentSettings()).StartAreaAtCell(localCell);
 
         /// <summary>
+        /// A cell's distance to the nearest start, in whole cells, water included - or -1 when this
+        /// map measured none (StartDistanceScaling zero, or no starts). What a game reads to make the
+        /// far country more dangerous as well as richer.
+        /// </summary>
+        public int StartDistanceAt(Vector2I localCell)
+            => FieldFor(CurrentSettings()).StartDistanceAtCell(localCell);
+
+        /// <summary>
+        /// What the start kit's Neutral entries placed between the starts: placements (resource, cell,
+        /// relaxation) and problems. Both empty when the kit has no Neutral entry. Cells are generator-local.
+        /// </summary>
+        public Godot.Collections.Dictionary GetNeutralSiteReport()
+            => FieldFor(CurrentSettings()).NeutralSites.ToDictionary();
+
+        /// <summary>
         /// One Dictionary per start, in start order - index, origin, footprint, cell_count, exits,
         /// placements (resource, cell, relaxation), problems and usable. Empty without start areas.
         /// Cells are generator-local, as GetStartPositions returns them.
@@ -656,7 +679,7 @@ namespace Beep.ECS
                 Mathf.Max(0.02f, FeatureFrequencyMultiplier),
                 Mathf.Clamp(LakeCoverage, 0.0f, 0.35f), Mathf.Max(0.02f, LakeFrequencyMultiplier), Mathf.Clamp(LakeShoreWidth, 0.0f, 3.0f),
                 Mathf.Clamp(RiverDensity, 0.0f, 4.0f), Mathf.Clamp(StartPositionCount, 0, 24),
-                Mathf.Clamp(StartAreaRadius, 0, 32), StartKit,
+                Mathf.Clamp(StartAreaRadius, 0, 32), StartKit, Mathf.Clamp(StartDistanceScaling, 0.0f, 2.0f),
                 Mathf.Clamp(ResourceDensity, 0.0f, 4.0f), ResourceSet, Resources, Mathf.Clamp(HillsFraction, 0.0f, 0.9f),
                 Mathf.Clamp(MountainsFraction, 0.0f, 0.9f), Mathf.Clamp(HillshadeStrength, 0.0f, 3.0f),
                 Mathf.Clamp(FeatureDensity, 0.0f, 4.0f),

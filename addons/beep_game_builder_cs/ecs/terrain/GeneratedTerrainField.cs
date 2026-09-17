@@ -46,6 +46,8 @@ namespace Beep.ECS
         private readonly string[] _feature;
         // Null when no start areas were generated, so the common map carries no array.
         private readonly byte[]? _startArea;
+        // Null unless StartDistanceScaling asked for the distance to be measured (FEAT-14).
+        private readonly ushort[]? _startDistance;
 
         // Sub-tile sample resolution, for painting.
         private readonly TerrainSampleKinds _sampleTerrain;
@@ -77,6 +79,7 @@ namespace Beep.ECS
             _elevation = world.CellElevation;
             _feature = world.Feature;
             _startArea = world.CellStartAreaIfGenerated;
+            _startDistance = world.CellStartDistanceIfGenerated;
 
             _sampleTerrain = world.PackTerrain(cancellation);
             _sampleWater = world.PackWater(cancellation);
@@ -84,6 +87,7 @@ namespace Beep.ECS
 
             StartPositions = world.StartPositions;
             StartAreas = world.StartAreas;
+            NeutralSites = world.NeutralSites;
             Diagnostics = diagnostics;
             _undergroundDigest = TerrainUndergroundIdentity.Content(this, new(_wide, _high), cancellation);
         }
@@ -101,10 +105,20 @@ namespace Beep.ECS
         /// <summary>One report per start when start areas were generated, in start order; empty otherwise.</summary>
         public IReadOnlyList<TerrainStartAreaReport> StartAreas { get; }
 
+        /// <summary>What the start kit's Neutral entries placed between the starts; None without any.</summary>
+        public TerrainNeutralSitesReport NeutralSites { get; }
+
         // ---- Gameplay tile queries -------------------------------------------------
 
         /// <summary>Which start's reserved area a tile is in: 0 none, k+1 start k.</summary>
         public int StartAreaAtCell(Vector2I cell) => _startArea is null ? 0 : _startArea[CellIndex(cell.X, cell.Y)];
+
+        /// <summary>
+        /// Distance from a tile to the nearest start, in whole cells, or -1 when this map measured
+        /// none (StartDistanceScaling zero, or no starts). Never 0 for "unknown": 0 means the tile IS
+        /// a start, and a game spawning raids by distance would put them on a player.
+        /// </summary>
+        public int StartDistanceAtCell(Vector2I cell) => _startDistance is null ? -1 : _startDistance[CellIndex(cell.X, cell.Y)];
 
         public string TerrainAtCell(Vector2I cell) => _terrain[CellIndex(cell.X, cell.Y)];
         public string InlandTerrainAtCell(Vector2I cell) => _inlandTerrain[CellIndex(cell.X, cell.Y)];

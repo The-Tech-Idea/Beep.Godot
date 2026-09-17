@@ -25,6 +25,7 @@ const RESOURCES_OIL_AND_GAS := 1  # ResourceSet.OilAndGas: underground deposits 
 const RESOURCE_LEVEL_ABUNDANT := 2
 const SIZE := Vector2i(32, 32)
 const SAVED_START_AREA_RADIUS := 6
+const SAVED_START_DISTANCE_SCALING := 1.5
 
 var failures: Array[String] = []
 
@@ -35,6 +36,14 @@ func start_area_cells(layers: Node) -> int:
 			if int(layers.call("StartAreaAt", Vector2i(x, y))) > 0:
 				reserved += 1
 	return reserved
+
+# Every cell's distance to the nearest start as the layers publish it; -1 throughout when none was measured.
+func start_distances(layers: Node) -> Array[int]:
+	var distances: Array[int] = []
+	for y in SIZE.y:
+		for x in SIZE.x:
+			distances.append(int(layers.call("StartDistanceAt", Vector2i(x, y))))
+	return distances
 
 func check(ok: bool, message: String) -> void:
 	if ok:
@@ -100,6 +109,7 @@ func _run() -> void:
 
 	var world := make_world(SEED_SAVED, false)
 	world.set("StartAreaRadius", SAVED_START_AREA_RADIUS)
+	world.set("StartDistanceScaling", SAVED_START_DISTANCE_SCALING)
 	await process_frame
 
 	# ── A new world: the generator fills the cells once, and the layers agree ──
@@ -107,6 +117,9 @@ func _run() -> void:
 	check(Vector2i(world.get("BuiltSize")) == SIZE, "a Tiny world is 32x32 (%s)" % str(world.get("BuiltSize")))
 	var saved_area_cells := start_area_cells(layers)
 	check(saved_area_cells > 0, "the world's StartAreaRadius reached the generator: %d cells are reserved" % saved_area_cells)
+	var saved_distances := start_distances(layers)
+	check(saved_distances.min() == 0 and saved_distances.max() > 0,
+		"the world's StartDistanceScaling reached the generator: distances run %d..%d" % [saved_distances.min(), saved_distances.max()])
 	check(str(world.call("StatusLine")).contains("areas "), "the status line reports start-area usability: %s" % world.call("StatusLine"))
 	check(int(cells.get("CellCount")) == SIZE.x * SIZE.y, "NewWorld filled every cell (%d)" % int(cells.get("CellCount")))
 	var original_data_tiles: TileSet = layers.get_node("TerrainData").tile_set
@@ -166,15 +179,19 @@ func _run() -> void:
 	check(recipe.has("map_type") and recipe.has("map_size") and recipe.has("sea_level") and recipe.has("resources"),
 		"the recipe carries the axes, not the layers")
 	check(not recipe.has("cells") and not recipe.has("cell_data"), "the recipe carries no cell payload - the cells are GridWorldState's")
-	check(int(recipe.get("start_area_radius", -1)) == SAVED_START_AREA_RADIUS and int(recipe.get("version", -1)) == 4,
+	check(int(recipe.get("start_area_radius", -1)) == SAVED_START_AREA_RADIUS and int(recipe.get("version", -1)) == 5,
 		"the recipe carries start_area_radius %d at version %d" % [int(recipe.get("start_area_radius", -1)), int(recipe.get("version", -1))])
+	check(is_equal_approx(float(recipe.get("start_distance_scaling", -1.0)), SAVED_START_DISTANCE_SCALING),
+		"the recipe carries start_distance_scaling %s" % str(recipe.get("start_distance_scaling", "(absent)")))
 
 	# ── A different scene: the authored seed changed, a fresh world was built ─
 	world.set("Seed", SEED_SCENE)
 	world.set("StartAreaRadius", 0)
+	world.set("StartDistanceScaling", 0.0)
 	world.call("NewWorld")
 	check(start_area_cells(layers) == 0 and not str(world.call("StatusLine")).contains("areas "),
 		"a world with no start-area radius reserves nothing and reports no areas")
+	check(start_distances(layers).max() == -1, "a world that scales nothing by distance measures no distance")
 	var diverged := 0
 	check(layers.get_node("TerrainData").tile_set != original_data_tiles, "NewWorld rebuilds recipe data rather than reusing stale tiles")
 	for i in samples.size():
@@ -193,6 +210,8 @@ func _run() -> void:
 	check(int(world.get("Seed")) == SEED_SAVED, "the recipe restored the saved seed over the scene's authored one")
 	check(int(world.get("StartAreaRadius")) == SAVED_START_AREA_RADIUS and start_area_cells(layers) == saved_area_cells,
 		"the recipe restored the start-area radius and the same %d reserved cells (%d)" % [saved_area_cells, start_area_cells(layers)])
+	check(is_equal_approx(float(world.get("StartDistanceScaling")), SAVED_START_DISTANCE_SCALING) and start_distances(layers) == saved_distances,
+		"the recipe restored the start-distance scaling and the same distances")
 	var regenerated_wrong := 0
 	for i in samples.size():
 		if str(layers.call("GeneratedTerrainAt", samples[i])) != expected_generated[i]:

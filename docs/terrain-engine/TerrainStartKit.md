@@ -2,7 +2,7 @@
 
 World-data model: an authored `Resource` stating what a playable player start needs in one scenario (FEAT-09). Assigned to `TerrainGeneratorComponent.StartKit`. It has no effect on the map while the generator's `StartAreaRadius` is 0.
 
-A start kit is the per-scenario answer to workflow review E01: "playable starts need a headquarters footprint, clear exits, and reachable essential resources ... report an unusable seed, never silently reroll it". It holds the headquarters footprint, how many exits the footprint needs, the gap kept between neighbouring areas, the smallest usable area, and the resources every start is guaranteed. Every field is read by `TerrainStartPositionStage` (the footprint) or `TerrainStartAreaStage` (the rest). A generator with a radius and no kit uses the defaults below with no entries.
+A start kit is the per-scenario answer to workflow review E01: "playable starts need a headquarters footprint, clear exits, and reachable essential resources ... report an unusable seed, never silently reroll it". It holds the headquarters footprint, how many exits the footprint needs, the gap kept between neighbouring areas, the smallest usable area, and the resources every start is guaranteed. Since FEAT-14 an entry can instead be a Neutral site placed between the starts. Every field is read by `TerrainStartPositionStage` (the footprint) or `TerrainStartAreaStage` (the rest). A generator with a radius and no kit uses the defaults below with no entries.
 
 ## Public API
 
@@ -10,7 +10,7 @@ A start kit is the per-scenario answer to workflow review E01: "playable starts 
 - `[Export] int ExitCount` (0–16, default 2) — area cells that must touch a side of the footprint. Fewer gives the problem `no_exit`.
 - `[Export] int AreaGap` (0–8, default 1) — cells of unreserved ground kept between two start areas (a Chebyshev distance).
 - `[Export] int MinAreaCells` (0–4096, default 0) — smallest usable area in cells. 0 means 60% of the radius disc, `ceil(0.6 × π × radius²)`. Smaller gives the problem `area_too_small`.
-- `[Export] Godot.Collections.Array<TerrainStartKitEntry> Entries` — the resources every start is guaranteed, placed in array order. Null entries are skipped.
+- `[Export] Godot.Collections.Array<TerrainStartKitEntry> Entries` — the resources the kit places, in array order. Every `PerPlayer` entry goes into each start's own area. Every `Neutral` entry (FEAT-14) is placed between the starts, after every start's kit (see `TerrainStartKitEntry.Scope`). Null entries are skipped.
 
 ## Dependencies
 

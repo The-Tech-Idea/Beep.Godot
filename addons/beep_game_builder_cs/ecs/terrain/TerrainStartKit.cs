@@ -34,7 +34,10 @@ namespace Beep.ECS
         /// <summary>Smallest usable area, in cells. Zero means 60% of the radius disc.</summary>
         [Export(PropertyHint.Range, "0,4096,1")] public int MinAreaCells { get; set; }
 
-        /// <summary>The resources every start is guaranteed, placed in this order.</summary>
+        /// <summary>
+        /// The resources the kit places, in this order: every PerPlayer entry for each start, then every
+        /// Neutral entry between the starts once all starts have their own (FEAT-14).
+        /// </summary>
         [Export] public Godot.Collections.Array<TerrainStartKitEntry> Entries { get; set; } = new();
     }
 }

@@ -121,8 +121,9 @@ namespace Beep.ECS
             Run("Feature constraints", () => TerrainScaleConstraintStage.ApplyFeatures(world, settings));
 
             Run("Start positions", () => TerrainStartPositionStage.Apply(world, settings, startKit, cancellation));
-            // Reads the chosen starts and never moves one. Returns at radius zero without
-            // allocating, so a map without start areas is built exactly as before.
+            // Reads the chosen starts and never moves one. With StartDistanceScaling zero and
+            // the radius zero it returns without allocating, so a map that asks for neither is
+            // built exactly as before; the scaling measures and scales even without areas.
             Run("Start areas", () => TerrainStartAreaStage.Apply(world, settings, startKit, resources, cancellation));
 
             stopwatch.Stop();
@@ -257,6 +258,7 @@ namespace Beep.ECS
                 usableAreas,
                 minAreaCells,
                 maxAreaCells,
+                world.NeutralSites.Placements.Count,
                 features,
                 world.SamplesPerCell,
                 world.Width,

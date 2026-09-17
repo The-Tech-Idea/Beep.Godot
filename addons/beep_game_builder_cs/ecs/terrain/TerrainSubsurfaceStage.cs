@@ -25,6 +25,13 @@ namespace Beep.ECS
         /// <summary>Tiles per broad noise feature; the scale of a basin.</summary>
         private const float FieldTiles = 9.0f;
 
+        /// <summary>
+        /// The thinnest a deposit is: a cell that holds one holds at least this much. Anything that
+        /// later rescales richness (the start-distance pass, FEAT-14) keeps a deposit at or above it,
+        /// so a cell never says it has a resource and nothing to take.
+        /// </summary>
+        internal const float MinimumRichness = 0.05f;
+
         public static void Apply(TerrainGenerationBuffer world, TerrainGenerationSettings settings, TerrainResourceRules? rules = null)
         {
             if (settings.ResourceDensity <= 0.0f)
@@ -59,7 +66,7 @@ namespace Beep.ECS
                         if (n <= threshold)
                             continue;
 
-                        float richness = Mathf.Max(0.05f, (n - threshold) / (1.0f - threshold));
+                        float richness = Mathf.Max(MinimumRichness, (n - threshold) / (1.0f - threshold));
 
                         // Where two fields overlap, the better claim wins -
                         // weight times local richness, so a rich rare deposit

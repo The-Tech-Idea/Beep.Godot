@@ -2037,9 +2037,25 @@ if ($gridHauler -match 'DeliveryRetryTurns') {
     Fail "GridHaulerComponent's delivery retry must not become a turn duration; a full depot is a wait for someone else, not work this hauler is doing."
 }
 $terrainDataLayers = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainDataLayersComponent.cs"
-foreach ($required in @("GeneratedTerrainAt(", "ResourceAt(", "FeatureAt(", "ReliefAt(", "IsWaterAt(", "PassableAt(", "ContinentAt(", "IsStartPositionAt(", "StartCells()", "DescribeContinent", "DescribeStart", "LiquidResourceAt(", "UndergroundResourceAt(", "UndergroundRichnessAt(", "UndergroundDepthAt(", "DescribeLiquid", "DescribeUnderground", "StartAreaAt(", "DescribeStartArea", "_publishedStartOrder")) {
+foreach ($required in @("GeneratedTerrainAt(", "ResourceAt(", "FeatureAt(", "ReliefAt(", "IsWaterAt(", "PassableAt(", "ContinentAt(", "IsStartPositionAt(", "StartCells()", "DescribeContinent", "DescribeStart", "LiquidResourceAt(", "UndergroundResourceAt(", "UndergroundRichnessAt(", "UndergroundDepthAt(", "DescribeLiquid", "DescribeUnderground", "StartAreaAt(", "DescribeStartArea", "_publishedStartOrder", "StartDistanceAt(")) {
     if ($terrainDataLayers -notmatch [regex]::Escape($required)) {
-        Fail "TerrainDataLayersComponent must publish terrain, resource, feature, relief, water, passability, continent, start-position, start-area, liquid, and underground data layers: $required."
+        Fail "TerrainDataLayersComponent must publish terrain, resource, feature, relief, water, passability, continent, start-position, start-area, start-distance, liquid, and underground data layers: $required."
+    }
+}
+# FEAT-14: the start distance is read from the published field in BOTH storage modes. A
+# materialised tile per distinct distance is hundreds of tiles for a dense, regenerable fact, and
+# a mode-gated reader would answer -1 ("not measured") for a map that measured it. The expression
+# opens with "=>": a "_materialized ?" gate in front of it would start the line with ":" instead.
+if ($terrainDataLayers -notmatch [regex]::Escape('=> HasPublishedCell(cell) ? _field!.StartDistanceAtCell(cell - _publishedOrigin) : -1;')) {
+    Fail "TerrainDataLayersComponent.StartDistanceAt must read the published field in both storage modes and answer -1 off the map."
+}
+# FEAT-14: distance scaling multiplies deposits that already exist - it never places one, and a
+# scaled deposit stays inside the richness range every reader bands and clamps against.
+$terrainStartAreaStage = Read "addons/beep_game_builder_cs/ecs/terrain/TerrainStartAreaStage.cs"
+foreach ($required in @("TerrainEuclideanDistance.Squared(", "Mathf.Clamp(richness[index] * factor, TerrainSubsurfaceStage.MinimumRichness, 1f)",
+        "if (deposits[index].Length == 0) continue;", "entry.Scope != TerrainStartKitScope.Neutral", "Scope != TerrainStartKitScope.PerPlayer")) {
+    if ($terrainStartAreaStage -notmatch [regex]::Escape($required)) {
+        Fail "TerrainStartAreaStage must measure start distance with the shared transform, scale only existing deposits within the richness range, and keep neutral and per-player kit entries apart: $required."
     }
 }
 # FEAT-09: StartCells()[k] is start k. The runtime mode returned a HashSet's order; forbid it regrowing.
@@ -2582,7 +2598,7 @@ $buildMethod = [regex]::Match($terrainWorldForBuild, 'private bool ConfigureGene
 if (-not $buildMethod.Success) { Fail "TerrainWorldComponent.ConfigureGenerator not found." }
 $buildAssigned = [regex]::Matches($buildMethod.Value, '(?m)^\s{12}_generator\.([A-Z][A-Za-z]*)\s*=') |
     ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
-$buildDocumented = @("BoundsSize", "Seed", "ResourceSet", "UseClimateBiomeMaps", "UseScaleRules", "StartAreaRadius") | Sort-Object
+$buildDocumented = @("BoundsSize", "Seed", "ResourceSet", "UseClimateBiomeMaps", "UseScaleRules", "StartAreaRadius", "StartDistanceScaling") | Sort-Object
 $buildUndocumented = @($buildAssigned | Where-Object { $_ -notin $buildDocumented })
 if ($buildUndocumented.Count -gt 0) {
     Fail "TerrainWorldComponent.ConfigureGenerator overwrites $($buildUndocumented -join ', ') on the generator without naming them as derived in its doc comment."

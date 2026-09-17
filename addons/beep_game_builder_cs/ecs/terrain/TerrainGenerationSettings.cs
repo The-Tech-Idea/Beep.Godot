@@ -62,6 +62,9 @@ namespace Beep.ECS
         // What a playable start needs. Null means the kit defaults with no entries. Like
         // ResourceCatalog, detached (TerrainStartKitRules) before generation leaves the main thread.
         TerrainStartKit? StartKit,
+        // How strongly underground richness grows with distance from the nearest start, 0..2; zero
+        // measures no distance at all and leaves every deposit as the subsurface stage made it.
+        float StartDistanceScaling,
         float ResourceDensity,
         ResourceSet ResourceSet,
         // The authored catalog, when a game supplies one. Null means the
@@ -159,6 +162,7 @@ namespace Beep.ECS
         int StartAreaUsableCount,
         int StartAreaMinCells,
         int StartAreaMaxCells,
+        int NeutralPlacementCount,
         int FeatureCount,
         int SamplesPerCell,
         int FieldWidth,
@@ -185,6 +189,7 @@ namespace Beep.ECS
             ["start_area_usable_count"] = StartAreaUsableCount,
             ["start_area_min_cells"] = StartAreaMinCells,
             ["start_area_max_cells"] = StartAreaMaxCells,
+            ["neutral_placements"] = NeutralPlacementCount,
             ["feature_count"] = FeatureCount,
             ["samples_per_cell"] = SamplesPerCell,
             ["field_width"] = FieldWidth,

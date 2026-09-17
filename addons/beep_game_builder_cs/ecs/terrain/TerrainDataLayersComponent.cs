@@ -439,6 +439,18 @@ namespace Beep.ECS
             ? Read(_startAreas, cell, TerrainTileSets.Cell.StartArea).AsInt32()
             : HasPublishedCell(cell) ? _field!.StartAreaAtCell(cell - _publishedOrigin) : 0;
 
+        /// <summary>
+        /// Distance from a cell to the nearest start, in whole cells - or -1 off the published map and
+        /// on a map that measured none (FEAT-14; the generator's StartDistanceScaling). A generated fact
+        /// a game reads like the resources: the far country's danger as well as its richness.
+        ///
+        /// Read from the published field in BOTH modes, never materialised as tiles: every distinct
+        /// distance would be a tile of its own - hundreds on an ordinary map - for a dense fact the
+        /// recipe regenerates, which is exactly what the live cells do not store either.
+        /// </summary>
+        public int StartDistanceAt(Vector2I cell)
+            => HasPublishedCell(cell) ? _field!.StartDistanceAtCell(cell - _publishedOrigin) : -1;
+
         /// <summary>The liquid-stratum resource in a water cell - fish and kin - or empty.</summary>
         public string LiquidResourceAt(Vector2I cell) => _materialized
             ? Read(_liquid, cell, TerrainTileSets.Cell.LiquidResource).AsString()

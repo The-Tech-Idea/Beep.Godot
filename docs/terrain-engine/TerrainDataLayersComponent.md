@@ -37,6 +37,7 @@ it intentionally carries additional storage and rebuild cost.
 | ContinentData / ContinentLayer | ContinentAt |
 | StartData / StartLayer | IsStartPositionAt, StartCells |
 | StartAreaData (no layer property) | StartAreaAt |
+| none; the published field in both modes | StartDistanceAt |
 | LiquidData / LiquidLayer | LiquidResourceAt |
 | UndergroundData / UndergroundLayer | UndergroundResourceAt, UndergroundRichnessAt, UndergroundDepthAt |
 
@@ -47,7 +48,13 @@ carry start_index, and StartCells sorts the used cells by it. StartAreaAt
 returns which start's reserved area a cell is in, 0 for none and k+1 for start
 k; it is 0 everywhere when the generator's StartAreaRadius is 0. It is the
 recipe's reservation; the live copy is GridCellDataComponent.GetStartArea.
-Missing cells return empty strings, zero or false. Underground richness uses four bands;
+StartDistanceAt (FEAT-14) returns a cell's distance to the nearest start in whole
+cells, or -1 off the published map and on a map that measured none (the
+generator's StartDistanceScaling at 0). It reads the published field in both
+modes and is never materialised as tiles: a tile per distinct distance would be
+hundreds of tiles for a dense fact the recipe regenerates, and the live cells do
+not store it either.
+Other missing cells return empty strings, zero or false. Underground richness uses four bands;
 check the resource ID before interpreting richness or depth. ReliefAt returns
 TerrainRelief bands, not the drawing Z value derived from terrain kind.
 
@@ -79,12 +86,15 @@ projected physics integration; this metadata component does not supply it.
 ## Verification
 
 terrain_data_storage_probe compares every query in both modes, including
-StartAreaAt on a fixture with start areas, off-map cells and negative origins,
-the StartCells order, native-view creation/retirement, stable underground
-identity and stale-source clearing. terrain_data_origin_probe explicitly
+StartAreaAt on a fixture with start areas, StartDistanceAt on a fixture that
+measured every one of its 768 cells (and reads -1 off the map), off-map cells and
+negative origins, the StartCells order, native-view creation/retirement, stable
+underground identity and stale-source clearing. terrain_data_origin_probe explicitly
 enables native mode and checks all nine layers are physically inert, all
-queries (StartAreaAt included) survive a shifted origin, old cells clear, and
-shifted deposits can be surveyed and extracted. terrain_start_area_probe checks
+queries (StartAreaAt and StartDistanceAt included) survive a shifted origin, old
+cells clear, and shifted deposits can be surveyed and extracted.
+terrain_world_recipe_probe reads StartDistanceAt through materialised layers and
+checks a restore brings back the same distances. terrain_start_area_probe checks
 in both modes that StartAreaAt agrees with the generator on every cell and that
 StartCells()[k] is start k, re-inserting the materialised start tiles in reverse
 so the start_index sort is what keeps the order. Recipe, live-source, survey, navigation-height and

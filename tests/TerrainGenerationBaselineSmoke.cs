@@ -19,14 +19,14 @@ public partial class TerrainGenerationBaselineSmoke : Node
     // dials that gate whole stages are on so every stage is in the hash. The
     // generator's own defaults leave coherence, scale rules and lake shores off.
     private static TerrainGenerationSettings Settings(Vector2I size, int seed, int shape,
-        int startAreaRadius = 0, TerrainStartKit? kit = null)
+        int startAreaRadius = 0, TerrainStartKit? kit = null, float startDistanceScaling = 0f)
     {
         var generator = new TerrainGeneratorComponent
         {
             BoundsSize = size, Seed = seed,
             UseClimateBiomeMaps = true, UseScaleRules = true,
             BiomeCoherencePasses = 2, LakeShoreWidth = 0.5f,
-            StartAreaRadius = startAreaRadius, StartKit = kit,
+            StartAreaRadius = startAreaRadius, StartKit = kit, StartDistanceScaling = startDistanceScaling,
         };
         try
         {
@@ -45,11 +45,27 @@ public partial class TerrainGenerationBaselineSmoke : Node
     /// entries - two wheat within 2..6 cells, critical, and one stone within 3..8 cells.
     /// </summary>
     public Godot.Collections.Dictionary SnapshotWithStartAreas(Vector2I size, int seed, int shape)
+        => SnapshotOf(size, TerrainFieldBuilder.Build(Settings(size, seed, shape, 8, StartAreaKit())));
+
+    /// <summary>
+    /// FEAT-14 on top of the start-area case: StartDistanceScaling 1, and the kit gains two Neutral
+    /// entries - one horses per start on the surface and one iron deposit per start underground.
+    /// </summary>
+    public Godot.Collections.Dictionary SnapshotWithStartDistance(Vector2I size, int seed, int shape)
+    {
+        TerrainStartKit kit = StartAreaKit();
+        kit.Entries.Add(new TerrainStartKitEntry { ResourceId = "horses", Count = 1, Scope = TerrainStartKitScope.Neutral });
+        kit.Entries.Add(new TerrainStartKitEntry { ResourceId = "iron", Count = 1, Scope = TerrainStartKitScope.Neutral });
+        return SnapshotOf(size, TerrainFieldBuilder.Build(Settings(size, seed, shape, 8, kit, 1f)));
+    }
+
+    /// <summary>The default kit plus two critical wheat within 2..6 cells and one stone within 3..8.</summary>
+    private static TerrainStartKit StartAreaKit()
     {
         var kit = new TerrainStartKit();
         kit.Entries.Add(new TerrainStartKitEntry { ResourceId = "wheat", Count = 2, MinDistance = 2, MaxDistance = 6, Critical = true });
         kit.Entries.Add(new TerrainStartKitEntry { ResourceId = "stone", Count = 1, MinDistance = 3, MaxDistance = 8 });
-        return SnapshotOf(size, TerrainFieldBuilder.Build(Settings(size, seed, shape, 8, kit)));
+        return kit;
     }
 
     private static Godot.Collections.Dictionary SnapshotOf(Vector2I size, GeneratedTerrainField field)
@@ -101,6 +117,20 @@ public partial class TerrainGenerationBaselineSmoke : Node
                 foreach (string problem in report.Problems) Text(reports, problem);
             }
             layers["start_reports"] = Convert.ToHexString(reports.GetHashAndReset());
+        }
+
+        // FEAT-14. Without the scaling every cell hashes -1, and without a Neutral entry there is no
+        // site, so every case recorded before the feature keeps each of its earlier layers byte-identical.
+        layers["start_distance"] = Cells(size, (h, c) => Int(h, field.StartDistanceAtCell(c)));
+        using (IncrementalHash neutral = IncrementalHash.CreateHash(HashAlgorithmName.SHA256))
+        {
+            foreach (TerrainStartAreaPlacement placement in field.NeutralSites.Placements)
+            {
+                Text(neutral, placement.ResourceId);
+                Int(neutral, placement.Cell.X); Int(neutral, placement.Cell.Y); Int(neutral, placement.Relaxation);
+            }
+            foreach (string problem in field.NeutralSites.Problems) Text(neutral, problem);
+            layers["neutral_sites"] = Convert.ToHexString(neutral.GetHashAndReset());
         }
         return layers;
     }

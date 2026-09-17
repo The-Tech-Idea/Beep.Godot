@@ -132,6 +132,13 @@ namespace Beep.ECS
         /// </summary>
         [Export(PropertyHint.Range, "0,32,1")] public int StartAreaRadius { get; set; }
 
+        /// <summary>
+        /// How much richer the underground grows away from the starts, 0 to 2 (FEAT-14). Part of the
+        /// recipe: it changes every deposit's richness, so a world saved with it regenerates with it.
+        /// Zero measures no distance at all.
+        /// </summary>
+        [Export(PropertyHint.Range, "0,2,0.05")] public float StartDistanceScaling { get; set; }
+
         [ExportGroup("Exact Recipe")]
         [Export] public bool UseCustomBounds { get; set; }
         [Export] public Vector2I CustomBounds { get; set; } = new(64, 64);
@@ -213,7 +220,7 @@ namespace Beep.ECS
         public Callable GenerateMap => Callable.From(NewWorld);
 
         /// <summary>Bumped when the saved recipe's shape changes.</summary>
-        private const int RecipeVersion = 4;
+        private const int RecipeVersion = 5;
 
         private bool _restoredFromSave;
 
@@ -392,7 +399,8 @@ namespace Beep.ECS
         /// UseCustomClimateSpan override supplies the geographic range.
         /// StartAreaRadius is this world's own recipe value, so the generator's
         /// Inspector radius is discarded for a world built here; the generator's
-        /// StartKit is not touched.
+        /// StartKit is not touched. StartDistanceScaling is the same: this world's
+        /// recipe value replaces the generator's own.
         /// </summary>
         private bool ConfigureGenerator(out Vector2I size)
         {
@@ -417,6 +425,7 @@ namespace Beep.ECS
                 (int)Rainfall, (int)SeaLevel, (int)ResourceLevel);
             _generator.ResourceSet = Resources;
             _generator.StartAreaRadius = Mathf.Clamp(StartAreaRadius, 0, 32);
+            _generator.StartDistanceScaling = StartDistanceScaling;
             if (UseCustomLandCoverage) _generator.LandmassScale = LandCoverage;
 
             // The climate model and the scale rules are what make the axes mean
@@ -438,6 +447,8 @@ namespace Beep.ECS
                 return "CustomBounds must have positive width and height.";
             if (UseCustomLandCoverage && (!float.IsFinite(LandCoverage) || LandCoverage < 0.05f || LandCoverage > 0.92f))
                 return "LandCoverage must be finite and between 0.05 and 0.92.";
+            if (!float.IsFinite(StartDistanceScaling) || StartDistanceScaling < 0f || StartDistanceScaling > 2f)
+                return "StartDistanceScaling must be finite and between zero and two.";
             return null;
         }
 
@@ -471,6 +482,7 @@ namespace Beep.ECS
             ["resources"] = (int)Resources,
             ["seed"] = Seed,
             ["start_area_radius"] = StartAreaRadius,
+            ["start_distance_scaling"] = StartDistanceScaling,
             ["built_size"] = BuiltSize,
         };
 
@@ -498,6 +510,8 @@ namespace Beep.ECS
             Seed = GridVariantReader.Int(state, "seed", Seed);
             // Absent before recipe version 4, whose worlds had no start areas.
             StartAreaRadius = GridVariantReader.Int(state, "start_area_radius", 0);
+            // Absent before recipe version 5, whose worlds scaled nothing by distance.
+            StartDistanceScaling = GridVariantReader.Float(state, "start_distance_scaling", 0f);
             Vector2I savedSize = GridVariantReader.Vector2I(state, "built_size", Vector2I.Zero);
 
             _restoredFromSave = true;

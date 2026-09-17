@@ -3,7 +3,7 @@ extends SceneTree
 const BASE := "res://addons/beep_game_builder_cs/ecs/"
 const QUERIES := ["GeneratedTerrainAt", "ResourceAt", "FeatureAt", "ReliefAt", "ContinentAt",
 	"IsStartPositionAt", "LiquidResourceAt", "UndergroundResourceAt", "UndergroundRichnessAt",
-	"UndergroundDepthAt", "IsWaterAt", "PassableAt", "StartAreaAt"]
+	"UndergroundDepthAt", "IsWaterAt", "PassableAt", "StartAreaAt", "StartDistanceAt"]
 
 func make(kind: String, parent: Node, label: String, properties: Dictionary) -> Node:
 	var node: Node = load(BASE + kind + ".cs").new()
@@ -24,7 +24,7 @@ func run() -> void:
 	var world := make("terrain/TerrainWorldComponent", host, "World", {
 		"GeneratorPath": NodePath("../Generator"), "DataLayersPath": NodePath("../Layers"),
 		"BuildOnReady": false, "ParticipatesInSave": false, "MapSize": 0,
-		"Resources": 1, "ResourceLevel": 2, "Seed": 424242, "StartAreaRadius": 6})
+		"Resources": 1, "ResourceLevel": 2, "Seed": 424242, "StartAreaRadius": 6, "StartDistanceScaling": 1.0})
 	world.call("NewWorld")
 	assert(layers.get_child_count() == 9)
 	for layer in layers.get_children():
@@ -36,6 +36,7 @@ func run() -> void:
 	var baseline: Dictionary = {}
 	var deposit := Vector2i(-1, -1)
 	var reserved := 0
+	var farthest := -1
 	for y in range(32):
 		for x in range(32):
 			var at := Vector2i(x, y)
@@ -44,8 +45,10 @@ func run() -> void:
 			baseline[at] = values
 			if layers.call("UndergroundResourceAt", at) != "": deposit = at
 			if int(layers.call("StartAreaAt", at)) > 0: reserved += 1
+			farthest = maxi(farthest, int(layers.call("StartDistanceAt", at)))
 	assert(deposit.x >= 0, "Fixture has no underground deposit")
 	assert(reserved > 0, "Fixture has no start area, so the shifted StartAreaAt comparison proves nothing")
+	assert(farthest > 0, "Fixture measured no start distance, so the shifted StartDistanceAt comparison proves nothing")
 	var origin := Vector2i(-100, 200)
 	layers.set("BoundsOrigin", origin)
 	layers.call("Rebuild")

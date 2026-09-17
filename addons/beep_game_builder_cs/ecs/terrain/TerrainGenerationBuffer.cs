@@ -114,6 +114,7 @@ namespace Beep.ECS
         private float[]? _cellElevation, _cellShade, _cellUndergroundRichness;
         private int[]? _cellContinent;
         private byte[]? _cellUndergroundDepth, _cellStartArea;
+        private ushort[]? _cellStartDistance;
         private int[]? _intScratchA, _intScratchB;
         private float[]? _floatScratchA, _floatScratchB;
         private bool[]? _boolScratch;
@@ -266,6 +267,19 @@ namespace Beep.ECS
 
         /// <summary>One report per start position when start areas were generated, in start order.</summary>
         public List<TerrainStartAreaReport> StartAreas { get; } = new();
+
+        /// <summary>
+        /// Distance from each tile to the nearest start, in whole cells, water included. Allocated
+        /// only when StartDistanceScaling asks for it (FEAT-14): two bytes a cell is a real cost on a
+        /// huge world, and a map that scales nothing by distance has no reader for it.
+        /// </summary>
+        public ushort[] CellStartDistance => CellValues(ref _cellStartDistance);
+
+        /// <summary>The start-distance array when the stage measured it, else null.</summary>
+        internal ushort[]? CellStartDistanceIfGenerated => _cellStartDistance;
+
+        /// <summary>What the kit's Neutral entries placed between the starts, or None without any.</summary>
+        public TerrainNeutralSitesReport NeutralSites { get; set; } = TerrainNeutralSitesReport.None;
 
         // The gameplay-resolution view of the world. These are the authoritative
         // outputs: one value per tile, which is what a game actually moves,

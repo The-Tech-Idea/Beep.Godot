@@ -3,7 +3,7 @@ extends SceneTree
 const BASE := "res://addons/beep_game_builder_cs/ecs/terrain/"
 const QUERIES := ["GeneratedTerrainAt", "ResourceAt", "FeatureAt", "ReliefAt", "ContinentAt",
 	"IsStartPositionAt", "LiquidResourceAt", "UndergroundResourceAt", "UndergroundRichnessAt",
-	"UndergroundDepthAt", "IsWaterAt", "PassableAt", "StartAreaAt"]
+	"UndergroundDepthAt", "IsWaterAt", "PassableAt", "StartAreaAt", "StartDistanceAt"]
 var failures: Array[String] = []
 
 func _initialize() -> void: run.call_deferred()
@@ -23,6 +23,7 @@ func run() -> void:
 	generator.ResourceSet = 1
 	generator.ResourceDensity = 4.0
 	generator.StartAreaRadius = 6
+	generator.StartDistanceScaling = 1.0
 	host.add_child(generator)
 	var compact: Node = load(BASE + "TerrainDataLayersComponent.cs").new()
 	compact.name = "Compact"
@@ -46,6 +47,7 @@ func run() -> void:
 	check(compact.UndergroundIdentity == native.UndergroundIdentity, "Storage choice changed subsurface identity")
 	var deposits := 0
 	var reserved := 0
+	var measured := 0
 	for y in range(-1, 25):
 		for x in range(-1, 33):
 			var cell := Vector2i(x, y) + Vector2i(-50, 70)
@@ -53,8 +55,12 @@ func run() -> void:
 				check(compact.call(query, cell) == native.call(query, cell), "Storage query differs: %s at %s" % [query, cell])
 			if compact.UndergroundResourceAt(cell) != "": deposits += 1
 			if compact.StartAreaAt(cell) > 0: reserved += 1
+			var inside := x >= 0 and y >= 0 and x < 32 and y < 24
+			if compact.StartDistanceAt(cell) >= 0: measured += 1
+			check(inside or compact.StartDistanceAt(cell) == -1, "Off-map cell %s reads a start distance" % cell)
 	check(deposits > 0, "Comparison fixture has no subsurface data")
 	check(reserved > 0, "Comparison fixture has no start area")
+	check(measured == 32 * 24, "Comparison fixture measured start distance on %d of %d cells" % [measured, 32 * 24])
 	# Start order, not just the start set, is the same in both storage modes.
 	check(compact.StartCells() == native.StartCells(), "Start order differs between storage modes")
 	var deposit := Vector2i.ZERO

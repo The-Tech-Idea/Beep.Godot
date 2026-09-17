@@ -38,6 +38,8 @@ internal sealed class TerrainFeatureSheets
     private readonly Dictionary<string, Sheet> _sheets = new();
     private readonly TerrainFeatureFrameBindings _woodsFrames = new();
     private (Layout Woods, Layout Jungle, Layout Oasis, Layout Marsh)? _loaded;
+    private Layout? _understoryLoaded;
+    private Sheet? _understory;
 
     /// <summary>How many sheets actually loaded. Zero means nothing can be drawn.</summary>
     public int Count => _sheets.Count;
@@ -70,6 +72,30 @@ internal sealed class TerrainFeatureSheets
         Sheet woodsSheet = _sheets.TryGetValue("woods", out Sheet found) ? found : default;
         int frames = Mathf.Max(1, woodsSheet.Columns) * Mathf.Max(1, woodsSheet.Rows);
         _woodsFrames.Load(woodsFrameBindings, frames, owner);
+    }
+
+    /// <summary>
+    /// The bush sheet drawn among the trees - the understory - cut on its own grid, a 4x4 when the
+    /// layout names none. Held apart from the four feature sheets: a bush belongs to no feature, it
+    /// stands in woods and forest beside the canopies, and reloading the feature sheets must not
+    /// drop it. An empty path loads nothing, and <see cref="TryGetUnderstory"/> then says so.
+    /// </summary>
+    public void LoadUnderstory(string owner, Layout bushes)
+    {
+        if (_understoryLoaded == bushes) return;
+        _understoryLoaded = bushes;
+        _understory = null;
+        if (string.IsNullOrWhiteSpace(bushes.Path)) return;
+        if (TerrainTextures.Load(bushes.Path, owner, "the bushes sheet") is not { } texture) return;
+        Layout resolved = Resolve(bushes, new Layout(bushes.Path, 4, 4));
+        _understory = new Sheet(texture, Mathf.Max(1, resolved.Columns), Mathf.Max(1, resolved.Rows));
+    }
+
+    /// <summary>The understory sheet, when one loaded.</summary>
+    public bool TryGetUnderstory(out Sheet sheet)
+    {
+        sheet = _understory ?? default;
+        return _understory is not null;
     }
 
     /// <summary>

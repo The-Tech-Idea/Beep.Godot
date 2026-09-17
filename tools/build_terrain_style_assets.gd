@@ -29,7 +29,9 @@ func run() -> void:
 	pixel.set("DeepWaterColor", Color(0.16, 0.38, 0.53))
 	pixel.set("PixelsPerCell", 64)
 	pixel.set("GroundDetail", 0.24)
-	configure_scale(pixel)
+	# A 310-pixel atlas tile over 4.8 cells of 64 pixels: one art pixel to one screen pixel, which is
+	# what pixel art is drawn at.
+	pixel.set("TextureRepeatCells", 4.8)
 	pixel.set("BlendWidth", 0.08)
 	var grounds: Array[Texture2D] = []
 	for rect: Rect2 in [Rect2(0, 0, 313, 314), Rect2(313, 0, 314, 314), Rect2(627, 0, 314, 314),
@@ -45,7 +47,10 @@ func run() -> void:
 	var marsh: Array[Texture2D] = [region(atlas, Rect2(386, 1036, 183, 182))]
 	var small: Array[Texture2D] = [region(atlas, Rect2(702, 1090, 157, 113))]
 	var large: Array[Texture2D] = [region(atlas, Rect2(970, 1020, 268, 202))]
+	# The bush below the tree row; the rows above y 1033 in that column are the trees' spill.
+	var bushes: Array[Texture2D] = [region(atlas, Rect2(52, 1033, 209, 181))]
 	pixel.set("Trees", trees)
+	pixel.set("Bushes", bushes)
 	pixel.set("Marsh", marsh)
 	pixel.set("SmallRocks", small)
 	pixel.set("LargeRocks", large)
@@ -54,14 +59,13 @@ func run() -> void:
 	cartoon.set("DisplayName", "Cartoon")
 	cartoon.set("GroundDetail", 0.16)
 	cartoon.set("GroundTextures", grounds)
-	configure_scale(cartoon)
+	# The same atlas, three times finer: ground detail - pebbles, tufts, shells - reads as texture
+	# under the units instead of at their size (a 68-pixel pickup beside 15-70 pixel cobbles).
+	cartoon.set("TextureRepeatCells", 1.6)
 	save(cartoon, DIR + "cartoon.tres")
 	await build_roads(atlas)
 	print("[terrain-style-assets] OK")
 	quit()
-
-func configure_scale(art: Resource) -> void:
-	art.set("TextureRepeatCells", 1.5)
 
 func build_roads(atlas: Texture2D) -> void:
 	assert(DisplayServer.get_name() != "headless", "Road atlas baking requires a rendering device")

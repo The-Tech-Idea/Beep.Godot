@@ -19,6 +19,12 @@ constraints can reject anchors. A rejected clump can retain one valid centre;
 it no longer piles all rejected stamps onto the same point. Zero spread explicitly
 allows a centred stack and adds no hidden vertical offset.
 
+Bushes are placed after a woods or forest cell's trees by `TerrainFeatureScatter.Append`: the
+trees' anchors stay fixed, and each bush is chosen the same way - twelve candidates, the one
+furthest from every anchor already in the cell, trees included - on its own seed salt. So a bush
+takes a clearing between trunks, and adding bushes never moves a tree
+(`terrain_understory_probe`).
+
 Seeded choices use absolute grid cell identity. Moving view bounds does not
 change a retained cell's frames, scales or positions. Native projection geometry
 maps offsets onto square or elevated isometric surfaces. With the same seed,
@@ -37,9 +43,13 @@ the flat renderer: `grass,dry_grass=0,1,4`. Repeated frame indices are weights.
 Bindings apply to whichever feature selects the woods sheet, including woods
 fallbacks. Dedicated jungle, oasis and marsh sheets use their own frames.
 
-The lab and standalone painted demo retain the user's `forest_trees.png` art.
-Temperate foliage frames exclude apples, oranges and blossoms. Both demos use
-one base sprite, one forest extra, spread 0.85 and trunk anchor (0.5, 0.86).
+The lab and the standalone painted demo draw the owner's cartoon sheets (2026-09-16):
+`textures/map_art/cartoon_trees.png` for woods and `cartoon_bushes.png` for the bushes among them,
+keyed from green-screen originals by `tools/key_green_screen_sheet.py`. Bindings put green
+broadleaf, cypress and pine on grass, mix autumn colours into dry grass, and put pine and bare trees
+in the cold. Jungle, oasis and marsh keep their own painted sheets until matching art exists. Both
+scenes use one base sprite, one forest extra, spread 0.85 and anchor (0.5, 0.97), because the cartoon
+sheets stand each sprite on the bottom of its frame.
 Visible sprite dimensions now use the shared `TerrainPropSizing` resource in every
 renderer. Art profiles no longer override sizes; see `TerrainPropSizing.md` for limits.
 The new pixel/cartoon styles have separate artwork, but the original ground remains.

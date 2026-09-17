@@ -46,10 +46,14 @@ These are visual settings, not terrain-generation parameters.
 Stamps are sorted by local Y and drawn from one Node2D rather than creating a node per sprite.
 TerrainLayers owns the Z order. Textures use linear filtering with mipmaps.
 
-The authored `templates/scenes/terrain/terrain_rock_objects.tscn` prefab uses four
-unaltered individual sprites from the user's `Art/Rocks/Objects_separately` folder:
-Rock1_1, Rock1_2, Rock4_1 and Rock4_2, copied to the addon's `textures/rocks` folder.
-Small sprites represent hills; large sprites represent mountains. Defaults are 35%
+The authored `templates/scenes/terrain/terrain_rock_objects.tscn` prefab draws both relief levels
+from one sheet, `textures/map_art/cartoon_rocks.png`: 4x2 frames of 32x32 (round, slab, pointed,
+cracked, pair, pebble cluster, sandstone, dark boulder). It is the owner's
+`Art/Resources/rocks_cartoon_32x32.png`, keyed from a green screen by
+`tools/key_green_screen_sheet.py` (2026-09-16). Until then it used four individual sprites from
+`Art/Rocks/Objects_separately` (Rock1_1, Rock1_2, Rock4_1, Rock4_2, still in the addon's
+`textures/rocks` folder). Hills draw every frame at the small-rock size, mountains at the large-rock
+size. Defaults are 35%
 hill coverage and 55% mountain coverage, one object per accepted cell. The generator
 lab and standalone painted demo instance this prefab. Ground cover remains beneath
 the objects; warm grassland hills and mountains no longer become gravel or rock.
@@ -99,9 +103,13 @@ visible rocks; asset loading and stamp sorting are not time-budgeted. Arbitrary 
 changes need a grid geometry notification or an explicit rebuild.
 
 `tests/terrain_ground_cover_probe.gd` checks the actual lab scene's ground, preserved
-relief, sparse deterministic object count, zero coverage, unchanged gameplay records
-and imported/mipmapped art. Seed 31415 at Tiny yields 24 raised cells, zero gray
-rock/gravel ground cells and nine rock objects.
+relief, sparse deterministic object count, zero coverage and unchanged gameplay records. On
+art, it checks that the rocks stay smaller than the smallest tree (trees only, since the
+feature view also draws bushes). It also checks that the rock, woods and bush sheets are the
+cartoon sheets and were imported with a mip chain. For a `res://` sheet the chain comes only
+from its `.import` file; `TerrainTextures.Load` adds none. The keyed sheets were first imported
+without one, the probe caught it, and all three now import with `mipmaps/generate=true`. Seed
+31415 at Tiny yields 27 raised cells, zero gray rock/gravel ground cells and eleven rock objects.
 
 These are decorative draws, not collision bodies, harvestable resources or buildings.
 Dry anchors are checked; the full visible sprite footprint is not yet water-clipped.

@@ -7,7 +7,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tests/run_terrain_integratio
 ```
 
 Use -GodotCommand with a Godot mono executable path if it is not on PATH.
-The runner builds Beep.Godot.csproj, then runs 47 headless probes (45 registered in its
+The runner builds Beep.Godot.csproj, then runs 49 headless probes (47 registered in its
 `$probes` table, plus `examples/iso_layers` and `examples/landmass`) and twenty-four real
 OpenGL checks. -SkipRendering explicitly skips the latter; skipped is not passed.
 Each process has a configurable wall-clock timeout, default 120 seconds.
@@ -119,6 +119,22 @@ transitions or elevated props. Captures: `tests/output/lab_styles/`.
   spacing, dry-centre rejection behavior, shared flat/isometric fine-water
   acceptance over 32 seeds, and actual terrain-selected sprite pixels at three
   zooms, including binding replacement and woods fallback without grid writes.
+- Bushes among the trees (`terrain_understory_probe`, marker `[terrain-understory] OK`): live cells
+  authored in columns of woods, forest, jungle, marsh, oasis and bare grass, crossed by a row of
+  shallow water, drawn by the flat feature renderer with `cartoon_trees.png` and
+  `cartoon_bushes.png` at `BushesPerWoodsTile` 2. Bushes stand on woods and forest tiles only, at
+  most two per tile, each inside `TerrainPropSizing.Bushes`; every tree stamp is exactly where a
+  renderer with no bush sheet puts it; the mean distance from a bush to the nearest trunk of its tile
+  stays above 0.5 cells; `BushesPerWoodsTile` 0 draws none; a `TerrainMapArt.Bushes` sprite (10x40)
+  is drawn instead of the sheet. The fixture is live cells rather than a generated map because no
+  small generated map grew jungle or marsh - a temperate, a hot-wet and a full-latitude 48x48 world
+  all came out woods and forest only - so "woods and forest only" could not fail there.
+  **Mutations**, each failing its own check: bushes on every feature (a bush on a marsh tile);
+  bushes on woods only (none on forest); bushes scattered as if the trees were not there (mean
+  clearance 0.418 against 0.578 - the first threshold, 0.3, passed that mutation and was raised to
+  0.5, between the two measured values). `terrain_prop_sizing_probe` measures the flat view's trees
+  (`woods`, `forest`, `jungle`) and bushes against their own ranges through
+  `GetStampBoundsOfKind`, since the view now draws two size categories.
 - Cached display coast reconstruction: immutable raw input, constant borders,
   block-halo equivalence to whole-image cubic resize, allocation cap, coarse-input
   passthrough, independent CPU reference and GPU curved-shore accuracy. Live
@@ -230,10 +246,34 @@ transitions or elevated props. Captures: `tests/output/lab_styles/`.
   passed against mutated code. It now locks `bravo` to start 3. The minimap half of FEAT-10 is not
   here: it is the `StartAreaTint` section of `tests/GridMinimapSmoke.cs`, run by
   `tests/grid_minimap_probe.ps1`.
-- Start-area radius through the world recipe, storage modes and shifted origins: the recipe probe
-  checks the radius reaching the generator, `start_area_radius` at recipe version 4, the status
-  suffix and restore; the data storage and origin probes compare `StartAreaAt` across both storage
-  modes, the start order, nine materialised layers and a shifted origin.
+- Start-area radius and start-distance scaling through the world recipe, storage modes and shifted
+  origins: the recipe probe checks the radius and a 1.5 scaling reaching the generator (distances
+  0..16), `start_area_radius` and `start_distance_scaling` at recipe version 5, a world with neither
+  reserving and measuring nothing, the status suffix, and restore giving back the same reserved cells
+  and the same distances; the exact-recipe probe expects version 5, a zero scaling saved, and 2.5,
+  -0.5 and NaN refused without touching live cells; the data storage and origin probes compare
+  `StartAreaAt` and `StartDistanceAt` across both storage modes, the start order, nine materialised
+  layers and a shifted origin, and require the distance measured on every published cell and -1 off
+  the map.
+- Start distance, richness by distance and neutral sites (FEAT-14, `terrain_start_distance_probe`,
+  marker `[terrain-start-distance] OK`). **Far country:** a 112x80 Continents world, seed 31415, two
+  starts, abundant Oil And Gas resources, read in full at scaling 0 and at scaling 1. Scaling 0 reads
+  -1 on every cell and reports no neutral sites; scaling 1 reads 0 on each start and, on every cell,
+  the rounded Euclidean distance to the nearest start computed by brute force; every deposit keeps
+  its kind and depth and carries exactly its scaling-0 richness times lerp(0.5, 1.5, d / farthest),
+  clamped to [0.05, 1]; the surface resources do not move; and the near/far mean-richness ratio
+  (within 10 cells against beyond 30) falls relative to the same map unscaled. The plan's own guard -
+  near mean below far mean - was dropped because it could not fail here: this map's deposits are
+  richer far from its starts already, and it still passed with the curve inverted (0.169 near, 0.186
+  far). **Crowded starts:** a 64x48 six-start map, radius 10, a kit of Neutral horses, iron and an id
+  no catalog holds, Count 2. Every neutral placement lies where its two nearest starts are within 2
+  cells, outside every area and its gap, dry, not mountainous, not lava and on the map; no resource
+  exceeds Count x starts and any shortfall is reported; the unknown id is reported; the diagnostics
+  count what the report lists; the fixture's own band crosses 50 area cells, so the area filter is
+  exercised; a one-start map places nothing and reports `neutral_needs_two_starts`. **Mutations**,
+  each failing: the richness curve inverted; the band filter dropped; the area and gap filter
+  dropped; distances floored instead of rounded. The two FEAT-14 cases of the generation baseline
+  (`*_start_distance`) pin the rest byte for byte.
 - Construction approach selection at map edges/coasts and material retention when access is flooded.
 - Native terrain collision and live edits.
 - Authored lab projection switching and the playable gathering/movement sample.

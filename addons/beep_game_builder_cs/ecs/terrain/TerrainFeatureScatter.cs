@@ -10,10 +10,20 @@ internal static class TerrainFeatureScatter
 
     public static int Fill(Span<Vector2> offsets, Vector2I identity, int seed,
         float spread, Vector2 sampleCentre, Func<Vector2, bool> dry)
+        => Append(offsets, 0, identity, seed, spread, sampleCentre, dry);
+
+    /// <summary>
+    /// Anchors added after the first <paramref name="existing"/> ones, which stay where they are and
+    /// are kept away from exactly as the new anchors are kept from each other - so a bush placed
+    /// after a cell's trees takes a clearing between the trunks rather than one of them. Returns the
+    /// total written, the existing anchors included.
+    /// </summary>
+    public static int Append(Span<Vector2> offsets, int existing, Vector2I identity, int seed,
+        float spread, Vector2 sampleCentre, Func<Vector2, bool> dry)
     {
         spread = Mathf.Clamp(spread, 0f, 1f);
-        int written = 0;
-        for (int slot = 0; slot < offsets.Length; slot++)
+        int written = Mathf.Clamp(existing, 0, offsets.Length);
+        for (int slot = written; slot < offsets.Length; slot++)
         {
             Vector2 best = Vector2.Zero;
             float bestDistance = -1f;

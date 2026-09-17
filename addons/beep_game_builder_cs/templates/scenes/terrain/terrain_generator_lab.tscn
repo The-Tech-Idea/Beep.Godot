@@ -2584,12 +2584,17 @@ RefreshOnReady = false
 [node name="Features" type="Node2D" parent="Preview" unique_id=805128735]
 script = ExtResource("features")
 TerrainGeneratorPath = NodePath("../TerrainGenerator")
-WoodsSheetPath = "res://addons/beep_game_builder_cs/textures/plants/forest_trees.png"
-WoodsFrameBindings = PackedStringArray("grass,dry_grass=0,1,4,7,8,11,14", "jungle,swamp=0,1,7,14", "desert,sand=8,15", "gravel,rock,tundra,snow,ice=2,9")
+WoodsSheetPath = "res://addons/beep_game_builder_cs/textures/map_art/cartoon_trees.png"
+WoodsColumns = 4
+WoodsRows = 2
+WoodsFrameBindings = PackedStringArray("grass=0,0,1,2,3,3", "dry_grass=0,3,3,4,5,6", "jungle,swamp=0,3", "desert,sand=3,7", "gravel,rock,tundra,snow,ice=2,2,7")
 JungleSheetPath = "res://addons/beep_game_builder_cs/textures/plants/jungle_canopy_4x4.png"
 OasisSheetPath = "res://addons/beep_game_builder_cs/textures/plants/oasis_trees.png"
 MarshSheetPath = "res://addons/beep_game_builder_cs/textures/plants/marsh_reeds_4x4.png"
-SpriteAnchor = Vector2(0.5, 0.86)
+BushesSheetPath = "res://addons/beep_game_builder_cs/textures/map_art/cartoon_bushes.png"
+BushesColumns = 4
+BushesRows = 2
+SpriteAnchor = Vector2(0.5, 0.97)
 ScaleJitter = 0.12
 RefreshOnReady = false
 

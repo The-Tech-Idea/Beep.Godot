@@ -23,6 +23,11 @@ public partial class TerrainMapArt : Resource
     [Export] public Godot.Collections.Array<Texture2D> GroundTextures { get; set; } = new();
     [ExportGroup("Vegetation")]
     [Export] public Godot.Collections.Array<Texture2D> Trees { get; set; } = new();
+    /// <summary>
+    /// Bushes among the trees of woods and forest. Empty uses the feature renderer's own bushes
+    /// sheet, as an empty Trees uses its woods sheet.
+    /// </summary>
+    [Export] public Godot.Collections.Array<Texture2D> Bushes { get; set; } = new();
     [Export] public Godot.Collections.Array<Texture2D> Oasis { get; set; } = new();
     [Export] public Godot.Collections.Array<Texture2D> Marsh { get; set; } = new();
     [Export] public Godot.Collections.Array<Texture2D> SmallRocks { get; set; } = new();

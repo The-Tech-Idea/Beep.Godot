@@ -27,7 +27,10 @@ func run() -> void:
 	assert(raised > 0, "The map was flattened instead of separating ground and relief")
 	assert(rocks.get("StampCount") > 0 and rocks.get("StampCount") < raised, "Expected sparse rock objects over raised ground")
 	var trees: Node = scene.get_node("Preview/Features")
-	var tree_bounds: Array = trees.call("GetStampBounds")
+	# Trees only: the feature view also draws the bushes among them, which are meant to be small.
+	var tree_bounds: Array = []
+	for kind in ["woods", "forest", "jungle", "oasis"]:
+		tree_bounds.append_array(trees.call("GetStampBoundsOfKind", kind))
 	var rock_bounds: Array = rocks.call("GetStampBounds")
 	assert(not tree_bounds.is_empty())
 	var smallest_tree := INF
@@ -42,7 +45,10 @@ func run() -> void:
 	var preview: Node2D = scene.get_node("Preview")
 	var old_scale := preview.scale
 	preview.scale = Vector2.ONE * 2.0
-	assert(trees.call("GetStampBounds") == tree_bounds and rocks.call("GetStampBounds") == rock_bounds, "Camera zoom changed world-space prop scale")
+	var zoomed_trees: Array = []
+	for kind in ["woods", "forest", "jungle", "oasis"]:
+		zoomed_trees.append_array(trees.call("GetStampBoundsOfKind", kind))
+	assert(zoomed_trees == tree_bounds and rocks.call("GetStampBounds") == rock_bounds, "Camera zoom changed world-space prop scale")
 	preview.scale = old_scale
 	print("[terrain-ground-cover] land=", land, " raised=", raised, " gray_ground=", gray, " rock_objects=", rocks.get("StampCount"))
 	var snapshot := var_to_bytes(cells.call("GetCells"))
@@ -58,12 +64,20 @@ func run() -> void:
 	rocks.call("Rebuild")
 	assert(rocks.get("StampCount") == original_count)
 	assert(var_to_bytes(cells.call("GetCells")) == snapshot, "Rock rendering rewrote the live map")
+	# The lab's props are the owner's cartoon sheets, and every one is imported with a mip chain: the
+	# prop renderers draw with LinearWithMipmaps, and an imported texture carries only the chain its
+	# .import file asks for (TerrainTextures.Load does not add one to a res:// texture), so a sheet
+	# imported without mipmaps aliases into shimmer at map zoom and draws nothing wrong up close.
 	for slot in ["HillsTextures", "MountainsTextures"]:
-		var textures: Array = rocks.get(slot)
-		assert(textures.size() == 2)
-		for texture in textures:
-			assert(texture is Texture2D and texture.get_image().has_mipmaps())
-			assert(texture.resource_path.begins_with("res://addons/beep_game_builder_cs/textures/rocks/Rock"))
+		assert((rocks.get(slot) as Array).is_empty(), "%s would draw instead of the rock sheet" % slot)
+	var sheets := {
+		"HillsSheetPath": rocks.get("HillsSheetPath"), "MountainsSheetPath": rocks.get("MountainsSheetPath"),
+		"WoodsSheetPath": trees.get("WoodsSheetPath"), "BushesSheetPath": trees.get("BushesSheetPath")}
+	for slot in sheets:
+		var path: String = sheets[slot]
+		assert(path.begins_with("res://addons/beep_game_builder_cs/textures/map_art/cartoon_"), "%s is %s, not a cartoon sheet" % [slot, path])
+		var sheet: Texture2D = load(path)
+		assert(sheet != null and sheet.get_image().has_mipmaps(), "%s (%s) was imported without mipmaps" % [slot, path])
 	scene.free()
 	print("[terrain-ground-cover] OK")
 	quit()

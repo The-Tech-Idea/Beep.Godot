@@ -1,16 +1,27 @@
 extends "res://tests/terrain_lab_build.gd"
 
+# The features the Trees range sizes. Oasis and marsh have ranges of their own and the lab's Tiny
+# world grows neither.
+const TREE_KINDS := ["woods", "forest", "jungle"]
+
 func _initialize() -> void:
 	call_deferred("run")
 
-func check_bounds(view: Node, cell_edge: float, low: float, high: float) -> void:
-	var bounds: Array = view.call("GetStampBounds")
-	assert(not bounds.is_empty(), "No props to measure in " + view.name)
+func check_bounds(view: Node, cell_edge: float, low: float, high: float, kinds: Array = []) -> void:
+	# The flat feature view draws two size categories - trees and the bushes among them - so it is
+	# measured one kind at a time. The other views draw one category and are measured whole.
+	var bounds: Array = []
+	if kinds.is_empty():
+		bounds = view.call("GetStampBounds")
+	else:
+		for kind in kinds:
+			bounds.append_array(view.call("GetStampBoundsOfKind", kind))
+	assert(not bounds.is_empty(), "No %s props to measure in %s" % [kinds, view.name])
 	for rect: Rect2 in bounds:
 		var extent := maxf(rect.size.x, rect.size.y) / cell_edge
 		assert(extent >= low - 0.001 and extent <= high + 0.001,
-			"%s: %.3f cells is outside %.3f..%.3f" % [view.name, extent, low, high])
-	print("[terrain-prop-sizing] ", view.name, ": ", bounds.size(), " measured props")
+			"%s %s: %.3f cells is outside %.3f..%.3f" % [view.name, kinds, extent, low, high])
+	print("[terrain-prop-sizing] ", view.name, " ", kinds, ": ", bounds.size(), " measured props")
 
 func run() -> void:
 	var rules: Resource = load("res://addons/beep_game_builder_cs/textures/terrain/terrain_prop_sizing.tres")
@@ -39,7 +50,8 @@ func run() -> void:
 		var iso: Node = scene.get_node("Preview/IsoFeatures")
 		assert(flat.get("PropSizing") == rules and iso.get("PropSizing") == rules)
 		if projection < 2:
-			check_bounds(flat, 64.0, 1.75, 2.25)
+			check_bounds(flat, 64.0, 1.75, 2.25, TREE_KINDS)
+			check_bounds(flat, 64.0, 0.35, 0.65, ["bush"])
 			check_bounds(scene.get_node("Preview/RockObjects"), 64.0, 0.25, 0.65)
 		elif projection == 2:
 			var corners: PackedVector2Array = scene.get_node("Preview/Iso").call("SurfaceCorners", Vector2i(16, 8))
@@ -52,7 +64,7 @@ func run() -> void:
 		world.set("Projection", projection)
 		world.call("Redraw")
 		if projection < 2:
-			check_bounds(scene.get_node("Preview/Features"), 64.0, 1.25, 1.25)
+			check_bounds(scene.get_node("Preview/Features"), 64.0, 1.25, 1.25, TREE_KINDS)
 		else:
 			var corners: PackedVector2Array = scene.get_node("Preview/Iso").call("SurfaceCorners", Vector2i(16, 8))
 			check_bounds(scene.get_node("Preview/IsoFeatures"), corners[0].distance_to(corners[1]), 1.25, 1.25)

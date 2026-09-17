@@ -22,8 +22,19 @@ cell and grid subscriptions. `TerrainWorldComponent` keeps inactive feature boun
   fallbacks. This checks the anchor, not the entire canopy or shader swash.
 - `SpriteAnchor` is the normalized point of the sprite placed at its grid position. The default
   `(0.5, 0.92)` grounds visible trunk art; `(0.5, 1)` places its bottom edge on the cell.
-- `PropSizing` uses the shared TerrainPropSizing resource for tree, oasis and reed dimensions.
+- `PropSizing` uses the shared TerrainPropSizing resource for tree, oasis, reed and bush dimensions.
 - `GetStampBounds()` returns actual frame rectangles in renderer-local units for size diagnostics.
+- `GetStampBoundsOfKind(kind)` returns the rectangles of one kind only - a feature (`woods`,
+  `forest`, `jungle`, `oasis`, `marsh`) or `bush` - so each size category can be measured against
+  its own range. Every stamp records the kind it was sized as.
+- **Bushes (the understory).** `BushesSheetPath` with `BushesColumns`/`BushesRows` (every frame is
+  used) and `BushesPerWoodsTile` (0..8, default 1). Each woods or forest tile gets that many bushes
+  after its trees: `TerrainFeatureScatter.Append` keeps the tile's tree anchors fixed and places each
+  bush as far from them as from the other bushes, on its own seed salt, so a bush takes a clearing
+  rather than a trunk and adding bushes never moves a tree. Jungle, oasis and marsh carry none.
+  `TerrainMapArt.Bushes`, when a style supplies it, is drawn instead of the sheet (the same per-kind
+  precedence as `Trees`). Bushes are sized as `bush` and drawn only where bush art exists. The
+  "no feature sheets loaded" warning counts a bush sheet or MapArt bushes as art.
 - `[Export] public Vector2I BoundsSize { get; set; } = new(96, 60)` — how many tiles wide/high to scan for features.
 - `TileSize` is the square-cell spacing used only when `GridPath` is empty. The world controller binds the selected grid before rebuilding features and no longer copies a tile size into this export. With a grid, placement and sprite size come from the grid's cell corners, and the large-map detail cutoff (`MinimumDetailCellPixels`) measures the grid's `EffectiveTileSize`: the bound surface's cell, not the grid's manual export.
 - `[Export] public int Seed { get; set; } = 31415` — seed mixed into the per-stamp hash (frame choice, position jitter, scale jitter).
@@ -95,6 +106,14 @@ fine shoreline sampler across four seeds.
   All three are keyed by absolute cell identity, not coordinates relative to
   view bounds. Cropping a live view therefore does not reseed the same cell.
 - `RefreshOnReady` only fires outside the editor (`!Engine.IsEditorHint()`); in the editor `Rebuild()` must be invoked by something else (e.g. the terrain lab/controller), matching the class doc's stated split of responsibility.
+- The lab's Original and Cartoon views draw `textures/map_art/cartoon_trees.png` (4x2 frames of
+  64x128: green broadleaf, cypress, pine, oak, yellow birch, orange and red maple, bare tree) with
+  `WoodsFrameBindings` `grass=0,0,1,2,3,3`, `dry_grass=0,3,3,4,5,6`, `jungle,swamp=0,3`,
+  `desert,sand=3,7` and `gravel,rock,tundra,snow,ice=2,2,7`, and `cartoon_bushes.png` (4x2 of
+  32x32) as the understory. `SpriteAnchor` is `(0.5, 0.97)` because those sheets stand each sprite
+  on the bottom of its frame. The sheets are the owner's `Art/Resources/*_cartoon_*.png`, keyed from
+  a green screen by `tools/key_green_screen_sheet.py`; the Pixel view keeps its own art
+  (`pixel_art.tres` Trees and Bushes).
 
 See `FEATURE_SCATTER.md` for placement limits, demo art choices and regression coverage.
 

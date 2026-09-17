@@ -53,9 +53,23 @@ namespace Beep.ECS
         [Export(PropertyHint.Range, "1,16,1")] public int MarshColumns { get; set; } = 4;
         [Export(PropertyHint.Range, "1,16,1")] public int MarshRows { get; set; } = 4;
 
+        /// <summary>
+        /// Bushes standing among the trees of woods and forest - the understory. Every frame is used.
+        /// Empty draws no bushes unless the MapArt supplies its own. Sized by TerrainPropSizing.Bushes.
+        /// </summary>
+        [Export(PropertyHint.File, "*.png,*.webp")] public string BushesSheetPath { get; set; } = "";
+        [Export(PropertyHint.Range, "1,16,1")] public int BushesColumns { get; set; } = 4;
+        [Export(PropertyHint.Range, "1,16,1")] public int BushesRows { get; set; } = 4;
+
         [ExportGroup("Look")]
         [Export] public Vector2 SpriteAnchor { get; set; } = new(0.5f, 0.92f);
         [Export(PropertyHint.Range, "1,8,1")] public int SpritesPerTile { get; set; } = 1;
+
+        /// <summary>
+        /// Bushes in each woods or forest tile, placed in the clearings between its trees. They are
+        /// drawn only where bush art exists - the bushes sheet above, or the MapArt's Bushes.
+        /// </summary>
+        [Export(PropertyHint.Range, "0,8,1")] public int BushesPerWoodsTile { get; set; } = 1;
 
         /// <summary>
         /// Extra canopies on a dense stand. Closed forest and open woodland come
@@ -78,8 +92,14 @@ namespace Beep.ECS
         // Props stand ON the ground, so the level is the stack's, not this
         // renderer's.
 
-        /// <summary>One drawn sprite: sheet region, where, and how big.</summary>
-        private readonly record struct Stamp(Texture2D Sheet, Rect2 Region, Rect2 Target, float SortY, Vector2 Anchor);
+        /// <summary>
+        /// One drawn sprite: sheet region, where, how big, and its kind - the feature it stands for,
+        /// or "bush" - which is the size category it was drawn at.
+        /// </summary>
+        private readonly record struct Stamp(Texture2D Sheet, Rect2 Region, Rect2 Target, float SortY, Vector2 Anchor, string Kind);
+
+        /// <summary>Salt that keeps a cell's bush draws off the hash its trees drew from.</summary>
+        private const int UnderstorySeedSalt = 6151;
 
         private TerrainGeneratorComponent? _generator;
         private GridCellDataComponent? _cells;
@@ -190,8 +210,9 @@ namespace Beep.ECS
                 new TerrainFeatureSheets.Layout(OasisSheetPath, OasisColumns, OasisRows),
                 new TerrainFeatureSheets.Layout(MarshSheetPath, MarshColumns, MarshRows),
                 WoodsFrameBindings);
-            if (_sheets.Count == 0 && (MapArt is null ||
-                MapArt.Trees.Count + MapArt.Oasis.Count + MapArt.Marsh.Count == 0))
+            _sheets.LoadUnderstory(Name, new TerrainFeatureSheets.Layout(BushesSheetPath, BushesColumns, BushesRows));
+            if (_sheets.Count == 0 && !_sheets.TryGetUnderstory(out _) && (MapArt is null ||
+                MapArt.Trees.Count + MapArt.Oasis.Count + MapArt.Marsh.Count + MapArt.Bushes.Count == 0))
             {
                 GD.PushWarning($"[{Name}] no feature sheets loaded, so no features were drawn.");
                 QueueRedraw();
@@ -240,25 +261,58 @@ namespace Beep.ECS
             var cell = new Vector2I(x, y);
             string feature = source.FeatureAtCell(sourceOrigin + cell);
             if (feature.Length == 0) return;
+            System.Span<Vector2> offsets = stackalloc Vector2[TerrainFeatureScatter.MaximumCount];
+            int trees = 0;
             var art = MapArt?.FeatureTextures(feature);
             bool individual = art is { Count: > 0 };
             bool hasSheet = _sheets.TryGet(feature, out TerrainFeatureSheets.Sheet described);
             Texture2D? sheet = hasSheet ? described.Texture : null;
-            if (!individual && (!hasSheet || sheet is null)) return;
-            int columns = described.Columns, rows = described.Rows;
-            int[]? frames = _sheets.FramesFor(described, source.TerrainAtCell(sourceOrigin + cell));
-            int clump = Mathf.Clamp(SpritesPerTile, 1, 8)
-                + (feature is TerrainFeatureStage.Forest or TerrainFeatureStage.Jungle ? Mathf.Clamp(ForestExtraSprites, 0, 8) : 0);
-            System.Span<Vector2> offsets = stackalloc Vector2[TerrainFeatureScatter.MaximumCount];
-            int count = TerrainFeatureScatter.Fill(offsets[..clump], BoundsOrigin + cell, Seed,
-                PositionJitter, (Vector2)cell + Vector2.One * 0.5f, dry);
-            for (int i = 0; i < count; i++)
+            if (individual || (hasSheet && sheet is not null))
+            {
+                int columns = described.Columns, rows = described.Rows;
+                int[]? frames = _sheets.FramesFor(described, source.TerrainAtCell(sourceOrigin + cell));
+                int clump = Mathf.Clamp(SpritesPerTile, 1, 8)
+                    + (feature is TerrainFeatureStage.Forest or TerrainFeatureStage.Jungle ? Mathf.Clamp(ForestExtraSprites, 0, 8) : 0);
+                trees = TerrainFeatureScatter.Fill(offsets[..clump], BoundsOrigin + cell, Seed,
+                    PositionJitter, (Vector2)cell + Vector2.One * 0.5f, dry);
+                for (int i = 0; i < trees; i++)
+                {
+                    Texture2D selected = individual ? art![Mathf.FloorToInt(TerrainGeometry.Hash01(
+                        BoundsOrigin.X + x, BoundsOrigin.Y + y, Seed + 811 + i * 97) * art.Count) % art.Count] : sheet!;
+                    if (!GodotObject.IsInstanceValid(selected)) continue;
+                    AddStamp(selected, individual ? 1 : columns, individual ? 1 : rows, individual ? null : frames,
+                        x, y, tile, i, offsets[i], feature, stamps);
+                }
+            }
+            if (feature is TerrainFeatureStage.Woods or TerrainFeatureStage.Forest)
+                AddUnderstory(x, y, tile, dry, offsets, trees, stamps);
+        }
+
+        /// <summary>
+        /// The bushes of a woods or forest tile, after its trees and in the clearings between them:
+        /// the shared scatter keeps each bush as far from the trunks as from the other bushes. Drawn
+        /// from the MapArt's Bushes when it has them, else from the bushes sheet, and sized as "bush".
+        /// Jungle, oasis and marsh carry none - a jungle is canopy, and reeds and palms are their own art.
+        /// </summary>
+        private void AddUnderstory(int x, int y, float tile, System.Func<Vector2, bool> dry,
+            System.Span<Vector2> offsets, int trees, List<Stamp> stamps)
+        {
+            int wanted = Mathf.Clamp(BushesPerWoodsTile, 0, 8);
+            if (wanted == 0) return;
+            var art = MapArt?.Bushes;
+            bool individual = art is { Count: > 0 };
+            bool hasSheet = _sheets.TryGetUnderstory(out TerrainFeatureSheets.Sheet sheet);
+            if (!individual && !hasSheet) return;
+            var cell = new Vector2I(x, y);
+            int total = TerrainFeatureScatter.Append(offsets[..Mathf.Min(trees + wanted, TerrainFeatureScatter.MaximumCount)],
+                trees, BoundsOrigin + cell, Seed + UnderstorySeedSalt, PositionJitter, (Vector2)cell + Vector2.One * 0.5f, dry);
+            for (int i = trees; i < total; i++)
             {
                 Texture2D selected = individual ? art![Mathf.FloorToInt(TerrainGeometry.Hash01(
-                    BoundsOrigin.X + x, BoundsOrigin.Y + y, Seed + 811 + i * 97) * art.Count) % art.Count] : sheet!;
+                    BoundsOrigin.X + x, BoundsOrigin.Y + y, Seed + UnderstorySeedSalt + i * 97) * art.Count) % art.Count] : sheet.Texture;
                 if (!GodotObject.IsInstanceValid(selected)) continue;
-                AddStamp(selected, individual ? 1 : columns, individual ? 1 : rows, individual ? null : frames,
-                    x, y, tile, i, offsets[i], feature, stamps);
+                AddStamp(selected, individual ? 1 : sheet.Columns, individual ? 1 : sheet.Rows, null,
+                    x, y, tile, i, offsets[i], "bush", stamps);
             }
         }
 
@@ -306,7 +360,7 @@ namespace Beep.ECS
                 sheet,
                 region,
                 new Rect2(centre - (drawn * SpriteAnchor), drawn),
-                centre.Y, centre));
+                centre.Y, centre, feature));
         }
 
         private void ResolveGenerator()
@@ -345,6 +399,18 @@ namespace Beep.ECS
         {
             var bounds = new Godot.Collections.Array<Rect2>();
             foreach (var stamp in _stamps) bounds.Add(stamp.Target);
+            return bounds;
+        }
+
+        /// <summary>
+        /// The bounds of the stamps of one kind - a feature ("woods", "forest", "jungle", "oasis",
+        /// "marsh") or "bush" - so each size category can be measured against its own range.
+        /// </summary>
+        public Godot.Collections.Array<Rect2> GetStampBoundsOfKind(string kind)
+        {
+            var bounds = new Godot.Collections.Array<Rect2>();
+            foreach (var stamp in _stamps)
+                if (stamp.Kind == kind) bounds.Add(stamp.Target);
             return bounds;
         }
 

@@ -64,6 +64,11 @@ atlas = ExtResource("2_5jgmw")
 region = Rect2(33, 24, 61, 80)
 filter_clip = true
 
+[sub_resource type="AtlasTexture" id="AtlasTexture_bush1"]
+atlas = ExtResource("1_lcc8o")
+region = Rect2(52, 1033, 209, 181)
+filter_clip = true
+
 [resource]
 script = ExtResource("3_liq4e")
 DisplayName = "Pixel Art"
@@ -78,6 +83,7 @@ ShallowWaterColor = Color(0.3, 0.57, 0.68, 1)
 DeepWaterColor = Color(0.16, 0.38, 0.53, 1)
 GroundTextures = Array[Texture2D]([SubResource("AtlasTexture_rkion"), SubResource("AtlasTexture_qronj"), SubResource("AtlasTexture_auikk"), SubResource("AtlasTexture_mxsoh"), SubResource("AtlasTexture_r7fyb"), SubResource("AtlasTexture_5t5te"), SubResource("AtlasTexture_c4lvh"), SubResource("AtlasTexture_uwv8e")])
 Trees = Array[Texture2D]([SubResource("AtlasTexture_fwchu")])
+Bushes = Array[Texture2D]([SubResource("AtlasTexture_bush1")])
 Marsh = Array[Texture2D]([SubResource("AtlasTexture_qu2px")])
 SmallRocks = Array[Texture2D]([SubResource("AtlasTexture_qyukv")])
 LargeRocks = Array[Texture2D]([SubResource("AtlasTexture_2fnx3")])

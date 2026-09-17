@@ -207,8 +207,123 @@ file:line below was verified against that tree.
     markers and the distance field are engine; kit *content*, which build is the HQ, starting stock,
     lobby UI, AI, diplomacy, victory, raids and ladder maps are the game's.
 
+## 9. Player lands first (2026-09-16)
+
+**Why this section exists.** FEAT-09 adopted rule 2 above: starts are found in the finished terrain,
+and areas are reserved around them afterwards. On an Oilfield Days capture the owner rejected that
+order. The base pad sat where sand, a lake and grass met, and the terrain read as "too random". The
+owner asked for a map where players are allocated first and everything else is generated around
+them. This second pass read the games' own scripts and source to see how that is done. It is the
+research behind [FEAT-15](../../plans/terrain-grid/FEAT-15-player-lands-first.md).
+
+**Two families.**
+
+- **Players first, terrain second: AoE2, AoM/AoE3, 0 A.D.** Place player origins, grow a territory
+  per player, stamp a base core, and make every later generator avoid that core.
+- **Terrain first, starts fitted afterwards: Civ V/VI, OpenRA, Widelands, Return To The Roots.**
+  Build the world, then search it for fair starts. Unfairness is compensated with buffers,
+  normalisation, or a thrown error when no room is left.
+- **In between.** AoE4 places starts on a coarse grid and overwrites the ground around each with a
+  buffer terrain. Factorio makes every noise field a function of distance to the start.
+
+**The pipeline, in order, with what each step guarantees.** This is the synthesis; the games that
+do each step are named.
+
+0. **Size the map from the player count.** AoM: side = 2·√(players·7500/0.9) [community tutorial].
+   AoE2 presets run from Tiny 120² for 2 players to Large 220² for 8. 0 A.D. uses
+   `scaleByMapSize(128…512)`. *Guarantee:* roughly equal area per player.
+1. **Origins before any terrain.**
+   - Placement:
+     - AoE2 `random_placement`, `circle_radius` ~40 % with variance ~20;
+     - 0 A.D. `playerPlacementCircle(0.35)`;
+     - AoM `rmPlacePlayersCircular`;
+     - AoE4 `PlacePlayerStartsRing`.
+   - Teams:
+     - AoE2 `grouped_by_team`;
+     - 0 A.D. `groupPlayersByArea`;
+     - AoE4 `topSelectionThreshold`.
+   - 0 A.D. random placement keeps players at least 0.25 × map size apart and 0.08 × map size from
+     the border. It relaxes ×0.95 every 25 resets and gives up after 500.
+   - *Guarantee:* spacing and team layout do not depend on terrain luck.
+2. **A territory per player.**
+   - AoE2 `create_player_lands`: `land_percent` split equally between players, all lands growing at
+     once, `other_zone_avoidance_distance`, `set_zone_by_team`.
+   - AoM: one area per player (`rmSetAreaSize` fraction, `rmSetAreaLocPlayer`).
+   - Civ V's alternative is equal fertility rather than equal tiles.
+3. **A base core, recorded as a mask.**
+   - AoE2 `base_size` is a square of radius N: default 3 (7×7), Arabia 9 (19×19), Black Forest 13.
+   - AoE4 `startBufferTerrain` `tt_plains` within `startBufferRadius` overwrites earlier terrain.
+   - 0 A.D. CityPatch radius is `scaleByMapSize(15,25)/3`, plus `PlayerTileClass` (a radius-5 disk).
+     The continent map guarantees a land blob of radius `scaleByMapSize(23,50)`.
+   - Return To The Roots: buildable ground within radius 2 of the headquarters, flattened.
+   - OpenRA: `MinimumSpawnRadius` 5 buildable, `SpawnBuildSize` 8 kept ore-free.
+4. **Macro terrain around cores, never over them.**
+   - AoE2: hills stay about 9 tiles from player origins and cliffs about 22 from land origins (both
+     measured by the RMS guide's author, not stated officially). `create_connect_all_players_land`
+     cuts connections.
+   - 0 A.D.: hills, mountains and forests use `avoidClasses(clPlayer, 20)`.
+   - Factorio: cliffs are suppressed near the start and elevation is raised so a flooded world still
+     has land there. A starting lake is always made, and rocks are suppressed within ~35 tiles.
+5. **Cosmetic terrain under filters. Beaches only at the shoreline.**
+   - AoE2 `create_terrain` replaces only its `base_terrain`, and `beach_terrain` is drawn only where
+     the new terrain touches water.
+   - 0 A.D. paints shore by height band, and its dirt and grass patches avoid players by 12.
+   - Widelands and OpenRA also keep coast terrain at the waterline.
+6. **The same start kit for every player, most important object first.** AoE2
+   `set_place_for_every_player` with `min/max_distance_to_players`. 0 A.D. places in fixed order:
+   CityPatch → Trees → Mines → Treasures → Berries → StartingAnimal → Decoratives.
+7. **Measure and top up** (Civ V `NormalizeStartLocation`; Civ VI adds food and production below a
+   threshold).
+8. **Neutral resources and hazards away from bases.**
+   - AoE2: extra gold and stone at `min_distance_to_players 40`.
+   - 0 A.D.: mines avoid players by `scaleByMapSize(20,35)`.
+   - Factorio: richness grows with distance, and enemy bases are suppressed inside the starting area
+     and scale out to 2400 tiles.
+9. **Decoration last.** Return To The Roots keeps trees and stone piles out of radius 5 around the
+   headquarters. 0 A.D. decoratives avoid players by 10.
+10. **Validate and fail loudly.**
+    - Do this: OpenRA throws "Not enough room for player spawns" and the lobby offers a reroll.
+      Return To The Roots retries 10 times, then throws.
+    - Anti-patterns: AoE2 silently skips an unplaceable object; Widelands only logs a warning.
+
+**Visual scale.**
+
+| Game | Texture repeat | Units and buildings |
+|---|---|---|
+| AoE2 HD | One 512 px texture spans 10×10 tiles (~51 px per tile) | Villager 0.4 tile wide; house 2×2, town centre 4×4 |
+| 0 A.D. | 8 tiles per repeat by default, rotated 45° | Infantry radius 1.5 m; civic centre 32 m, one repeat |
+| Factorio | Tile variants 1×1, 2×2 and 4×4 | Character 0.4 tile; car 1.4×2 |
+
+In all three, tufts, rocks and bushes are separate decorative objects, not painted detail. The rule of
+thumb that follows:
+
+- A texture repeat is at least the largest common building footprint.
+- Repetition is broken by rotation or by variants of several sizes.
+- Painted detail stays a few texels across, relative to a unit 0.4 of a tile wide.
+- Anything with a silhouette is a decorative object sized in world units.
+
+**Could not be verified.**
+
+- AoE4's official pages block automated readers; its template values come from an unofficial copy.
+- AoM's map-size formula comes from a community tutorial.
+- The 10-tile texture span for AoE2 DE comes from a wiki excerpt.
+- Civ VI values come from community copies of the shipped file.
+- The patent was read through a summary.
+- Northgard, Stronghold Crusader and Rise of Nations are undocumented.
+
 ## Sources
 
+- AoE2 Definitive RMS Guide (Zetnus) — https://docs.google.com/document/d/1jnhZXoeL9mkRUJxcGlKnO98fIwFKStP_OBozpr0CHXo/mobilebasic
+- AoE2 HD Arabia.rms — https://github.com/Naramsim/AoE2-random-map-scripts/blob/master/The%20forgotten/Arabia.rms ; AoC Black_Forest.rms — https://github.com/Naramsim/AoE2-random-map-scripts/blob/master/The%20conquerors/Black_Forest.rms
+- AoE4 unofficial API, generate maps — https://callfreak.github.io/aoeiv-unoffical-api/docs/generate-maps
+- AoM random map API — https://mythicfreak.github.io/aomcodereference/aom/scripting/xs/rm/Player.html ; AoM Heaven RMS tutorial — https://aom.heavengames.com/cgi-bin/forums/display.cgi?action=st&fn=19&tn=28148
+- 0 A.D. `mainland.js` — https://github.com/0ad/0ad/blob/master/binaries/data/mods/public/maps/random/mainland.js ; `continent.js` — https://github.com/0ad/0ad/blob/master/binaries/data/mods/public/maps/random/continent.js ; `rmgen2/setup.js` — https://github.com/0ad/0ad/blob/master/binaries/data/mods/public/maps/random/rmgen2/setup.js ; terrain texture code — https://github.com/0ad/0ad/blob/master/source/graphics/TerrainTextureEntry.cpp
+- Civ VI `AssignStartingPlots` (community copies) — https://github.com/Gedemon/Civ6-YnAMP/blob/master/Override/AssignStartingPlots.lua
+- Factorio data: `resource-autoplace.lua`, `noise-functions.lua`, `noise-programs.lua` — https://github.com/wube/factorio-data/tree/master/core ; FFF-258 — https://factorio.com/blog/post/fff-258
+- OpenRA `ClassicMapGenerator.cs` — https://github.com/OpenRA/OpenRA/blob/bleed/OpenRA.Mods.Common/Traits/World/ClassicMapGenerator.cs ; RA generator defaults — https://github.com/OpenRA/OpenRA/blob/bleed/mods/ra/rules/map-generators.yaml
+- Widelands `map_generator.cc` — https://github.com/widelands/widelands/blob/master/src/editor/map_generator.cc
+- Return To The Roots map generator — https://github.com/Return-To-The-Roots/s25client/tree/master/libs/s25main/mapGenerator
+- AoE2 HD texture span — https://github.com/e00E/Age-of-Empires-II-Grid-Generator/issues/2 ; AoE2 unit data — https://github.com/HSZemi/aoe2dat
 - Ensemble Studios / Microsoft, US7589742B2 "Random map generation in a strategy video game" — https://patents.google.com/patent/US7589742B2/en
 - Age of Empires II random map scripting, Steam guide — https://steamcommunity.com/sharedfiles/filedetails/?id=155256742
 - 0 A.D., `rmgen-common/player.js` — https://github.com/0ad/0ad/blob/master/binaries/data/mods/public/maps/random/rmgen-common/player.js

@@ -190,7 +190,7 @@ or player anywhere in the grid.
 | FEAT-11 | [Zones and district range](FEAT-11-zones-and-district-range.md) | RimWorld zones/home area, Timberborn path-distance districts | M | |
 | FEAT-12 | [Spawn markers and playable cordon](FEAT-12-spawn-markers-and-cordon.md) | OpenRA `Bounds` + cordon, `mpspawn`; BGB-13's `Spawns` node | S–M | Implemented 2026-09-16 |
 | FEAT-13 | [Symmetric and competitive layouts](FEAT-13-symmetric-layouts.md) | StarCraft II / Warcraft III mirror and rotational maps | L | |
-| FEAT-14 | [Start-distance field, richness scaling, neutral sites](FEAT-14-start-distance-and-neutral-sites.md) | Factorio richness by distance; AoE neutral objects between areas | S–M | |
+| FEAT-14 | [Start-distance field, richness scaling, neutral sites](FEAT-14-start-distance-and-neutral-sites.md) | Factorio richness by distance; AoE neutral objects between areas | S–M | Implemented 2026-09-16 |
 
 ### Raised from the lab (1)
 
@@ -200,6 +200,20 @@ because it lands in the same files.
 | Id | Plan | Headline | Effort | Status |
 |---|---|---|---|---|
 | FIX-14 | [A lake is bounded: a shore on any ground, and a waterline that is a line](FIX-14-lake-shore-and-edges.md) | drop the `TerrainRelief.Flat` gate from all three lake-shore owners; take both water shaders' waterline softness from `open_sea` so a lake ends in a line; `GroundTextureTiles` 6 in the shipped look | S | **Landed 2026-09-16, not accepted** — the owner reports the lakes still look wrong |
+
+### Raised from the Oilfield Days capture (2)
+
+The owner's 2026-09-16 capture of the game sample (`Beep.OilandGas.Sim`, Oilfield Days) showed beach
+sand across the land, ground detail the size of vehicles, and a base pad among sand and a lake. The
+props and ground-scale half was fixed that day (the owner's cartoon tree, bush and rock sheets; the
+Cartoon ground repeat from 4.8 to 1.6 cells; bushes drawn at last). These two carry the rest, in the
+owner's chosen order: FIX-15, then FEAT-15 (players always shape the map when start areas are on;
+base ground is a start-kit setting defaulting to grass).
+
+| Id | Plan | Headline | Effort | Status |
+|---|---|---|---|---|
+| FIX-15 | [A temperate world is not a desert](FIX-15-temperate-world-is-not-a-desert.md) | desert grows with map size at a fixed climate (0 % at 32×32, 44–60 % at 144×144, temperate/normal) because coastal moisture reaches a fixed 6.5 cells; the Rainfall axis never reaches moisture; measure the reach in kilometres from the map's span and let Rainfall offset moisture | S–M | proposed 2026-09-16, next |
+| FEAT-15 | [Player lands first](FEAT-15-player-lands-first.md) | AoE2/0 A.D. order: origins after the landmass, a guaranteed flat base core, and every ground-shaping stage keeps out of cores — replaces terrain-first starts whenever start areas are on | L | proposed 2026-09-16, owner's decisions taken, after FIX-15 |
 
 FIX-14 changes generated maps (a lake is banked on any ground), so
 `tests/fixtures/terrain_generation_baseline.json` was re-recorded;
@@ -216,7 +230,8 @@ nothing unless the map is redrawn rather than regenerated and `wave_speed` is se
 ### Suggested order
 
 VIEW-14 → VIEW-01 → VIEW-02 → VIEW-13 → **FEAT-09** → FEAT-12 → VIEW-04 → VIEW-05 → VIEW-07 →
-FEAT-10 → **FEAT-14** → VIEW-03 (before DUP-07) → VIEW-08 (before ENH-07) → VIEW-10 (before ENH-07;
+FEAT-10 → **FEAT-14** → **FIX-15** → **FEAT-15** (the owner moved these two ahead on 2026-09-16) →
+VIEW-03 (before DUP-07) → VIEW-08 (before ENH-07) → VIEW-10 (before ENH-07;
 closes DUP-01) → VIEW-11 → FEAT-11 → VIEW-06 → VIEW-09 (with FEAT-05 and the library session) →
 VIEW-12 → FEAT-13.
 

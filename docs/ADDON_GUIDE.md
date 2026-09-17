@@ -1,6 +1,6 @@
 # Beep.Godot Full Addon Guide
 
-Generated from the addon source tree on 2026-09-16 18:36:43 +03:00. Regenerate with powershell -ExecutionPolicy Bypass -File tools/Generate-AddonGuide.ps1.
+Generated from the addon source tree on 2026-09-17 15:21:16 +03:00. Regenerate with powershell -ExecutionPolicy Bypass -File tools/Generate-AddonGuide.ps1.
 
 ## Inventory
 
@@ -11,7 +11,7 @@ Generated from the addon source tree on 2026-09-16 18:36:43 +03:00. Regenerate w
 | Godot [GlobalClass] editor-addable types | 418 |
 | GDScript files across addons | 47 |
 | Template scenes | 124 |
-| Texture assets | 302 |
+| Texture assets | 305 |
 | Audio assets | 37 |
 | Skin genres | 10 |
 
@@ -375,7 +375,7 @@ Types in this section: 53
 | TerrainResourceRendererComponent | TerrainRendererComponent, ISerializationListener | Yes | - | addons/beep_game_builder_cs/ecs/terrain/TerrainResourceRendererComponent.cs |
 | TerrainShorelineField | RefCounted | No | Experimental presentation snapshot, not a world or cell store. One signed distance supplies the sea and the inward beach contour. No material noise. | addons/beep_game_builder_cs/ecs/terrain/TerrainShorelineField.cs |
 | TerrainStartKit | Resource | Yes | What a playable start needs, per scenario: room for a headquarters footprint on level ground, ways out of it, space from the neighbouring start, and the resources every player is guaranteed. The workflow review's E01 asks exactly this - "playable starts need a headquarters footprint, clear exits, and reachable essen... | addons/beep_game_builder_cs/ecs/terrain/TerrainStartKit.cs |
-| TerrainStartKitEntry | Resource | Yes | One resource every player start must have within reach - the per-player object kit of Age of Empires' player lands and 0 A.D.'s bases: the same set, at matched distances, for every start. places it inside the start's reserved area, relaxing its constraints in a fixed order when the ground will not take it, and repor... | addons/beep_game_builder_cs/ecs/terrain/TerrainStartKitEntry.cs |
+| TerrainStartKitEntry | Resource | Yes | One resource the start kit promises - the per-player object kit of Age of Empires' player lands and 0 A.D.'s bases (the same set, at matched distances, for every start), or with Neutral the contested sites between them. places it, relaxing its constraints in a fixed order when the ground will not take it, and report... | addons/beep_game_builder_cs/ecs/terrain/TerrainStartKitEntry.cs |
 | TerrainStructureLayerComponent | - | No | - | addons/beep_game_builder_cs/ecs/terrain/TerrainStructureLayerComponent.Preview.cs |
 | TerrainStructureLayerComponent | - | No | - | addons/beep_game_builder_cs/ecs/terrain/TerrainStructureLayerComponent.Moving.cs |
 | TerrainStructureLayerComponent | Node2D | No | - | addons/beep_game_builder_cs/ecs/terrain/TerrainStructureLayerComponent.cs |

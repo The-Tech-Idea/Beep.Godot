@@ -22,8 +22,17 @@ public partial class TerrainMapArt : Resource
     /// </summary>
     [Export(PropertyHint.Range, "0,40,0.1")] public float GroundGrainTiles { get; set; } = 4.8f;
 
-    /// <summary>How much of that grain reaches the ground. Zero is off, which is what pixel art wants.</summary>
-    [Export(PropertyHint.Range, "0,1,0.01")] public float GroundGrainStrength { get; set; } = 0.35f;
+    /// <summary>
+    /// How much of that grain reaches the ground. Zero is off, and off is the default.
+    ///
+    /// The grain samples the material's own texture near one texel a pixel, so it carries whatever
+    /// the artist drew at that size. On art with things painted into it - the cartoon atlas's sand
+    /// has a 22-texel starfish and 12-to-18-texel shells - those came through on the ground as
+    /// soft objects the size of a bush, on every view that lays a ground texture over its terrain.
+    /// The owner reported them three times (2026-09-18) and asked for them off by default. Raise it
+    /// per profile for ground art that is only surface, with nothing in it to recognise.
+    /// </summary>
+    [Export(PropertyHint.Range, "0,1,0.01")] public float GroundGrainStrength { get; set; }
 
     [Export(PropertyHint.Range, "0,0.9,0.01")] public float BlendWidth { get; set; } = 0.22f;
     [Export] public Color GrassColor { get; set; } = new(0.36f, 0.64f, 0.22f);

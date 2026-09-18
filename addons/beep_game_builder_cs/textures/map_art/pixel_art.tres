@@ -1,79 +1,181 @@
-[gd_resource type="Resource" script_class="TerrainMapArt" format=3 uid="uid://dnkjnu0l85ru2"]
+[gd_resource type="Resource" script_class="TerrainMapArt" format=3]
 
-[ext_resource type="Texture2D" uid="uid://dpdnmbu2f00pt" path="res://addons/beep_game_builder_cs/textures/map_art/pixel_terrain_atlas.png" id="1_lcc8o"]
-[ext_resource type="Texture2D" uid="uid://5b6wa72504yp" path="res://addons/beep_game_builder_cs/textures/map_art/pixel_tree.png" id="2_5jgmw"]
-[ext_resource type="Script" uid="uid://cjtrap5xytvur" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainMapArt.cs" id="3_liq4e"]
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_rkion"]
-atlas = ExtResource("1_lcc8o")
-region = Rect2(2, 2, 309, 310)
-filter_clip = true
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_qronj"]
-atlas = ExtResource("1_lcc8o")
-region = Rect2(315, 2, 310, 310)
-filter_clip = true
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_auikk"]
-atlas = ExtResource("1_lcc8o")
-region = Rect2(629, 2, 310, 310)
-filter_clip = true
-
-[sub_resource type="AtlasTexture" id="AtlasTexture_mxsoh"]
-atlas = ExtResource("1_lcc8o")
-region = Rect2(943, 2, 309, 310)
-filter_clip = true
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/map_art/pixel_art_bushes.png" id="1_liq4e"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/map_art/pixel_terrain_atlas.png" id="2_rkion"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/map_art/pixel_art_rocks.png" id="3_qronj"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/map_art/pixel_art_trees.png" id="4_auikk"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainMapArt.cs" id="5_mxsoh"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_r7fyb"]
-atlas = ExtResource("1_lcc8o")
-region = Rect2(315, 316, 310, 310)
+atlas = ExtResource("1_liq4e")
+region = Rect2(0, 0, 32, 32)
 filter_clip = true
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_5t5te"]
-atlas = ExtResource("1_lcc8o")
-region = Rect2(2, 316, 309, 310)
+atlas = ExtResource("1_liq4e")
+region = Rect2(32, 0, 32, 32)
 filter_clip = true
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_c4lvh"]
-atlas = ExtResource("1_lcc8o")
-region = Rect2(629, 316, 310, 310)
+atlas = ExtResource("1_liq4e")
+region = Rect2(64, 0, 32, 32)
 filter_clip = true
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_uwv8e"]
-atlas = ExtResource("1_lcc8o")
-region = Rect2(629, 316, 310, 310)
+atlas = ExtResource("1_liq4e")
+region = Rect2(96, 0, 32, 32)
 filter_clip = true
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_2fnx3"]
-atlas = ExtResource("1_lcc8o")
-region = Rect2(970, 1020, 268, 202)
+atlas = ExtResource("1_liq4e")
+region = Rect2(0, 32, 32, 32)
 filter_clip = true
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_qu2px"]
-atlas = ExtResource("1_lcc8o")
-region = Rect2(386, 1036, 183, 182)
+atlas = ExtResource("1_liq4e")
+region = Rect2(32, 32, 32, 32)
 filter_clip = true
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_qyukv"]
-atlas = ExtResource("1_lcc8o")
-region = Rect2(702, 1090, 157, 113)
+atlas = ExtResource("1_liq4e")
+region = Rect2(64, 32, 32, 32)
 filter_clip = true
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_fwchu"]
-atlas = ExtResource("2_5jgmw")
-region = Rect2(33, 24, 61, 80)
+atlas = ExtResource("1_liq4e")
+region = Rect2(96, 32, 32, 32)
 filter_clip = true
 
-[sub_resource type="AtlasTexture" id="AtlasTexture_bush1"]
-atlas = ExtResource("1_lcc8o")
-region = Rect2(52, 1033, 209, 181)
+[sub_resource type="AtlasTexture" id="AtlasTexture_c2cvp"]
+atlas = ExtResource("2_rkion")
+region = Rect2(2, 2, 309, 310)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_kdito"]
+atlas = ExtResource("2_rkion")
+region = Rect2(315, 2, 310, 310)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_d2pl5"]
+atlas = ExtResource("2_rkion")
+region = Rect2(629, 2, 310, 310)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_u0tlr"]
+atlas = ExtResource("2_rkion")
+region = Rect2(943, 2, 309, 310)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_p71wb"]
+atlas = ExtResource("2_rkion")
+region = Rect2(315, 316, 310, 310)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_0slvq"]
+atlas = ExtResource("2_rkion")
+region = Rect2(2, 316, 309, 310)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_eodni"]
+atlas = ExtResource("2_rkion")
+region = Rect2(629, 316, 310, 310)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_0338r"]
+atlas = ExtResource("2_rkion")
+region = Rect2(629, 316, 310, 310)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ksga5"]
+atlas = ExtResource("3_qronj")
+region = Rect2(0, 32, 32, 32)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_te66a"]
+atlas = ExtResource("3_qronj")
+region = Rect2(32, 32, 32, 32)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_flsid"]
+atlas = ExtResource("3_qronj")
+region = Rect2(64, 32, 32, 32)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_bsndi"]
+atlas = ExtResource("3_qronj")
+region = Rect2(96, 32, 32, 32)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_7q6wf"]
+atlas = ExtResource("2_rkion")
+region = Rect2(386, 1036, 183, 182)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_jpnor"]
+atlas = ExtResource("3_qronj")
+region = Rect2(0, 0, 32, 32)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_rhpjd"]
+atlas = ExtResource("3_qronj")
+region = Rect2(32, 0, 32, 32)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_iprkl"]
+atlas = ExtResource("3_qronj")
+region = Rect2(64, 0, 32, 32)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_xrcdq"]
+atlas = ExtResource("3_qronj")
+region = Rect2(96, 0, 32, 32)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_lf1e8"]
+atlas = ExtResource("4_auikk")
+region = Rect2(0, 0, 64, 128)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_2clhb"]
+atlas = ExtResource("4_auikk")
+region = Rect2(64, 0, 64, 128)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_2fwvy"]
+atlas = ExtResource("4_auikk")
+region = Rect2(128, 0, 64, 128)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_3ppd2"]
+atlas = ExtResource("4_auikk")
+region = Rect2(192, 0, 64, 128)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_27etf"]
+atlas = ExtResource("4_auikk")
+region = Rect2(0, 128, 64, 128)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_nuhe4"]
+atlas = ExtResource("4_auikk")
+region = Rect2(64, 128, 64, 128)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_odf4j"]
+atlas = ExtResource("4_auikk")
+region = Rect2(128, 128, 64, 128)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_k81y5"]
+atlas = ExtResource("4_auikk")
+region = Rect2(192, 128, 64, 128)
 filter_clip = true
 
 [resource]
-script = ExtResource("3_liq4e")
+script = ExtResource("5_mxsoh")
 DisplayName = "Pixel Art"
 PixelArt = true
-TextureRepeatCells = 4.8
+TextureRepeatCells = 1.6
 GroundDetail = 0.24
 GroundGrainStrength = 0.0
 BlendWidth = 0.08
@@ -82,9 +184,9 @@ DryGrassColor = Color(0.56, 0.59, 0.33, 1)
 BeachColor = Color(0.76, 0.64, 0.43, 1)
 ShallowWaterColor = Color(0.3, 0.57, 0.68, 1)
 DeepWaterColor = Color(0.16, 0.38, 0.53, 1)
-GroundTextures = Array[Texture2D]([SubResource("AtlasTexture_rkion"), SubResource("AtlasTexture_qronj"), SubResource("AtlasTexture_auikk"), SubResource("AtlasTexture_mxsoh"), SubResource("AtlasTexture_r7fyb"), SubResource("AtlasTexture_5t5te"), SubResource("AtlasTexture_c4lvh"), SubResource("AtlasTexture_uwv8e")])
-Trees = Array[Texture2D]([SubResource("AtlasTexture_fwchu")])
-Bushes = Array[Texture2D]([SubResource("AtlasTexture_bush1")])
-Marsh = Array[Texture2D]([SubResource("AtlasTexture_qu2px")])
-SmallRocks = Array[Texture2D]([SubResource("AtlasTexture_qyukv")])
-LargeRocks = Array[Texture2D]([SubResource("AtlasTexture_2fnx3")])
+GroundTextures = Array[Texture2D]([SubResource("AtlasTexture_c2cvp"), SubResource("AtlasTexture_kdito"), SubResource("AtlasTexture_d2pl5"), SubResource("AtlasTexture_u0tlr"), SubResource("AtlasTexture_p71wb"), SubResource("AtlasTexture_0slvq"), SubResource("AtlasTexture_eodni"), SubResource("AtlasTexture_0338r")])
+Trees = Array[Texture2D]([SubResource("AtlasTexture_lf1e8"), SubResource("AtlasTexture_2clhb"), SubResource("AtlasTexture_2fwvy"), SubResource("AtlasTexture_3ppd2"), SubResource("AtlasTexture_27etf"), SubResource("AtlasTexture_nuhe4"), SubResource("AtlasTexture_odf4j"), SubResource("AtlasTexture_k81y5")])
+Bushes = Array[Texture2D]([SubResource("AtlasTexture_r7fyb"), SubResource("AtlasTexture_5t5te"), SubResource("AtlasTexture_c4lvh"), SubResource("AtlasTexture_uwv8e"), SubResource("AtlasTexture_2fnx3"), SubResource("AtlasTexture_qu2px"), SubResource("AtlasTexture_qyukv"), SubResource("AtlasTexture_fwchu")])
+Marsh = Array[Texture2D]([SubResource("AtlasTexture_7q6wf")])
+SmallRocks = Array[Texture2D]([SubResource("AtlasTexture_jpnor"), SubResource("AtlasTexture_rhpjd"), SubResource("AtlasTexture_iprkl"), SubResource("AtlasTexture_xrcdq")])
+LargeRocks = Array[Texture2D]([SubResource("AtlasTexture_ksga5"), SubResource("AtlasTexture_te66a"), SubResource("AtlasTexture_flsid"), SubResource("AtlasTexture_bsndi")])

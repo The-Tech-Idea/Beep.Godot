@@ -53,7 +53,9 @@ public partial class TerrainFeatureRendererComponent
             return;
         }
         float canopy = 8f * (1f + Mathf.Max(1f, Mathf.Max(SpriteAnchor.Abs().X, SpriteAnchor.Abs().Y)));
+        // The SAME comparator the full rebuild uses, so a streamed map stacks its props exactly as
+        // a built one does - understory first, then depth.
         if (_residency.Update(FeatureCellsPerFrame, FeaturePreloadChunks, canopy, _stamps,
-                (a, b) => a.SortY.CompareTo(b.SortY), MinimumDetailCellPixels)) QueueRedraw();
+                ByLayerThenDepth, MinimumDetailCellPixels)) QueueRedraw();
     }
 }

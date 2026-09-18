@@ -38,6 +38,26 @@ public partial class TerrainPropSizing : Resource
         return Mathf.Clamp((a + b) * 0.5f * (float.IsFinite(jitter) ? jitter : 1f), Mathf.Min(a, b), Mathf.Max(a, b));
     }
 
+    /// <summary>
+    /// The pixels a prop is drawn at: its size in cells, but NEVER larger than the art it is drawn
+    /// from.
+    ///
+    /// The size in cells is normalised by the frame's longest side, so a frame holding few pixels was
+    /// stretched hardest: measured on the owner's cartoon sheets at a 64-pixel tile, seven of eight
+    /// tree frames were magnified 1.45x to 2.09x before the camera zoomed at all, and bushes and rocks
+    /// up to 1.49x. That is what made the props blurry - magnifying art past its own resolution cannot
+    /// do anything else.
+    ///
+    /// Art drawn at or above the size a cell asks for is unaffected: the clamp only bites when the
+    /// logical size would invent pixels the artist did not draw.
+    /// </summary>
+    public Vector2 DrawnPixels(Vector2 visiblePixels, float tilePixels, string kind, float jitter = 1f)
+    {
+        float longest = Mathf.Max(1f, Mathf.Max(visiblePixels.X, visiblePixels.Y));
+        float fit = Mathf.Max(1f, tilePixels) / longest;
+        return visiblePixels * Mathf.Min(fit * SizeInCells(kind, jitter), 1f);
+    }
+
     /// <summary>Excludes transparent padding; one image read per sheet layout, not per map cell.</summary>
     public Rect2 VisibleRegion(Texture2D texture, int columns, int rows, int index)
     {

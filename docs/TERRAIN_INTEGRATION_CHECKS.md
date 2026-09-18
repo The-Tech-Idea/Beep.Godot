@@ -7,7 +7,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tests/run_terrain_integratio
 ```
 
 Use -GodotCommand with a Godot mono executable path if it is not on PATH.
-The runner builds Beep.Godot.csproj, then runs 50 headless probes (48 registered in its
+The runner builds Beep.Godot.csproj, then runs 52 headless probes (50 registered in its
 `$probes` table, plus `examples/iso_layers` and `examples/landmass`) and twenty-four real
 OpenGL checks. -SkipRendering explicitly skips the latter; skipped is not passed.
 Each process has a configurable wall-clock timeout, default 120 seconds.
@@ -55,6 +55,79 @@ fail or be cancelled reads it the same way as one that expects success.
   `terrain_painted_publication_probe` test TerrainWorldComponent's generation itself - invariants
   on every frame of a build, restarts from inside its handlers, a world freed mid-build - so their
   loops are the thing under test, not a wait.
+
+## The lake-bank finalizer crash, and how to reproduce it deliberately
+
+`terrain_lake_bank_probe` and `art_styles` have both died with
+`FATAL: Condition "gchandle.is_released()" is true` at `mono_object_disposed_baseref`, inside
+`GC.RunFinalizers` — a Godot RefCounted disposed twice, reported far from wherever the second dispose
+was set up. It was recorded as intermittent. On 2026-09-18 it became repeatable, and bisecting it
+narrowed the recipe to three ingredients, none of which is the art drawn on screen:
+
+- the lake fixture (`TerrainShorelineContourSmoke.PopulateLakeFixture`) run repeatedly, **and**
+- a `TerrainMapArt` profile assigned to a painted renderer that is rebuilt after each fixture, **and**
+- enough rounds for the collector to run — it dies on the third.
+
+Measured with a 40-line driver doing exactly that and nothing else (no props, no GPU reads, no
+assertions): the fixture alone survives 12 rounds, style switching alone survives 8 rounds, and the
+two together die on round 3. It reproduces with `cartoon.tres` alone, which binds no props at all, so
+the prop sheets are not involved. `art_styles` prints its own `[terrain-art-styles] OK` first and then
+dies at exit, so its checks pass and only the shutdown is unsafe.
+
+Two candidate fixes were tried and **did not** help, so neither is in the tree: dropping the `using`
+on `TerrainPropSizing.VisibleRegion`'s `GetImage()` result, and dropping the `using` on the images
+`TerrainMapArt.GroundTexture` hands to `ImageTexture.CreateFromImage`. The double dispose is
+somewhere else in the profile-plus-rebuild path and still needs finding.
+
+## A lake reads as water
+
+`terrain_lake_colour_probe` (2026-09-18, GPU, `lake_colour`) frames the largest enclosed lake on the
+painted demo and takes two frames of it: the normal render, and the shader's own `contour_debug`,
+which paints a flat blue wherever it considers the fragment water. The second is therefore an exact
+mask of what the shader thinks it is drawing, and the check is that the two agree — 95% of the pixels
+the shader calls water must render blue over green.
+
+It guards FIX-19. The painted view scores depth and how much seabed shows from distance to the
+waterline in tiles, which is right for a sea and wrong for anything narrow: inside an enclosed body
+on this map the coast field never exceeds **+0.085 tiles**, so on the sea's ramps every one of its
+pixels was scored as touching the shore, took the palest water and kept a third of the sand bed
+showing through. It came out greener than it was blue and all but matched the grass around it.
+
+**Read the name with care.** The bodies it measures are mostly RIVERS: this map carries 59 river
+cells against 8 lake cells, and six of its seven enclosed bodies are pure river. The rule guarded is
+about water with no fetch, which covers both, but a pass here says nothing about lakes specifically.
+
+**Mutation:** setting `LAKE_DEPTH` to 0 and `LAKE_BED` to 1 in `water_common.gdshaderinc` — their
+no-op values — fails it with `only 0.0% of the lake reads as water`. Run and confirmed, not assumed.
+
+## Every art style is a style of its own
+
+`terrain_style_profiles_probe` (2026-09-18) walks the lab's view menu past the four projections and,
+for each art style, checks that the menu names it, that selecting it puts that exact profile on the
+world, that the profile carries its own trees, bushes and both rock sizes, and that props and relief
+actually drew. No two styles may draw from one tree sheet — that is what a silent fallback to the
+renderer's default sheet looks like. It also pins the menu's shape, which used to be owned twice:
+six item names typed into `terrain_generator_lab.tscn` and a list built in code, with `Fill` adding
+items only to an empty chooser, so styles added to `StyleProfiles` never appeared.
+
+**Mutation:** pointing `low_poly.tres` at `cartoon_trees.png` fails it with
+`Low Poly draws the same tree sheet as Cartoon`.
+
+## Every view's texture filter is pinned
+
+`terrain_texture_filter_probe` (2026-09-18) walks the lab through all four projections and pins how
+each rendering type samples its art: nearest above the mip chain for the three prop renderers,
+linear above it for tile, block and icon views, plain linear for the painted surface whose shader
+declares a filter per `sampler2D`, and the library pack's own `PixelArt` answer in both views that
+can draw a pack. `docs/terrain-engine/TEXTURE_FILTERS.md` explains why each is what it is.
+
+A node is pinned only once it has **drawn** — the probe counts stamps, icons or used cells first —
+because Godot's default is "inherit from the parent", so a renderer that never rebuilt would
+otherwise sit at whatever the project defaults to and pass. **Mutation:** restoring
+`LinearWithMipmaps` in `TerrainFeatureRendererComponent.Rebuild` fails it with
+`flat props (trees, bushes): linear+mips, wanted nearest+mips`; restoring the mipless pair in
+`TerrainLibraryPainter.Build` fails both pack pins. The second mutation earned its keep — it is what
+showed that the painter, not either renderer, owns how a pack's tiles are sampled.
 
 ## Latest Run
 
@@ -119,6 +192,13 @@ transitions or elevated props. Captures: `tests/output/lab_styles/`.
   spacing, dry-centre rejection behavior, shared flat/isometric fine-water
   acceptance over 32 seeds, and actual terrain-selected sprite pixels at three
   zooms, including binding replacement and woods fallback without grid writes.
+- Prop size against the art (FIX-18, `terrain_prop_sizing_probe`): a prop takes its category's size in
+  cells, capped at its own art's resolution, in every view. On the shipped cartoon sheets no stamp may
+  exceed the largest visible frame its own sheet holds — each view against its own sheet, since the
+  isometric view binds 109x150 tree art where the flat binds 58x120 — and the largest stamp must reach
+  it. On `forest_trees.png`, whose 314-pixel frames exceed any size asked of them, every stamp lands
+  inside 1.75–2.25 cells, flat and isometric, and one edit of the shared resource still moves both.
+  **Mutation:** the cap removed — "art smaller than the category was magnified to (107.6, 128.0)".
 - Bushes among the trees (`terrain_understory_probe`, marker `[terrain-understory] OK`): live cells
   authored in columns of woods, forest, jungle, marsh, oasis and bare grass, crossed by a row of
   shallow water, drawn by the flat feature renderer with `cartoon_trees.png` and

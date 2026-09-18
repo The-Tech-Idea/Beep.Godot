@@ -14,7 +14,14 @@ func run() -> void:
 	var world: Node = scene.get_node("World")
 	var cells: Node = scene.get_node("Preview/Cells")
 	var view: OptionButton = scene.get_node("HUD/Settings/Scroll/Controls/ViewRow/View")
-	assert(view.item_count == 6 and view.get_item_text(4) == "Pixel Art" and view.get_item_text(5) == "Cartoon")
+	# Four projections, then one entry per art style in TerrainLabComponent.StyleProfiles. This read
+	# `item_count == 6` with the two styles hard-coded, from when the lab held one property per style.
+	var styles = scene.get("StyleProfiles")
+	assert(styles != null and styles.size() >= 2, "the lab lists no art styles")
+	assert(view.item_count == 4 + styles.size(),
+		"the view menu lists %d entries for four projections and %d styles" % [view.item_count, styles.size()])
+	assert(view.get_item_text(4) == "Pixel Art" and view.get_item_text(5) == "Cartoon",
+		"the first two styles are '%s' and '%s'" % [view.get_item_text(4), view.get_item_text(5)])
 	assert(view.get_global_rect().position.y < 100, "Map styles are buried below generation settings")
 	var revision: int = cells.get("TerrainRevision")
 	var dimensions: Vector2i = world.get("BuiltSize")
@@ -32,7 +39,8 @@ func run() -> void:
 		view.item_selected.emit(selected)
 		await process_frame
 		assert(world.get("Projection") == 0 and view.selected == selected)
-		assert(world.get("MapArt") == ([null, scene.get("PixelArtProfile"), scene.get("CartoonProfile")][style]))
+		assert(world.get("MapArt") == (null if selected < 4 else styles[selected - 4]),
+			"view %d put the wrong art on the world" % selected)
 		assert(cells.get("TerrainRevision") == revision, "Changing style regenerated gameplay terrain")
 		assert(overlay.get("UndergroundPatchCount") == 0 and not resource_icons.is_visible_in_tree(),
 			"Resource diagnostics stained the normal terrain preview")

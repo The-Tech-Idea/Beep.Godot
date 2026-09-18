@@ -1,6 +1,34 @@
 # TerrainPaintedRendererComponent
 
-## Background World Preparation
+## How much material the ground shows, and why it is not flat colour
+
+Two separate dials decide this, and they are easy to confuse because both sound like "ground detail":
+
+- **`TerrainMapArt.GroundGrainStrength`** (shader `ground_detail_strength`) — a brightness grain taken
+  from the material texture at about one texel a pixel. **Off by default**, and it stays off: it
+  multiplies by whatever the artist drew at that size, so objects painted into ground art — the
+  cartoon atlas had a 22-texel starfish and 12-to-18-texel shells — came through on every tile as
+  bush-sized marks. Reported three times by the owner on 2026-09-18.
+- **`TerrainMapArt.GroundDetail`** (shader `art_ground_detail`) — how much of the material texture
+  survives against a flat per-terrain style colour. A different thing entirely, and still on.
+
+`GroundDetail` applies **only to the styled profiles**: `material()` returns the sampled texture
+unchanged when `art_style == 0`, so the Original look always draws its full material and this dial
+does nothing there. Cartoon and Low Poly sit at 0.16 (84% flat colour), Pixel Art at 0.24 before
+quantising to 24 levels.
+
+**Asked on 2026-09-18 whether to take it to zero — "just make grass plain green" — the answer is no**,
+and the reason is what the renderer is for. Its whole design, after Factorio's FFF-214, is a seamless
+material sampled in world space so that every grass tile is not the same pixels; at zero, every grass
+pixel is literally one colour and the tile grid is the only structure left. Published RTS practice
+agrees on the balance rather than the extreme: at an overhead camera's distance the risk is visible
+tiling and wasted fine detail, not the presence of material, so the guidance is a subtle texture at
+the right scale. 0.16 already is that — the styled profiles read as near-flat colour with a hint of
+surface.
+
+It would also not have addressed what was reported. The artifacts were in Original as well ("its in
+all renders except isometric"), which this dial cannot touch. They were fixed at source instead: the
+grain pass off by default, and the objects removed from the art itself.
 
 `TerrainWorldComponent.BeginNewWorld` stages live visual samples before invoking
 this renderer's normal draw path. `IsPreparingSnapshot` and `PreparedSnapshotCells`
@@ -68,17 +96,22 @@ owner reported exactly that on 2026-09-18: "original and cartoon renders is show
 blury terrain".
 
 `GroundDetailTiles` and `GroundDetailStrength` sample the same material texture a second
-time, near one texel a pixel, and apply it as **brightness only, measured against that
-material's own average** (the second sample takes gradients wide enough to land on the
-texture's smallest mip, which is that average). The pattern scale does not move, so
-nothing grows against the vehicles; the ground simply stops being flat. Centring the
-grain on mid-grey instead darkens every material brighter than it — sand lost a fifth of
-its brightness, which the blend probe caught as lost coverage.
+time, near one texel a pixel, and apply it as **brightness only, as a high pass** against
+a blurred sample of that same texture — what is left is finer than four texels, which is
+surface rather than picture. The pattern scale does not move, so nothing grows against the
+vehicles. Centring the grain on mid-grey instead darkens every material brighter than it —
+sand lost a fifth of its brightness, which the blend probe caught as lost coverage; and
+measuring against the material's single average colour, as this first shipped, makes the
+difference carry every scale the artist painted.
 
-A `TerrainMapArt` profile carries its own pair (`GroundGrainTiles`, `GroundGrainStrength`)
-and overwrites both, because the repeat depends on the resolution of the art being
-sampled: Original 20 tiles at 0.5, Cartoon 4.8 at 0.35, Pixel Art off — its quantised
-look wants no second frequency. `terrain_painted_blend_probe.gd` guards it: one material,
+**The strength defaults to zero — the grain is off.** At one texel a pixel it carries
+whatever the art holds at that size, and the shipped cartoon atlas's sand holds a 22-texel
+starfish and 12-to-18-texel shells; they appeared on the beach as object-sized marks and
+the owner reported them three times on 2026-09-18. Even as a high pass their outlines
+survived. Raise `GroundDetailStrength`, or a profile's `GroundGrainStrength`, for ground
+art that is only surface. A `TerrainMapArt` profile carries its own pair
+(`GroundGrainTiles`, `GroundGrainStrength`) and overwrites both, because the repeat depends
+on the resolution of the art being sampled. `terrain_painted_blend_probe.gd` guards it: one material,
 a fine checker squeezed into one tile so the base sample is flat, must gain variation
 (0.000 → 0.126) without its mean moving (0.498 either way).
 

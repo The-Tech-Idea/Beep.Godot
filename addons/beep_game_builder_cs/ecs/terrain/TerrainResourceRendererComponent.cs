@@ -215,6 +215,11 @@ namespace Beep.ECS
             ClearRebuildQueued();
             ZIndex = TerrainLayers.ZForMarkers();
             ZAsRelative = false;
+            // An icon is drawn at about half a tile from a sheet frame several times that,
+            // so this view only minifies: without the mip chain a sheet of detailed icons
+            // sparkles as the map moves. LINEAR above it, unlike the prop views, because
+            // these icons were drawn with soft anti-aliased edges - keeping their texels
+            // would only keep the jaggies the artist smoothed out.
             TextureFilter = TextureFilterEnum.LinearWithMipmaps;
 
             ResolveGenerator();

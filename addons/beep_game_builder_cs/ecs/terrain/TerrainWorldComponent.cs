@@ -148,6 +148,21 @@ namespace Beep.ECS
         [Export] public bool UseCustomClimateSpan { get; set; }
         /// <summary>Latitude range independent of tile resolution; zero is one latitude, one is planetary.</summary>
         [Export(PropertyHint.Range, "0,1,0.001")] public float ClimateLatitudeSpan { get; set; } = 0.12f;
+        /// <summary>
+        /// Take lake coverage from <see cref="LakeCoverage"/> instead of from Rainfall - and set that
+        /// to zero for a world with NO LAKES.
+        ///
+        /// Lakes are otherwise derived: ApplyMapSetup writes LakeCoverage from the Rainfall axis
+        /// (Arid 0.015, Normal 0.05, Wet 0.095) on every single build, so a value typed onto the
+        /// generator through this path is overwritten before anything reads it. That leaves Rainfall
+        /// as the only lever, and Rainfall moves lakes, rivers AND vegetation together - so there
+        /// was no way to ask for a map with no lakes without also draining the rivers and stripping
+        /// the woods. This is the same escape hatch the bounds, land coverage and climate span
+        /// already have, and it leaves Rainfall owning the derivation wherever it is off.
+        /// </summary>
+        [Export] public bool UseCustomLakes { get; set; }
+        /// <summary>Share of the map given to lakes when <see cref="UseCustomLakes"/> is on. Zero draws none.</summary>
+        [Export(PropertyHint.Range, "0,0.35,0.01")] public float LakeCoverage { get; set; } = 0.05f;
 
         [ExportGroup("Drawing")]
         private TerrainProjection _projection = TerrainProjection.Painted;
@@ -401,6 +416,11 @@ namespace Beep.ECS
         /// Inspector radius is discarded for a world built here; the generator's
         /// StartKit is not touched. StartDistanceScaling is the same: this world's
         /// recipe value replaces the generator's own.
+        ///
+        /// LakeCoverage is derived by ApplyMapSetup from Rainfall, and is overwritten here after it
+        /// only when this world's UseCustomLakes override supplies a share directly - which is the
+        /// one way to ask for a map with no lakes without also draining its rivers and stripping its
+        /// woods, since Rainfall moves all three together.
         /// </summary>
         private bool ConfigureGenerator(out Vector2I size)
         {
@@ -427,6 +447,8 @@ namespace Beep.ECS
             _generator.StartAreaRadius = Mathf.Clamp(StartAreaRadius, 0, 32);
             _generator.StartDistanceScaling = StartDistanceScaling;
             if (UseCustomLandCoverage) _generator.LandmassScale = LandCoverage;
+            // AFTER ApplyMapSetup, which derives LakeCoverage from Rainfall and would overwrite this.
+            if (UseCustomLakes) _generator.LakeCoverage = Mathf.Clamp(LakeCoverage, 0.0f, 0.35f);
 
             // The climate model and the scale rules are what make the axes mean
             // what TerrainMapSetup says they mean; a world built without them

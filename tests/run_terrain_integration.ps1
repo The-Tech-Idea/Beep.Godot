@@ -30,6 +30,8 @@ $probes = [ordered]@{
     terrain_final_topology_probe = "[terrain-final-topology] OK"
     terrain_ground_cover_probe = "[terrain-ground-cover] OK"
     terrain_prop_sizing_probe = "[terrain-prop-sizing] OK"
+    terrain_texture_filter_probe = "[terrain-texture-filter] OK"
+    terrain_style_profiles_probe = "[terrain-style-profiles] OK"
     terrain_understory_probe = "[terrain-understory] OK"
     terrain_climate_share_probe = "[terrain-climate-share] OK"
     terrain_meadow_texture_probe = "[terrain-meadow-texture] OK"
@@ -119,6 +121,8 @@ try {
         @("art_styles", "terrain_art_styles_probe", "[terrain-art-styles] OK", $false, 0),
         @("lab_styles", "terrain_lab_styles_probe", "[terrain-lab-styles] OK", $false, 0),
         @("lake_banks", "terrain_lake_bank_probe", "[terrain-lake-bank] OK", $false, 3600),
+        @("lake_colour", "terrain_lake_colour_probe", "[terrain-lake-colour] OK", $false, 3600),
+        @("prop_layers", "terrain_prop_layers_probe", "[terrain-prop-layers] OK", $false, 0),
         @("style_beach", "terrain_style_beach_probe", "[terrain-style-beach] OK", $false, 0),
         @("shoreline_contours", "terrain_shoreline_contour_probe", "[shoreline-contours] GPU threshold, fixed coast, width controls and fixture captures OK", $false, 3600),
         @("water_alpha", "terrain_water_alpha_probe", "[terrain-water-alpha] OK", $false, 3600),

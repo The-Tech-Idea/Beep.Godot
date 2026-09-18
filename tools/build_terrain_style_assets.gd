@@ -16,6 +16,29 @@ func region(texture: Texture2D, rect: Rect2) -> AtlasTexture:
 func save(resource: Resource, path: String) -> void:
 	assert(ResourceSaver.save(resource, path) == OK, path)
 
+## Every frame of a sheet laid out in `columns` x `rows`, or one row of it.
+func frames(texture: Texture2D, frame: Vector2i, columns: int, rows: int,
+		first_row := 0, row_count := -1) -> Array[Texture2D]:
+	var list: Array[Texture2D] = []
+	var last: int = rows if row_count < 0 else first_row + row_count
+	for row in range(first_row, last):
+		for column in columns:
+			list.append(region(texture, Rect2(column * frame.x, row * frame.y, frame.x, frame.y)))
+	return list
+
+## The style's own prop art: trees 4x2 of 64x128, bushes and rocks 4x2 of 32x32, the sizes the
+## owner's sheets are named for. Rocks split by row - the top row is hill scatter, the bottom
+## mountain scatter - so the two reliefs do not draw the same stone.
+func apply_props(profile: Resource, prefix: String) -> void:
+	var trees: Texture2D = load(DIR + prefix + "_trees.png")
+	var bushes: Texture2D = load(DIR + prefix + "_bushes.png")
+	var rocks: Texture2D = load(DIR + prefix + "_rocks.png")
+	assert(trees != null and bushes != null and rocks != null, "missing prop sheets for " + prefix)
+	profile.set("Trees", frames(trees, Vector2i(64, 128), 4, 2))
+	profile.set("Bushes", frames(bushes, Vector2i(32, 32), 4, 2))
+	profile.set("SmallRocks", frames(rocks, Vector2i(32, 32), 4, 2, 0, 1))
+	profile.set("LargeRocks", frames(rocks, Vector2i(32, 32), 4, 2, 1, 1))
+
 func run() -> void:
 	var atlas: Texture2D = load(DIR + "pixel_terrain_atlas.png")
 	assert(atlas.get_size() == Vector2(1254, 1254))
@@ -29,9 +52,15 @@ func run() -> void:
 	pixel.set("DeepWaterColor", Color(0.16, 0.38, 0.53))
 	pixel.set("PixelsPerCell", 64)
 	pixel.set("GroundDetail", 0.24)
-	# A 310-pixel atlas tile over 4.8 cells of 64 pixels: one art pixel to one screen pixel, which is
-	# what pixel art is drawn at.
-	pixel.set("TextureRepeatCells", 4.8)
+	# THE SAME 1.6 CELLS AS EVERY OTHER STYLE. This wrote 4.8 - a 310-pixel atlas tile over 4.8 cells
+	# of 64 pixels, one art pixel to one screen pixel, "which is what pixel art is drawn at". That is
+	# true of the pixels and wrong about the picture: at 1:1 the objects painted into the atlas come
+	# out at their authored size, so its starfish drew 22 pixels across and its shells 12 to 18,
+	# beside a bush that TerrainPropSizing draws at 22 to 42. Ground read as scattered objects, which
+	# is what the owner reported on 2026-09-18 - and what moving cartoon to 1.6 on 2026-09-16 fixed,
+	# for cartoon only. Three times finer puts that starfish at 7 pixels, where it is texture.
+	pixel.set("TextureRepeatCells", 1.6)
+	pixel.set("GroundGrainStrength", 0.0)
 	pixel.set("BlendWidth", 0.08)
 	var grounds: Array[Texture2D] = []
 	for rect: Rect2 in [Rect2(0, 0, 313, 314), Rect2(313, 0, 314, 314), Rect2(627, 0, 314, 314),
@@ -39,30 +68,24 @@ func run() -> void:
 		Rect2(627, 314, 314, 314), Rect2(627, 314, 314, 314)]:
 		grounds.append(region(atlas, rect.grow(-2)))
 	pixel.set("GroundTextures", grounds)
-	# Use the supplied complete crown; generated atlas tree crowns meet the row edge.
-	var tree: Texture2D = load(DIR + "pixel_tree.png")
-	var tree_rect := tree.get_image().get_used_rect()
-	assert(tree_rect.size.x < 128 and tree_rect.size.y < 128, "Tree background is not transparent")
-	var trees: Array[Texture2D] = [region(tree, Rect2(tree_rect))]
-	var marsh: Array[Texture2D] = [region(atlas, Rect2(386, 1036, 183, 182))]
-	var small: Array[Texture2D] = [region(atlas, Rect2(702, 1090, 157, 113))]
-	var large: Array[Texture2D] = [region(atlas, Rect2(970, 1020, 268, 202))]
-	# The bush below the tree row; the rows above y 1033 in that column are the trees' spill.
-	var bushes: Array[Texture2D] = [region(atlas, Rect2(52, 1033, 209, 181))]
-	pixel.set("Trees", trees)
-	pixel.set("Bushes", bushes)
-	pixel.set("Marsh", marsh)
-	pixel.set("SmallRocks", small)
-	pixel.set("LargeRocks", large)
+	# The atlas still supplies the marsh reeds; the trees, bushes and rocks come from the style's own
+	# sheets, which is what makes a style a style. This used to bind ONE tree region for every tree
+	# on the map, from pixel_tree.png.
+	pixel.set("Marsh", [region(atlas, Rect2(386, 1036, 183, 182))] as Array[Texture2D])
+	apply_props(pixel, "pixel_art")
 	save(pixel, DIR + "pixel_art.tres")
-	var cartoon: Resource = load("res://addons/beep_game_builder_cs/ecs/terrain/TerrainMapArt.cs").new()
-	cartoon.set("DisplayName", "Cartoon")
-	cartoon.set("GroundDetail", 0.16)
-	cartoon.set("GroundTextures", grounds)
-	# The same atlas, three times finer: ground detail - pebbles, tufts, shells - reads as texture
-	# under the units instead of at their size (a 68-pixel pickup beside 15-70 pixel cobbles).
-	cartoon.set("TextureRepeatCells", 1.6)
-	save(cartoon, DIR + "cartoon.tres")
+
+	# The other three styles: the same ground, at the same calibration, each with its own props. A
+	# style is a resource, listed in TerrainLabComponent.StyleProfiles, so adding one is adding a
+	# file here and an entry there - not another property and another branch.
+	for style: Array in [["Cartoon", "cartoon"], ["Isometric Art", "isometric"], ["Low Poly", "low_poly"]]:
+		var profile: Resource = load("res://addons/beep_game_builder_cs/ecs/terrain/TerrainMapArt.cs").new()
+		profile.set("DisplayName", style[0])
+		profile.set("GroundDetail", 0.16)
+		profile.set("GroundTextures", grounds)
+		profile.set("TextureRepeatCells", 1.6)
+		apply_props(profile, style[1])
+		save(profile, DIR + style[1] + ".tres")
 	await build_roads(atlas)
 	print("[terrain-style-assets] OK")
 	quit()

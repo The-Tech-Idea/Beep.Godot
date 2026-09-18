@@ -47,7 +47,12 @@ public partial class TerrainReliefRendererComponent
         }
         // Size policy caps rocks at eight cells; centered artwork extends half
         // that width beyond its anchor, plus sub-cell scatter.
+        // RedrawAll, not QueueRedraw: on a streamed map Rebuild returns before it draws anything, so
+        // this is the ONLY route every later change takes to the screen - chunk loads, evictions and
+        // single-cell edits alike. Redrawing this node alone would freeze the clutter layer on
+        // exactly the large maps streaming exists for. The merge clears and refills _stamps in
+        // place, which is why both halves have to be told.
         if (_residency.Update(ReliefCellsPerFrame, ReliefPreloadChunks, 5f, _stamps,
-                (a, b) => a.SortY.CompareTo(b.SortY), MinimumDetailCellPixels)) QueueRedraw();
+                (a, b) => a.SortY.CompareTo(b.SortY), MinimumDetailCellPixels)) RedrawAll();
     }
 }

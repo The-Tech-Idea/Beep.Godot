@@ -2,6 +2,8 @@
 
 [ext_resource type="FontFile" uid="uid://dvyxc4rxbq1a4" path="res://addons/beep_game_builder_cs/fonts/NotoSans-Variable.ttf" id="21_uuasi"]
 [ext_resource type="Resource" path="res://addons/beep_game_builder_cs/textures/map_art/cartoon.tres" id="cartoon"]
+[ext_resource type="Resource" path="res://addons/beep_game_builder_cs/textures/map_art/isometric.tres" id="isometric_art"]
+[ext_resource type="Resource" path="res://addons/beep_game_builder_cs/textures/map_art/low_poly.tres" id="low_poly_art"]
 [ext_resource type="Script" uid="uid://blx2f3jmkyxg" path="res://addons/beep_game_builder_cs/ecs/grid/GridCellDataComponent.cs" id="cells"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainCollisionComponent.cs" id="collision"]
 [ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainResourceRendererComponent.cs" id="resource_icons"]
@@ -2423,8 +2425,7 @@ ResourceLevelPath = NodePath("HUD/Settings/Scroll/Controls/ResourceLevelRow/Reso
 ResourceSetPath = NodePath("HUD/Settings/Scroll/Controls/ResourceSetRow/ResourceSet")
 SeedPath = NodePath("HUD/Settings/Scroll/Controls/SeedRow/Seed")
 ViewPath = NodePath("HUD/Settings/Scroll/Controls/ViewRow/View")
-PixelArtProfile = ExtResource("pixel_art")
-CartoonProfile = ExtResource("cartoon")
+StyleProfiles = Array[TerrainMapArt]([ExtResource("pixel_art"), ExtResource("cartoon"), ExtResource("isometric_art"), ExtResource("low_poly_art")])
 GenerateButtonPath = NodePath("HUD/Settings/Scroll/Controls/Actions/Generate")
 RandomSeedButtonPath = NodePath("HUD/Settings/Scroll/Controls/Actions/Randomize")
 ResetViewButtonPath = NodePath("HUD/Settings/Scroll/Controls/ResetView")
@@ -2537,7 +2538,7 @@ RockAtlasPath = "res://addons/beep_game_builder_cs/textures/tiles/rock_15piece.p
 GravelAtlasPath = "res://addons/beep_game_builder_cs/textures/tiles/gravel_15piece.png"
 SnowAtlasPath = "res://addons/beep_game_builder_cs/textures/tiles/snow_15piece.png"
 IceAtlasPath = "res://addons/beep_game_builder_cs/textures/tiles/ice_15piece.png"
-WaterAtlasPath = "res://addons/beep_game_builder_cs/textures/tiles/water_15piece.png"
+WaterAtlasPath = "res://addons/beep_game_builder_cs/textures/tiles/lake_cartoon_15piece.png"
 GroundTexturePaths = Dictionary[String, String]({
 "desert": "res://addons/beep_game_builder_cs/textures/terrain/sand.png",
 "dry_grass": "res://addons/beep_game_builder_cs/textures/terrain/dry_meadow_ground.png",
@@ -2547,7 +2548,7 @@ GroundTexturePaths = Dictionary[String, String]({
 "snow": "res://addons/beep_game_builder_cs/textures/terrain/snow_ice.png",
 "tundra": "res://addons/beep_game_builder_cs/textures/terrain/mud.png"
 })
-GroundDetailStrength = 0.65
+GroundDetailStrength = 0.0
 TerrainGeneratorPath = NodePath("../TerrainGenerator")
 WaterShaderPath = "res://addons/beep_game_builder_cs/shaders/iso_water.gdshader"
 RefreshOnReady = false

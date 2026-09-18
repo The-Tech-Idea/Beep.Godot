@@ -31,6 +31,11 @@ namespace Beep.ECS
             }
             if (settings.LakeShoreWidth > 0f)
             {
+                // INLAND WATER: lakes and rivers alike. Rivers were left out until 2026-09-18, and
+                // the consequence was that a river had no shore material at all - grass ran to the
+                // water, and the painted view's ocean-only damp-sand darkening was the only thing
+                // marking the margin, so every river wore a dark ring instead of a bank. A river
+                // has a bank in the world; this is where it gets one.
                 for (int i = 0; i < world.Count; i++) body[i] = world.Water[i] == WaterBody.Lake;
                 TerrainEuclideanDistance.Squared(body, size, true, squared);
                 // Every shore, not only the flat ones. Gating the bank on flat ground left a lake

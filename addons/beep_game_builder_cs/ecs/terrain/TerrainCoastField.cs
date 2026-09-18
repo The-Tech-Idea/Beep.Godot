@@ -616,6 +616,11 @@ namespace Beep.ECS
 
         // Lake membership is persisted at sub-cell resolution. Never infer it
         // from enclosed water: that would also put lake banks along rivers.
+        //
+        // Adding rivers here was tried on 2026-09-18 and reverted the same hour: a river is a dense
+        // network of sub-cell threads, so a band grown from every one of them at a lake's width
+        // merged into a sand desert holding a couple of ponds. A riverbank needs the river as it is
+        // DRAWN and a width of its own - see GeneratedTerrainField.IsLakeAtPosition.
         internal static ImageTexture BuildLake(GridCellDataComponent? cells, GeneratedTerrainField? field,
             Vector2I origin, Vector2I size, int detail, float rangeTiles)
         {

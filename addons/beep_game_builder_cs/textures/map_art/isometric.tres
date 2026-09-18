@@ -1,0 +1,178 @@
+[gd_resource type="Resource" script_class="TerrainMapArt" format=3]
+
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/map_art/isometric_bushes.png" id="1_o7ek6"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/map_art/pixel_terrain_atlas.png" id="2_l2f3y"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/map_art/isometric_rocks.png" id="3_qorno"]
+[ext_resource type="Texture2D" path="res://addons/beep_game_builder_cs/textures/map_art/isometric_trees.png" id="4_130yf"]
+[ext_resource type="Script" path="res://addons/beep_game_builder_cs/ecs/terrain/TerrainMapArt.cs" id="5_1qbka"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_bxal7"]
+atlas = ExtResource("1_o7ek6")
+region = Rect2(0, 0, 32, 32)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_qn8uh"]
+atlas = ExtResource("1_o7ek6")
+region = Rect2(32, 0, 32, 32)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_hb4dq"]
+atlas = ExtResource("1_o7ek6")
+region = Rect2(64, 0, 32, 32)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_iseip"]
+atlas = ExtResource("1_o7ek6")
+region = Rect2(96, 0, 32, 32)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_td7n7"]
+atlas = ExtResource("1_o7ek6")
+region = Rect2(0, 32, 32, 32)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_e8li1"]
+atlas = ExtResource("1_o7ek6")
+region = Rect2(32, 32, 32, 32)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_lie1s"]
+atlas = ExtResource("1_o7ek6")
+region = Rect2(64, 32, 32, 32)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_eesku"]
+atlas = ExtResource("1_o7ek6")
+region = Rect2(96, 32, 32, 32)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_c2cvp"]
+atlas = ExtResource("2_l2f3y")
+region = Rect2(2, 2, 309, 310)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_kdito"]
+atlas = ExtResource("2_l2f3y")
+region = Rect2(315, 2, 310, 310)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_d2pl5"]
+atlas = ExtResource("2_l2f3y")
+region = Rect2(629, 2, 310, 310)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_u0tlr"]
+atlas = ExtResource("2_l2f3y")
+region = Rect2(943, 2, 309, 310)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_p71wb"]
+atlas = ExtResource("2_l2f3y")
+region = Rect2(315, 316, 310, 310)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_0slvq"]
+atlas = ExtResource("2_l2f3y")
+region = Rect2(2, 316, 309, 310)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_eodni"]
+atlas = ExtResource("2_l2f3y")
+region = Rect2(629, 316, 310, 310)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_0338r"]
+atlas = ExtResource("2_l2f3y")
+region = Rect2(629, 316, 310, 310)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_5lfhp"]
+atlas = ExtResource("3_qorno")
+region = Rect2(0, 32, 32, 32)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_olawx"]
+atlas = ExtResource("3_qorno")
+region = Rect2(32, 32, 32, 32)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_o6jc3"]
+atlas = ExtResource("3_qorno")
+region = Rect2(64, 32, 32, 32)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_fyfyw"]
+atlas = ExtResource("3_qorno")
+region = Rect2(96, 32, 32, 32)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_64yly"]
+atlas = ExtResource("3_qorno")
+region = Rect2(0, 0, 32, 32)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_sdi47"]
+atlas = ExtResource("3_qorno")
+region = Rect2(32, 0, 32, 32)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_v74kd"]
+atlas = ExtResource("3_qorno")
+region = Rect2(64, 0, 32, 32)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_wep46"]
+atlas = ExtResource("3_qorno")
+region = Rect2(96, 0, 32, 32)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_a2dbd"]
+atlas = ExtResource("4_130yf")
+region = Rect2(0, 0, 64, 128)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_5umui"]
+atlas = ExtResource("4_130yf")
+region = Rect2(64, 0, 64, 128)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_a8a1a"]
+atlas = ExtResource("4_130yf")
+region = Rect2(128, 0, 64, 128)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_6hn71"]
+atlas = ExtResource("4_130yf")
+region = Rect2(192, 0, 64, 128)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_jvkke"]
+atlas = ExtResource("4_130yf")
+region = Rect2(0, 128, 64, 128)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_vukn1"]
+atlas = ExtResource("4_130yf")
+region = Rect2(64, 128, 64, 128)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_sjf0b"]
+atlas = ExtResource("4_130yf")
+region = Rect2(128, 128, 64, 128)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ppep8"]
+atlas = ExtResource("4_130yf")
+region = Rect2(192, 128, 64, 128)
+filter_clip = true
+
+[resource]
+script = ExtResource("5_1qbka")
+DisplayName = "Isometric Art"
+TextureRepeatCells = 1.6
+GroundDetail = 0.16
+GroundTextures = Array[Texture2D]([SubResource("AtlasTexture_c2cvp"), SubResource("AtlasTexture_kdito"), SubResource("AtlasTexture_d2pl5"), SubResource("AtlasTexture_u0tlr"), SubResource("AtlasTexture_p71wb"), SubResource("AtlasTexture_0slvq"), SubResource("AtlasTexture_eodni"), SubResource("AtlasTexture_0338r")])
+Trees = Array[Texture2D]([SubResource("AtlasTexture_a2dbd"), SubResource("AtlasTexture_5umui"), SubResource("AtlasTexture_a8a1a"), SubResource("AtlasTexture_6hn71"), SubResource("AtlasTexture_jvkke"), SubResource("AtlasTexture_vukn1"), SubResource("AtlasTexture_sjf0b"), SubResource("AtlasTexture_ppep8")])
+Bushes = Array[Texture2D]([SubResource("AtlasTexture_bxal7"), SubResource("AtlasTexture_qn8uh"), SubResource("AtlasTexture_hb4dq"), SubResource("AtlasTexture_iseip"), SubResource("AtlasTexture_td7n7"), SubResource("AtlasTexture_e8li1"), SubResource("AtlasTexture_lie1s"), SubResource("AtlasTexture_eesku")])
+SmallRocks = Array[Texture2D]([SubResource("AtlasTexture_64yly"), SubResource("AtlasTexture_sdi47"), SubResource("AtlasTexture_v74kd"), SubResource("AtlasTexture_wep46")])
+LargeRocks = Array[Texture2D]([SubResource("AtlasTexture_5lfhp"), SubResource("AtlasTexture_olawx"), SubResource("AtlasTexture_o6jc3"), SubResource("AtlasTexture_fyfyw")])

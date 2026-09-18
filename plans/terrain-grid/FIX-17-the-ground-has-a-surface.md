@@ -1,6 +1,6 @@
 # FIX-17 — The painted ground has a surface: grain at one texel a pixel
 
-**Type:** fix (rendering) · **Area:** `shaders/terrain_splat.gdshader`, `ecs/terrain/TerrainPaintedRendererComponent.cs`, `ecs/terrain/TerrainMapArt.cs`, the shipped art profiles · **Status:** implemented 2026-09-18 with the owner's chosen strengths, guarded; awaiting acceptance · **Effort:** S · **Risk:** low. It changes a shipped look, so it goes through the owner's before/after gate; it touches no generated data.
+**Type:** fix (rendering) · **Area:** `shaders/terrain_splat.gdshader`, `ecs/terrain/TerrainPaintedRendererComponent.cs`, `ecs/terrain/TerrainMapArt.cs`, the shipped art profiles · **Status:** implemented 2026-09-18, then turned OFF by default the same day — the grain carried the art's own painted objects onto the ground; see "Reversed later the same day" · **Effort:** S · **Risk:** low. It changes a shipped look, so it goes through the owner's before/after gate; it touches no generated data.
 
 ## Evidence
 
@@ -45,6 +45,36 @@ In `tmp/`, all at 1:1 and 2x on one map and camera:
 - `final_original_flat_zoom1.png` against `final_original_grain_zoom1.png`
 - `final_cartoon_flat_zoom1.png` against `final_cartoon_grain_zoom1.png`
 - `final_pixel_art_*` (unchanged by design), and the strength ladder `grain_<style>_{0.25,0.35,0.50}_zoom{1,2}.png`.
+
+## Reversed later the same day: the grain is OFF by default
+
+The grain samples the material's own texture near one texel a pixel, which is the whole idea — and
+it is also why it cannot be shipped on with this art. At that scale it carries whatever the artist
+drew at that size, and the cartoon atlas's sand has **a 22-texel starfish and 12-to-18-texel
+shells**. They came through on the beach as soft, object-sized marks, in every view that lays a
+ground texture over its terrain. The owner reported them three times and finally placed the fault
+exactly: *"its in all renders except isometric"* — the isometric block view is the only one that
+overlays no ground texture at all.
+
+Two attempts to keep the feature and lose the objects both failed, on renders:
+
+1. **Calibrating the repeat.** Pixel Art was still at 4.8 cells (1:1), so its colour layer drew the
+   same objects at authored size; moving it to 1.6 like every other style was right on its own
+   merits, and changed nothing about these marks.
+2. **Making the grain a high pass** — reference sample a few mip levels up, so only detail finer
+   than the reference survives. At 16 texels the shells survived; at 4 texels their *outlines*
+   survived, which is what the magnified crop showed: rings, not discs.
+
+So the default is now zero, in all three places that carry one: `TerrainMapArt.GroundGrainStrength`,
+`TerrainPaintedRendererComponent.GroundDetailStrength`, and the tile view's own
+`TerrainTileRendererComponent.GroundDetailStrength` — that last one had the same fault by a
+different route, multiplying the tiles by the texture's absolute luminance.
+
+The high-pass stays, because it is correct for what the feature is for, and the guard still measures
+it unchanged (variation 0.0000 flat against 0.1255 grained, mean 0.4980 either way — the probe sets
+the strength itself, so it never depended on the default). Turn it on per profile for ground art
+that is only surface, with nothing in it to recognise. That art is the real fix, and the brief
+already asks for it.
 
 ## Still open
 

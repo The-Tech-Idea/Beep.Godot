@@ -6,12 +6,17 @@ Pipeline position: **game-facing component (editor/demo UI)** — a pure UI bind
 
 ## Public API
 
-- The first design-time selector now offers **Original, Game tiles, Isometric,
-  Isometric tiles, Pixel Art, Cartoon**. There is no separate disabled art selector.
-  Pixel Art and Cartoon select the painted renderer and their respective
-  `PixelArtProfile` / `CartoonProfile` resources. Original clears the override.
-  Entries 4 and 5 are presentation choices, not additional `TerrainProjection` values.
-  All six choices redraw the same live grid; none regenerate it.
+- The first design-time selector offers the four projections — **Original, Game tiles, Isometric,
+  Isometric tiles** — and then one entry per art style, named by the style itself. There is no
+  separate disabled art selector. A style entry selects the painted renderer and puts that style's
+  resource on the world's `MapArt`; Original clears the override. Style entries are presentation
+  choices, not additional `TerrainProjection` values. Every choice redraws the same live grid; none
+  regenerate it.
+- `[Export] Godot.Collections.Array<TerrainMapArt> StyleProfiles` — the art styles the menu lists,
+  in order. One list rather than a property per style: adding a style is adding a resource to this
+  array, and the menu, `SelectedView` and `ApplyView` all follow from it. The lab scene authors four
+  (pixel art, cartoon, isometric, low poly). The menu length is therefore `4 + StyleProfiles.Count`,
+  not a fixed six.
 
 - `ZoomPreviewAt(screenPosition, factor)` keeps the preview-local point under a viewport position
   fixed using `GetGlobalTransformWithCanvas`. Nonfinite/nonpositive factors are ignored.
@@ -42,4 +47,4 @@ Pipeline position: **game-facing component (editor/demo UI)** — a pure UI bind
 
 - A large comment block (lines 51-57) documents that relief, rivers, resource density, lake size, beach width, frequency, octaves, landform, and raw width/height exports were deliberately removed because they were "resolved and never read" — including three `CheckButton`s that looked wired but whose values were hardcoded elsewhere. This is a documented instance of the "accepted-but-ignored" pattern being fixed, not a live issue in this file.
 - `Selected()` falls back to the world's *current* value (not a hardcoded default) when a control path is unresolved, so a partially-wired panel degrades to "leave that axis alone" rather than silently resetting it.
-- `Fill()` guards on `option.ItemCount > 0`, so `PopulateOptions()` is idempotent — safe to call from `_Ready()` even if scene reload runs it more than once — but also means a chooser's option list is never refreshed if the underlying `TerrainMapSetup`/`TerrainShapePresets` name arrays change after the first population (not a concern within one session).
+- `Fill()` CLEARS a chooser and refills it, so the code that derives a list owns what is on screen. It used to add items only to an empty chooser, which made the scene a second owner of every menu's contents: `terrain_generator_lab.tscn` had six view entries typed into it, so styles added to `StyleProfiles` were simply not listed and nothing reported it — the menu looked authored and correct. `PopulateOptions()` stays idempotent, and now also picks up a changed name array.

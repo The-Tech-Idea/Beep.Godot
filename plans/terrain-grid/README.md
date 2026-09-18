@@ -244,10 +244,11 @@ zoom".
 | Id | Plan | Headline | Effort | Status |
 |---|---|---|---|---|
 | FIX-17 | [The ground has a surface](FIX-17-the-ground-has-a-surface.md) | a ground texture authored at the vehicles' pattern scale is minified about three times, so mipmapping averages its grain away and the ground reads as a flat wash; the shader now samples the same texture again at one texel a pixel, as brightness against the material's own average | S | **implemented 2026-09-18**, guarded, awaiting acceptance |
+| FIX-18 | [A prop is never drawn larger than its art](FIX-18-props-are-never-magnified.md) | prop size is stated in cells and normalised by each frame's longest side, so the frames holding fewest pixels were stretched hardest — seven of eight cartoon tree frames by 1.45x to 2.09x before any zoom; `TerrainPropSizing.DrawnPixels` now caps the category size at the art's own resolution, for every view | XS–S | **implemented 2026-09-18**, guarded |
 
-The props are art, not code: a cartoon tree frame is 64x128 pixels drawn at up to 120x143, so it is
-magnified before the camera zooms at all. The owner is redrawing the sheets against
-[`docs/terrain-engine/PROP_ART_BRIEF.md`](../../docs/terrain-engine/PROP_ART_BRIEF.md).
+The art is still the ceiling: 64x128 trees are sharp at zoom 1 and no better beyond it. For a camera
+that zooms further the sheets must carry the pixels —
+[`docs/terrain-engine/PROP_ART_BRIEF.md`](../../docs/terrain-engine/PROP_ART_BRIEF.md) states the sizes.
 
 ### Suggested order
 

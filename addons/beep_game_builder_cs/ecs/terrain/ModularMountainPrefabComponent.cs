@@ -49,7 +49,24 @@ namespace Beep.ECS
         [Export] public Vector2 PrefabOffset { get; set; } = Vector2.Zero;
         [Export(PropertyHint.Range, "0.05,4,0.01")] public float PrefabScale { get; set; } = 1.0f;
         [Export] public int BaseZIndex { get; set; } = 0;
-        [Export] public CanvasItem.TextureFilterEnum TextureFilter { get; set; } = CanvasItem.TextureFilterEnum.Linear;
+
+        /// <summary>Filter for the mountain parts this component GENERATES, not for this node.</summary>
+        /// <remarks>
+        /// Named <c>PartTextureFilter</c> and not <c>TextureFilter</c>. This component is a
+        /// <c>Node2D</c>, which already has a texture filter of its own, so the shorter name hid the
+        /// framework's property - and setting that one through a <c>CanvasItem</c> reference changed
+        /// nothing the generated parts are built with.
+        ///
+        /// LINEAR WITH MIPMAPS, as every other art-bearing terrain renderer is - see
+        /// docs/terrain-engine/TEXTURE_FILTERS.md. Plain Linear was wrong twice over: it cannot
+        /// sample a mip level at all, and <see cref="LoadTexture"/> calls
+        /// <c>Image.GenerateMipmaps()</c> on every plate, so the chain was built for each one and
+        /// then thrown away. The shipped manifests declare these plates at up to 550x379, drawn
+        /// one-to-one, so they are MINIFIED the moment a map camera pulls back - the case a mipless
+        /// filter aliases in. Linear rather than nearest because they are soft-edged painted art,
+        /// not the hard-edged sprite stamps TerrainPropSizing caps at their own resolution.
+        /// </remarks>
+        [Export] public CanvasItem.TextureFilterEnum PartTextureFilter { get; set; } = CanvasItem.TextureFilterEnum.LinearWithMipmaps;
 
         private const string GeneratedGroup = "generated_modular_mountain_part";
         private int _lastGeneratedPartCount;
@@ -171,7 +188,7 @@ namespace Beep.ECS
                 Position = position,
                 Scale = Vector2.One * scale,
                 ZIndex = zIndex,
-                TextureFilter = TextureFilter
+                TextureFilter = PartTextureFilter
             };
             sprite.AddToGroup(GeneratedGroup, true);
             return sprite;
@@ -189,14 +206,25 @@ namespace Beep.ECS
             _lastBaseId = "";
         }
 
+        /// <summary>
+        /// A plate's art, through <see cref="TerrainTextures.Load"/> - the one terrain-art loader,
+        /// which builds the mip chain these sprites need and answers null for a file it could not
+        /// read.
+        ///
+        /// This used to repeat that branch here, and repeated the bug the shared loader was fixed
+        /// for: <c>Image.LoadFromFile</c> returns NULL, not an empty image, when a file is missing or
+        /// undecodable, so testing <c>IsEmpty()</c> first dereferenced that null and threw
+        /// <c>NullReferenceException</c> - which made the <c>InvalidDataException</c> naming the path
+        /// unreachable on precisely the failure it was written for. The sibling
+        /// <see cref="MountainPrefabGeneratorComponent"/> was moved off the same copy earlier.
+        ///
+        /// Throwing where the shared loader warns is kept deliberately: every caller here turns the
+        /// result straight into a <c>Sprite2D</c>, and a manifest naming art that is not on disk is a
+        /// broken manifest rather than a missing option.
+        /// </summary>
         private static Texture2D LoadTexture(string path)
-        {
-            Image image = Image.LoadFromFile(path);
-            if (image.IsEmpty())
-                throw new InvalidDataException($"Could not load texture: {path}");
-            image.GenerateMipmaps();
-            return ImageTexture.CreateFromImage(image);
-        }
+            => TerrainTextures.Load(path, nameof(ModularMountainPrefabComponent), "a mountain plate texture")
+                ?? throw new InvalidDataException($"Could not load texture: {path}");
 
         private static JsonElement FindById(JsonElement root, string arrayName, string id)
         {

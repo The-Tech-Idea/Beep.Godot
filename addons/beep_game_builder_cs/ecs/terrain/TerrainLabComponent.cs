@@ -1,4 +1,5 @@
 using Godot;
+using System.Collections.Generic;
 
 namespace Beep.ECS
 {
@@ -41,8 +42,17 @@ namespace Beep.ECS
 		[Export] public NodePath ResourceSetPath { get; set; } = new("");
 		[Export] public NodePath SeedPath { get; set; } = new("");
 		[Export] public NodePath ViewPath { get; set; } = new("");
-		[Export] public TerrainMapArt? PixelArtProfile { get; set; }
-		[Export] public TerrainMapArt? CartoonProfile { get; set; }
+
+		/// <summary>
+		/// The painted projection's art STYLES, in the order the view menu lists them after the four
+		/// projections. Each names itself through <see cref="TerrainMapArt.DisplayName"/>.
+		///
+		/// A list rather than a property per style. This was PixelArtProfile and CartoonProfile, and
+		/// the menu text, the index-to-view mapping and its reverse each carried a branch per style -
+		/// so a third style meant editing four places and the scene, which is the shape that keeps a
+		/// new style out. Adding one is now adding a resource to this array.
+		/// </summary>
+		[Export] public Godot.Collections.Array<TerrainMapArt> StyleProfiles { get; set; } = new();
 
 		[ExportGroup("Actions")]
 		[Export] public NodePath GenerateButtonPath { get; set; } = new("");
@@ -287,20 +297,29 @@ namespace Beep.ECS
 			_status = GetNodeOrNull<Label>(StatusPath);
 		}
 
-		/// <summary>Fills a chooser once, and selects its default.</summary>
+		/// <summary>
+		/// Fills a chooser from the names given, and selects its default.
+		///
+		/// It REPLACES whatever the scene authored. This used to add items only to an empty chooser,
+		/// which made the scene a second owner of every menu's contents: the view chooser had six
+		/// items typed into terrain_generator_lab.tscn, so two art styles added to StyleProfiles were
+		/// simply not listed, and nothing reported it - the menu looked authored and correct. These
+		/// lists are derived (the axis enums, and now the styles), so the code that derives them owns
+		/// what is on screen.
+		/// </summary>
 		private static void Fill(OptionButton? option, string[] names, int selected = 0)
 		{
 			if (option is null)
 				return;
 
-			if (option.ItemCount == 0)
-				foreach (string name in names) option.AddItem(name);
+			option.Clear();
+			foreach (string name in names) option.AddItem(name);
 			option.Selected = Mathf.Clamp(selected, 0, option.ItemCount - 1);
 		}
 
 		/// <summary>
-		/// Setup axes use enum order. The presentation menu additionally maps
-		/// Pixel Art and Cartoon to the painted projection through ApplyView.
+		/// Setup axes use enum order. The presentation menu lists the four projections and then every
+		/// art style, each of which draws through the painted projection - see ApplyView.
 		/// </summary>
 		private void PopulateOptions()
 		{
@@ -313,8 +332,22 @@ namespace Beep.ECS
 			Fill(_seaLevel, TerrainMapSetup.SeaLevelNames, (int)_world.SeaLevel);
 			Fill(_resourceLevel, TerrainMapSetup.ResourceLevelNames, (int)_world.ResourceLevel);
 			Fill(_resourceSet, TerrainMapSetup.ResourceSetNames, (int)_world.Resources);
-			Fill(_view, new[] { "Original", "Game tiles", "Isometric", "Isometric tiles", "Pixel Art", "Cartoon" }, SelectedView());
+			Fill(_view, ViewNames(), SelectedView());
 			if (_seed is not null) _seed.Value = _world.Seed;
+		}
+
+		/// <summary>One entry per projection, then one per art style, named by the style itself.</summary>
+		private static readonly string[] ProjectionNames =
+			{ "Original", "Game tiles", "Isometric", "Isometric tiles" };
+
+		private string[] ViewNames()
+		{
+			var names = new List<string>(ProjectionNames);
+			foreach (TerrainMapArt? profile in StyleProfiles)
+				names.Add(string.IsNullOrWhiteSpace(profile?.DisplayName)
+					? $"Style {names.Count - ProjectionNames.Length + 1}"
+					: profile!.DisplayName);
+			return names.ToArray();
 		}
 
 		private int SelectedView()
@@ -322,14 +355,16 @@ namespace Beep.ECS
 			if (_world is null) return 0;
 			if (_world.Projection != TerrainProjection.Painted) return (int)_world.Projection;
 			if (_world.MapArt is null) return 0;
-			return _world.MapArt == PixelArtProfile ? 4 : 5;
+			int style = StyleProfiles.IndexOf(_world.MapArt);
+			return style < 0 ? 0 : ProjectionNames.Length + style;
 		}
 
 		private void ApplyView(int index)
 		{
 			if (_world is null) return;
-			_world.Projection = index is 4 or 5 ? TerrainProjection.Painted : (TerrainProjection)index;
-			_world.MapArt = index == 4 ? PixelArtProfile : index == 5 ? CartoonProfile : null;
+			int style = index - ProjectionNames.Length;
+			_world.Projection = style >= 0 ? TerrainProjection.Painted : (TerrainProjection)index;
+			_world.MapArt = style >= 0 && style < StyleProfiles.Count ? StyleProfiles[style] : null;
 		}
 	}
 }

@@ -82,6 +82,22 @@ uniform float shallow_sand : hint_range(0.0, 1.0) = 0.34;
 // How far out the sea reaches full depth, in tiles.
 uniform float deep_tiles : hint_range(0.5, 12.0) = 4.5;
 
+// INLAND WATER IS NOT ANKLE DEEP EVERYWHERE. Both ramps above measure from the waterline, and that
+// is right for a sea: its middle is tens of tiles out, so it reaches full colour and loses its bed.
+// A pond's middle is not, and a river's certainly is not - measured on the painted demo, seed 31415,
+// the distance field inside its enclosed bodies never exceeds 0.085 tiles. On the sea's ramps every
+// pixel of them is therefore scored as touching the shore, takes the palest water and keeps a third
+// of the sand bed showing through. That is the grey-green haze the owner reported as "lakes look
+// bad", twice - and most of those bodies were in fact rivers (FIX-19), which is only more reason:
+// a river is never more than about half a tile from its own bank.
+//
+// So water without a fetch gets a FLOOR on its colour and a CEILING on how much bed shows. Not a
+// separate ramp: the sea's own terms still apply where they say something stronger, which leaves a
+// large inland water body its real gradient while a pond stops being a puddle. Both are fractions
+// of the existing ramps, so neither adds a dial.
+const float LAKE_DEPTH = 0.35;
+const float LAKE_BED = 0.10;
+
 // Authored surf. A seamless foam texture, sampled in SHORE SPACE: across it
 // runs distance from the waterline, along it runs the coast itself. The shore
 // tangent is taken from the gradient of the distance field, which is what lets
@@ -222,15 +238,21 @@ SeaState sea_state(vec2 tile, vec2 uv, float in_map, float t) {
 
 	// Depth from the same distance field: shallow against the shore, shelving
 	// to deep offshore. Taking it from tile ids instead is what tiled the sea.
+	// The floor is the lake rule above: it lifts water with no fetch off the palest end of the ramp
+	// and never lowers anything, so the sea is untouched and a big lake keeps its own gradient.
+	float shelf = smoothstep(0.0, max(0.001, deep_tiles), sd);
 	vec3 water_col = mix(
 		texture(tex_shallow, water_uv).rgb * tint_shallow,
 		texture(tex_deep, water_uv).rgb * tint_deep,
-		smoothstep(0.0, max(0.001, deep_tiles), sd));
+		mix(max(LAKE_DEPTH, shelf), shelf, open_sea));
 
 	// Shallow water is water OVER sand, so the bottom shows through near the
 	// shore. Shares the ground repeat, not the drifting water_uv: a seabed that
 	// swims with the surface reads as fog, not as depth.
-	float shallow = 1.0 - smoothstep(0.0, max(0.001, shallow_tiles), sd);
+	// A lake bed is not beach sand, and a lake the field scores at zero distance would otherwise
+	// show ALL of it: the ceiling is the other half of the same rule.
+	float bed = 1.0 - smoothstep(0.0, max(0.001, shallow_tiles), sd);
+	float shallow = mix(min(LAKE_BED, bed), bed, open_sea);
 	vec2 sand_uv = tile / sand_repeat_tiles();
 	water_col = mix(water_col, sample_ground(tex_sand, sand_uv, dFdx(sand_uv), dFdy(sand_uv)) * tint_sand, shallow * shallow_sand);
 

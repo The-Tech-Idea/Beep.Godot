@@ -204,19 +204,38 @@ vec3 source_material(int id, vec2 world_uv, vec2 uv_dx, vec2 uv_dy) {
 	return source_material_at(id, world_uv, uv_dx, uv_dy, material_repeat_tiles(id));
 }
 
+// How wide the grain's reference sample averages, in texels of the grain scale. Detail finer than
+// this survives; anything broader is cancelled.
+//
+// FOUR, because the things that must not survive are small. Measured on the cartoon atlas's sand:
+// the starfish is 22 texels and the shells 12 to 18, so a reference of 16 left the shells intact -
+// they were still scattered along the beach as pale discs. Sand speckle is one to three texels, so
+// four keeps the surface and cancels everything the artist drew as a thing.
+const float GRAIN_REFERENCE_TEXELS = 4.0;
+
 // The ground's own grain, sampled near one texel a pixel and returned as a
 // multiplier around one.
 //
-// It is measured against the MATERIAL'S OWN AVERAGE, not against mid-grey: the
-// second sample takes gradients wide enough to land on the texture's smallest
-// mip, which is that average. Centring on mid-grey instead darkens every
-// material brighter than it and lightens every darker one - sand lost a fifth of
-// its brightness, which terrain_painted_blend_probe caught as lost coverage.
+// It is a HIGH PASS: the reference sample is the same texture a few mip levels up, so what is left
+// is only what is finer than that - the surface, not the picture.
+//
+// This used to measure against the material's smallest mip, its single average colour, which makes
+// the difference carry every scale the artist painted. At the grain's own repeat the source is near
+// one texel a pixel, so the mid-sized things in it came through at their authored size as a
+// luminance ghost: the cartoon atlas's sand has a 22-texel starfish and 12-to-18-texel shells, and
+// they appeared on the beach as soft objects the size of a bush. The owner reported them twice.
+// Note that the colour layer could never explain them - material() mixes the texture in at
+// art_ground_detail, 0.16 to 0.24, while this multiplies at full strength.
+//
+// Centring on mid-grey is the other wrong answer: it darkens every material brighter than grey and
+// lightens every darker one - sand lost a fifth of its brightness, which
+// terrain_painted_blend_probe caught as lost coverage.
 float ground_grain(int id, vec2 world_uv, vec2 uv_dx, vec2 uv_dy) {
 	if (ground_detail_strength <= 0.0 || ground_detail_tiles <= 0.0) { return 1.0; }
 	vec3 grain = source_material_at(id, world_uv, uv_dx, uv_dy, ground_detail_tiles);
-	vec3 average = source_material_at(id, world_uv, vec2(8.0), vec2(8.0), ground_detail_tiles);
-	float difference = dot(grain - average, vec3(0.299, 0.587, 0.114));
+	vec3 reference = source_material_at(id, world_uv,
+		uv_dx * GRAIN_REFERENCE_TEXELS, uv_dy * GRAIN_REFERENCE_TEXELS, ground_detail_tiles);
+	float difference = dot(grain - reference, vec3(0.299, 0.587, 0.114));
 	return 1.0 + difference * 2.0 * ground_detail_strength;
 }
 
@@ -359,12 +378,29 @@ void fragment() {
 	// that beach, wet sand and surf are measured against, so it drew the tile
 	// staircase AND covered the beach before that band had any width on
 	// screen.
-	// A LAKE ends in a line. The sea's edge is soft on purpose - the sand, the wash and the
-	// surf carry that transition - but a lake has none of them, so the same blend reads as its
-	// water smeared into the ground. open_sea is the flag that already separates the two.
-	float shore_softness = mix(shore_blend_tiles * 0.2, shore_blend_tiles, open_sea);
-	float shore = smoothstep(-shore_softness, shore_softness, sd);
-	if (art_style == 1) { shore = smoothstep(-0.06, 0.06, sd); }
+	// A LAKE ENDS IN A LINE - and it has to be a line the field can actually draw.
+	//
+	// The sea's edge is soft on purpose: the sand, the wash and the surf carry that transition, and
+	// the sea has the fetch to express them. Inland water has none of them. FIX-14 established that
+	// and softened such an edge to a fifth of the sea's, but a fifth of a blend is still a blend
+	// across a real distance, and the distance inside narrow inland water is smaller than that: read
+	// at the field's own resolution on the painted demo, seed 31415, an enclosed body's signed
+	// distance never exceeds 0.085 tiles and runs slightly NEGATIVE through the middle, against a
+	// softness of about 0.056. Every pixel of it falls inside the blend and comes out half land -
+	// the pale mottled wash the owner reported as "lakes look bad", twice.
+	//
+	// Those bodies are mostly RIVERS, as it turned out (FIX-19): that map carries 59 river cells
+	// against 8 lake cells, and a river is legitimately under a tile wide. Which is the point - the
+	// rule here is not about lakes, it is about water with no fetch behind it, and a river needs it
+	// more than a lake does.
+	//
+	// Pixel art never had the fault, and that is the proof rather than a guess: it steps at zero, so
+	// any water at all draws as water, and the owner's own reading of the same map was that its
+	// lakes "look ok". So water without a fetch gets the line; open_sea is the flag that already
+	// separates the two, and it does not ramp at a sea's own waterline (OceanMask grows the mask by
+	// a cell precisely so it does not). Guarded by tests/terrain_lake_colour_probe.gd.
+	float shore = mix(step(0.0, sd), smoothstep(-shore_blend_tiles, shore_blend_tiles, sd), open_sea);
+	if (art_style == 1) { shore = mix(step(0.0, sd), smoothstep(-0.06, 0.06, sd), open_sea); }
 	else if (art_style == 2) { shore = step(0.0, sd); }
 
 	// Sand on the land side, widest at the waterline and fading inland. It stays
@@ -393,10 +429,18 @@ void fragment() {
 		* (0.5 + (0.5 * cos(t * swash_speed)));
 
 	// Damp sand: the strip the last wave actually reached, so the waterline
-	// leaves a wet mark behind it instead of a fixed band. The swash term is
-	// ocean-only, like the swash itself: without the gate a heavy sea made
-	// every LAKE's margin breathe in time with surf the lake does not have.
-	float wet = clamp(1.0 - (inland / max(0.001, max(wet_tiles, swash_reach * open_sea))), 0.0, 1.0);
+	// leaves a wet mark behind it instead of a fixed band.
+	//
+	// ALL of it is ocean-only, not just the swash reach. Damp sand is made BY waves running up the
+	// beach and draining back; water with no fetch has none, so there is nothing to wet its margin.
+	// Ungated, this multiplied the land within 0.45 tiles of every lake and every river by 0.70 -
+	// and since those bodies get no sand bank either, it landed on GRASS. Measured on the painted
+	// demo: land touching inland water came out 25% darker than land away from it, most of that
+	// inside half a tile. That is the "huge dark shadow" the owner reported around every lake, and
+	// it is also what the very first screenshot showed - a lake reading as a dark green stain.
+	// A shore is made of shore MATERIAL - sand, gravel, reeds - which is the beach band above; it is
+	// never the same ground turned down.
+	float wet = clamp(1.0 - (inland / max(0.001, max(wet_tiles, swash_reach * open_sea))), 0.0, 1.0) * open_sea;
 	land_col *= mix(1.0, 1.0 - shore_wet, wet);
 
 	// Hillshade applies to ground only; lighting the sea by land relief looks

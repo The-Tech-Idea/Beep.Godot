@@ -165,7 +165,14 @@ namespace Beep.ECS
             SetProcess(false);
             HasRebuildAttempt = true;
             ClearRebuildQueued();
-            TextureFilter = TextureFilterEnum.LinearWithMipmaps;
+            // The same authored frames the flat view stamps, placed on diamonds instead of
+            // squares and capped at their own art by TerrainPropSizing.DrawnPixels: minified
+            // at map zoom, where the mip chain does the work, and magnified only by the
+            // player's camera, where nearest keeps a tree's painted edge an edge.
+            //
+            // The per-level children below draw the stamps, so each states this too; this
+            // node's own filter is what an unlisted child would inherit.
+            TextureFilter = TextureFilterEnum.NearestWithMipmaps;
 
             Resolve();
             EnsureLevels();
@@ -330,7 +337,8 @@ namespace Beep.ECS
                 // of it - so there is deliberately no export to override it.
                 node.ZIndex = TerrainLayers.ZForProps(level);
                 node.ZAsRelative = false;
-                node.TextureFilter = TextureFilterEnum.LinearWithMipmaps;
+                // This node draws the stamps, so it states the filter rather than inheriting one.
+                node.TextureFilter = TextureFilterEnum.NearestWithMipmaps;
                 _levels.Add(node);
             }
         }
@@ -352,10 +360,10 @@ namespace Beep.ECS
             frame = (Vector2I)region.Size;
             if (frame.X <= 0 || frame.Y <= 0) return;
 
-            // A cell edge, not the diamond's diagonal: same unit as the flat renderer.
-            float fit = Mathf.Min(across.Length(), down.Length()) / Mathf.Max(1, Mathf.Max(frame.X, frame.Y));
+            // A cell edge, not the diamond's diagonal: same unit as the flat renderer, and the same
+            // owner of the size - TerrainPropSizing, which also refuses to draw art larger than it is.
             float jitter = 1.0f + ((TerrainGeometry.Hash01(cell.X, cell.Y, Seed + 5227 + (slot * 79)) - 0.5f) * 2.0f * ScaleJitter);
-            Vector2 drawn = (Vector2)frame * fit * Sizing.SizeInCells(feature, jitter);
+            Vector2 drawn = Sizing.DrawnPixels((Vector2)frame, Mathf.Min(across.Length(), down.Length()), feature, jitter);
 
             // Scatter within the diamond, not a square: an offset that ignores
             // the projection puts trees over the edge of their own tile.

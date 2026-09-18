@@ -61,10 +61,15 @@ namespace Beep.ECS
         [Export(PropertyHint.Range, "1,8,1")] public int MountainsPerTile { get; set; } = 1;
         [Export(PropertyHint.Range, "0,1,0.01")] public float PositionJitter { get; set; } = 0.22f;
         [Export(PropertyHint.Range, "0,0.6,0.01")] public float ScaleJitter { get; set; } = 0.16f;
-        // No z index export; the shared stack owns this. Relief draws the
-        // hills and mountains standing on the ground, so it takes the prop slot
-        // of the highest level it draws - above the trees, which is what lets a
-        // peak occlude a tree standing in front of it.
+        // No z index export; the shared stack owns this. Relief draws on TWO layers, because the
+        // two things it draws belong on different ones:
+        //
+        //   a MOUNTAIN peak stands up, so it takes the mountain prop slot - above the trees, which
+        //   is what lets a peak occlude a tree standing in front of it;
+        //   a small HILL rock lies on the ground, so it takes the clutter slot, below every prop.
+        //
+        // One slot for both put a pebble on flat grass at a peak's z, drawing it over the canopy of
+        // every tree near it (owner, 2026-09-18). See TerrainLayers.ZForClutter.
 
         /// <summary>
         /// Whether this renderer builds itself once the scene is ready. Turn it
@@ -72,8 +77,33 @@ namespace Beep.ECS
         /// so the map is not built twice.
         /// </summary>
 
-        /// <summary>One drawn sprite: sheet region, where, and how big.</summary>
-        private readonly record struct Stamp(Texture2D Sheet, Rect2 Region, Rect2 Target, float SortY);
+        /// <summary>One drawn sprite: sheet region, where, how big, and which layer it belongs on.</summary>
+        private readonly record struct Stamp(Texture2D Sheet, Rect2 Region, Rect2 Target, float SortY, bool Clutter);
+
+        /// <summary>
+        /// The CLUTTER half of this renderer's batch, drawn from its own node.
+        ///
+        /// A node has exactly one z index, and the two things this renderer draws do not belong on
+        /// one: a mountain peak stands up and must cover a tree in front of it, while a small rock
+        /// lies on the ground and must not cover anything. Both were on the mountain prop slot, so
+        /// every pebble drew over every nearby canopy.
+        ///
+        /// It reads the SAME list its parent sorts, filtered, rather than owning a second one -
+        /// the streaming path merges chunks straight into that list, and a second copy would be a
+        /// second thing to keep in step with it.
+        /// </summary>
+        private partial class ClutterProps : Node2D
+        {
+            internal List<Stamp>? Source;
+
+            public override void _Draw()
+            {
+                if (Source is null) return;
+                foreach (Stamp stamp in Source)
+                    if (stamp.Clutter)
+                        DrawTextureRectRegion(stamp.Sheet, stamp.Target, stamp.Region);
+            }
+        }
 
         private TerrainGeneratorComponent? _generator;
         private GridCellDataComponent? _cells;
@@ -83,6 +113,7 @@ namespace Beep.ECS
         private string _loadedHillsPath = "";
         private string _loadedMountainsPath = "";
         private readonly List<Stamp> _stamps = new();
+        private ClutterProps? _clutterNode;
         public int StampCount => _stamps.Count;
 
         public override void _Ready()
@@ -123,9 +154,18 @@ namespace Beep.ECS
             ClearRebuildQueued();
             ZIndex = TerrainLayers.ZForProps(TerrainLayers.Mountains);
             ZAsRelative = false;
-            // The sheets are mipmapped; without asking for them a peak drawn a
-            // few pixels across aliases into noise at map zoom.
-            TextureFilter = MapArt?.PixelArt == true ? TextureFilterEnum.NearestWithMipmaps : TextureFilterEnum.LinearWithMipmaps;
+            // Hills and peaks are authored sprite frames, and TerrainPropSizing.DrawnPixels
+            // refuses to draw one larger than its art - so this view only ever MINIFIES, and
+            // the mip chain the sheets are loaded with is what stops a peak drawn a few
+            // pixels across aliasing into noise at map zoom.
+            //
+            // NEAREST above that chain, because the only magnification left is the player's
+            // own zoom, and these are painted rock silhouettes with hard edges: interpolating
+            // them there produces a smear, not detail. MapArt.PixelArt is deliberately not
+            // asked any more - that flag is the GROUND's art style, the splat shader's
+            // art_style, and reading it here answered "linear" for the cartoon profile, which
+            // is exactly how these stamps came to blur when the camera came in.
+            TextureFilter = TextureFilterEnum.NearestWithMipmaps;
 
             ResolveSources();
             _stamps.Clear();
@@ -134,7 +174,9 @@ namespace Beep.ECS
                 || (!GridPath.IsEmpty && _grid is null))
             {
                 GD.PushWarning($"[{Name}] configured terrain or grid source is missing; no relief was drawn.");
-                QueueRedraw();
+                // BOTH layers: _stamps was just cleared, so redrawing only this node would leave the
+                // clutter child showing the previous map's rocks over an empty one.
+                RedrawAll();
                 return;
             }
             if (_cells is null && _generator is not null)
@@ -150,7 +192,7 @@ namespace Beep.ECS
             if (StreamLargeMaps && !Engine.IsEditorHint() && IsInsideTree() && (long)size.X * size.Y > 65536)
             {
                 BeginStreaming(field, size, tile);
-                QueueRedraw();
+                RedrawAll();
                 return;
             }
             Func<Vector2, bool> waterAt = _cells is not null
@@ -166,15 +208,51 @@ namespace Beep.ECS
             }
 
             // Painter's order: a nearer peak overlaps one behind it, which is
-            // most of what makes a range read as having depth.
+            // most of what makes a range read as having depth. Clutter and peaks share this one
+            // sort - each node then draws its own half of it, so the depth order survives within
+            // each layer.
             _stamps.Sort((left, right) => left.SortY.CompareTo(right.SortY));
-            QueueRedraw();
+            RedrawAll();
         }
 
         public override void _Draw()
         {
+            // The peaks only; the clutter child draws the rest, one layer down.
             foreach (Stamp stamp in _stamps)
-                DrawTextureRectRegion(stamp.Sheet, stamp.Target, stamp.Region);
+                if (!stamp.Clutter)
+                    DrawTextureRectRegion(stamp.Sheet, stamp.Target, stamp.Region);
+        }
+
+        /// <summary>Redraws both halves of the batch. Every QueueRedraw here has to reach the child.</summary>
+        private void RedrawAll()
+        {
+            QueueRedraw();
+            EnsureClutter().QueueRedraw();
+        }
+
+        private ClutterProps EnsureClutter()
+        {
+            // Field, then NAME, then create - the shape EnsureWaterSurface and TerrainAuthoring use.
+            // The name lookup is not redundant: this component is [Tool], so an editor script reload
+            // rebuilds the managed object with a null field while the node it made is still in the
+            // tree. Creating blindly would add a second "Clutter", and the orphan would hold the
+            // OLD component's stamp list - a clutter layer nothing ever redraws again.
+            if (_clutterNode is null || !GodotObject.IsInstanceValid(_clutterNode))
+                _clutterNode = GetNodeOrNull<ClutterProps>("Clutter");
+            if (_clutterNode is null || !GodotObject.IsInstanceValid(_clutterNode))
+            {
+                _clutterNode = new ClutterProps { Name = "Clutter" };
+                AddChild(_clutterNode);
+            }
+            _clutterNode.Source = _stamps;
+            // Above every terrain level, below every standing prop - so a rock lying on the ground
+            // covers the ground and a tree covers the rock.
+            _clutterNode.ZIndex = TerrainLayers.ZForClutter();
+            _clutterNode.ZAsRelative = false;
+            // Re-read every time: the parent settles its filter during Rebuild, and a value copied
+            // once at creation would leave the rocks on whatever it happened to be first.
+            _clutterNode.TextureFilter = TextureFilter;
+            return _clutterNode;
         }
 
         private void BuildCell(ITerrainSurfaceData field, float tile, int x, int y, Func<Vector2, bool> dry, List<Stamp> stamps)
@@ -244,14 +322,14 @@ namespace Beep.ECS
             frame = (Vector2I)region.Size;
             if (frame.X <= 0 || frame.Y <= 0) return;
 
-            float fit = tile / Mathf.Max(1, Mathf.Max(frame.X, frame.Y));
             float jitter = 1.0f + ((TerrainGeometry.Hash01(x, y, Seed + 4231 + (slot * 79)) - 0.5f) * 2.0f * ScaleJitter);
-            float limited = Sizing.SizeInCells(mountain ? "large_rock" : "small_rock", jitter);
-            Vector2 drawn = (Vector2)frame * fit * limited;
+            Vector2 drawn = Sizing.DrawnPixels((Vector2)frame, tile, mountain ? "large_rock" : "small_rock", jitter);
 
             centre += across * offset.X + down * offset.Y;
 
-            stamps.Add(new Stamp(sheet, region, new Rect2(centre - (drawn * 0.5f), drawn), centre.Y));
+            // A hill's rock is clutter lying on the ground; a mountain's peak stands up. That is the
+            // whole of which layer this stamp draws on.
+            stamps.Add(new Stamp(sheet, region, new Rect2(centre - (drawn * 0.5f), drawn), centre.Y, !mountain));
         }
 
         private void LoadSheets()

@@ -707,8 +707,12 @@ namespace Beep.ECS
 
             // Authored isometric tiles are detailed art minified hard at map
             // zoom; without a mip-aware filter they alias into a shimmering grid.
-            _layer.TextureFilter = LibraryPack is null ? TextureFilterEnum.LinearWithMipmaps
-                : LibraryPack.PixelArt ? TextureFilterEnum.Nearest : TextureFilterEnum.Linear;
+            //
+            // This is the answer for the view's OWN art. A pack brings its own, and
+            // TerrainLibraryPainter.Build writes it on this same layer when it publishes - so this
+            // stated a rival copy of the pack's answer that the painter then overwrote, which is
+            // how the two could have disagreed without anything failing.
+            _layer.TextureFilter = TextureFilterEnum.LinearWithMipmaps;
             return _layer;
         }
 

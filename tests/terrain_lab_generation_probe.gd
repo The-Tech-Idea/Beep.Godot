@@ -23,7 +23,13 @@ func run() -> void:
 	var scene: Node = load("res://addons/beep_game_builder_cs/templates/scenes/terrain/terrain_generator_lab.tscn").instantiate()
 	var world: Node = scene.get_node("World")
 	world.MapSize = 0
-	world.MapArt = scene.CartoonProfile
+	# Generating WITH an art style set, because a null MapArt takes a different path through the
+	# painted renderer. Which style does not matter here - this probe is the generation lifecycle,
+	# not the look - so it takes the lab's first rather than naming one. This used to read
+	# `scene.CartoonProfile`, from when the lab held a property per style instead of one list.
+	var styles = scene.get("StyleProfiles")
+	assert(styles != null and not styles.is_empty(), "the lab scene lists no art styles")
+	world.MapArt = styles[0]
 	root.add_child(scene)
 	var controls: Node = scene.get_node("HUD/Settings/Scroll/Controls")
 	await process_frame

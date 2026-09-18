@@ -3,9 +3,16 @@
 ## Repeating Ground Detail
 
 `GroundTexturePaths` maps exact biome names to optional repeating textures.
-`GroundRepeatCells` defaults to 6 and `GroundDetailStrength` to 0.3.
+`GroundRepeatCells` defaults to 6 and `GroundDetailStrength` to **0 — off**.
 The material adds restrained luminance variation in layer-local coordinates;
 it preserves the authored transition atlas's alpha and terrain boundaries.
+
+It is off because of what it multiplied by. The shader took the sampled texture's **absolute**
+luminance, so everything painted into that ground art came through the tiles as a bright or dark
+shape at its authored size: the cartoon sand's 12-to-18-texel shells read as objects lying on the
+beach. It is now a high pass against a blurred sample of the same texture — surface, not picture,
+matching `terrain_splat.gdshader` — but this art still has objects in it, so the default is zero.
+Raise it for ground art that is only surface. See `plans/terrain-grid/FIX-17-*.md`.
 Removing a binding clears its material on the next rebuild. The lab configures
 grass, dry grass, sand, desert, jungle, tundra and snow with existing terrain
 textures. This does not change the painted renderer or promise new transition art.

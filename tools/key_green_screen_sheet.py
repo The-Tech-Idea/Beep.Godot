@@ -5,22 +5,29 @@ Usage:
 
 The source is an RGB sheet whose background is the key colour (0, 255, 0), with the anti-aliased
 edge of every sprite blended into it. A hard key - "this exact green is transparent" - leaves that
-edge behind as a green halo, and dropping every greenish pixel eats teal foliage. So this keys the
-way a compositor does against a known backing colour:
+edge behind as a green halo, so this keys the way a compositor does against a known backing colour.
 
-- ALPHA from green dominance, d = g - max(r, b). The backing is d >= BACKING_DOMINANCE - the pure
-  key and the compression noise around it. Art is d <= ART_DOMINANCE: a sprite's own colours - teal
-  leaves, grey rock, yellow birch - never have green that far above both other channels. Between
-  the two, alpha falls linearly, which is the blend the anti-aliasing made. Keying the noise as
-  faint alpha instead would make every frame's visible bounds the whole cell.
-- COLOUR un-mixed from the backing: an edge pixel p = a*C + (1 - a)*key, so the sprite's own colour
-  is C = (p - (1 - a)*key) / a. That removes the green spill rather than tinting it away.
+WHAT SEPARATES ART FROM BACKING. Not green dominance. This tool used to call a pixel backing when
+g - max(r, b) rose above a threshold, which worked only while the foliage on these sheets was teal.
+Measured on the sheets drawn 2026-09-18, whose trees and bushes are properly GREEN, that rule read
+almost every leaf as half-transparent backing and un-mixed its colour away: of the 3380 pixels of
+art in bushes_cartoon_32x32_v2.png it left 127 opaque and dissolved 3154 into edge. The art's own
+greens reach (0, 187, 4) - saturated, but nowhere near the key - while the backing and its
+compression noise sit at g >= 251. That gap is what the key is built on now:
+
+- BACKING is near the key itself: r and b at or below CHANNEL_LIMIT with g at or above KEY_FLOOR.
+  Those pixels go fully transparent wherever they are, including the holes enclosed by a canopy,
+  which a flood fill from the border cannot reach (102 to 267 such pixels per tree sheet).
+- EDGE is the one ring of pixels touching the backing, where the anti-aliasing mixed sprite and key.
+  Alpha comes from how far that pixel's green dominance carries toward the key, and the colour is
+  un-mixed from the backing: p = a*C + (1 - a)*key, so C = (p - (1 - a)*key) / a. That removes the
+  green spill rather than tinting it away. Art further in is never touched, however green it is.
 - BLEED: fully transparent pixels take the colour of the nearest sprite pixel. Filtering and mipmaps
   average transparent texels into the edge, so a black or green backing there would draw a dark or
   green fringe at map zoom.
 
 The tool refuses a source that has an alpha channel already, or one whose most common colour is not
-the key: it is for green-screen sheets only, and saying so beats keying the wrong art.
+near the key: it is for green-screen sheets only, and saying so beats keying the wrong art.
 """
 import sys
 from collections import Counter
@@ -28,22 +35,33 @@ from collections import Counter
 from PIL import Image
 
 KEY = (0, 255, 0)
-# Green dominance at or below which a pixel is fully the sprite's own colour, and at or above which
-# it is the backing. Measured on the cartoon prop sheets: every sprite colour sits at or below 16,
-# the key and its noise at 240 and above, and only anti-aliased edges fall between.
-ART_DOMINANCE = 16
-BACKING_DOMINANCE = 240
+# A pixel is the backing when it is this close to the key. The window sits in the measured gap
+# between the art's greenest colour (0, 187, 4) and the backing's own noise, which never falls below
+# (3, 251, 3) on any shipped sheet - so it takes the whole backing and none of the art.
+KEY_FLOOR = 220
+CHANNEL_LIMIT = 60
+# Below this green dominance an edge pixel carries no key at all and keeps full alpha; at the
+# backing's own dominance it is gone. Between them alpha falls linearly, which is the blend the
+# anti-aliasing made.
+EDGE_FLOOR = 24
 # Transparent pixels further than this from any sprite pixel keep black; nothing samples them.
 BLEED_PASSES = 4
 
 
-def key_pixel(r: int, g: int, b: int) -> tuple[int, int, int, int]:
+def is_backing(pixel: tuple[int, int, int]) -> bool:
+    red, green, blue = pixel
+    return green >= KEY_FLOOR and red <= CHANNEL_LIMIT and blue <= CHANNEL_LIMIT
+
+
+def key_edge(r: int, g: int, b: int) -> tuple[int, int, int, int]:
+    """One pixel of the ring that touches the backing, un-mixed from the key."""
     dominance = g - max(r, b)
-    if dominance <= ART_DOMINANCE:
+    if dominance <= EDGE_FLOOR:
         return r, g, b, 255
-    if dominance >= BACKING_DOMINANCE:
+    ceiling = KEY[1] - 0
+    alpha = max(0.0, min(1.0, (ceiling - dominance) / (ceiling - EDGE_FLOOR)))
+    if alpha <= 0.0:
         return 0, 0, 0, 0
-    alpha = (BACKING_DOMINANCE - dominance) / (BACKING_DOMINANCE - ART_DOMINANCE)
     unmixed = (
         (r - (1.0 - alpha) * KEY[0]) / alpha,
         (g - (1.0 - alpha) * KEY[1]) / alpha,
@@ -84,11 +102,32 @@ def main(source_path: str, output_path: str) -> None:
         raise SystemExit(f"{source_path} is {source.mode}; a sheet that already has alpha needs no key")
     rgb = source.convert("RGB")
     width, height = rgb.size
-    background = Counter(rgb.get_flattened_data()).most_common(1)[0][0]
-    if background != KEY:
+    background = Counter(rgb.getdata()).most_common(1)[0][0]
+    if not is_backing(background):
         raise SystemExit(f"{source_path}: the most common colour is {background}, not the green key {KEY}")
 
-    pixels = [[key_pixel(*rgb.getpixel((x, y))) for x in range(width)] for y in range(height)]
+    source_pixels = rgb.load()
+    backing = [[is_backing(source_pixels[x, y]) for x in range(width)] for y in range(height)]
+
+    def touches_backing(x: int, y: int) -> bool:
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                nx, ny = x + dx, y + dy
+                if (dx or dy) and 0 <= nx < width and 0 <= ny < height and backing[ny][nx]:
+                    return True
+        return False
+
+    pixels: list[list[tuple[int, int, int, int]]] = []
+    for y in range(height):
+        row = []
+        for x in range(width):
+            if backing[y][x]:
+                row.append((0, 0, 0, 0))
+                continue
+            r, g, b = source_pixels[x, y]
+            row.append(key_edge(r, g, b) if touches_backing(x, y) else (r, g, b, 255))
+        pixels.append(row)
+
     bleed(pixels, width, height)
     keyed = Image.new("RGBA", (width, height))
     keyed.putdata([pixel for row in pixels for pixel in row])

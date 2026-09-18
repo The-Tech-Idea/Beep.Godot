@@ -70,8 +70,18 @@ namespace Beep.ECS
         /// because this node is itself a CanvasItem: an export called
         /// TextureFilter shadowed the inherited property and put two rows of
         /// the same name in the Inspector.
+        ///
+        /// LINEAR WITH MIPMAPS, as every other art-bearing terrain renderer here is - see
+        /// docs/terrain-engine/TEXTURE_FILTERS.md. Plain Linear was wrong twice over. It cannot
+        /// sample a mip level at all, and <see cref="LoadTexture"/> goes through
+        /// <see cref="TerrainTextures.Load"/>, which builds the whole chain: it was being generated
+        /// for every part and then thrown away. And these parts are big painted plates - the shipped
+        /// manifests declare them at up to 550x379 - drawn one-to-one, so they are MINIFIED from the
+        /// moment a map camera pulls back, which is the case a mipless filter aliases in.
+        /// Linear rather than nearest because they are soft-edged painted art, not the hard-edged
+        /// sprite stamps that TerrainPropSizing caps at their own resolution.
         /// </summary>
-        [Export] public CanvasItem.TextureFilterEnum PartTextureFilter { get; set; } = CanvasItem.TextureFilterEnum.Linear;
+        [Export] public CanvasItem.TextureFilterEnum PartTextureFilter { get; set; } = CanvasItem.TextureFilterEnum.LinearWithMipmaps;
 
         private string _lastManifestPath = "";
         private int _lastPartCount;

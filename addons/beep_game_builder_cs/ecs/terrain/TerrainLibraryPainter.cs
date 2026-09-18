@@ -103,7 +103,15 @@ internal static class TerrainLibraryPainter
             foreach (Vector2I cell in pending.GetUsedCells()) if (!bounds.HasPoint(cell)) pending.EraseCell(cell);
             target.TileSet = pack.Tiles;
             target.TileMapData = pending.TileMapData;
-            target.TextureFilter = pack.PixelArt ? CanvasItem.TextureFilterEnum.Nearest : CanvasItem.TextureFilterEnum.Linear;
+            // The one place a pack's art says how it is sampled, for every view that draws one.
+            // Both answers sit ABOVE the mip chain: a pack's tiles are drawn one to one and
+            // minified as the camera pulls back, and the mipless pair this used to write are the
+            // two filters that cannot sample a mip level at all, so a pack shimmered at map zoom
+            // where the engine's own atlases did not. PixelArt still decides what happens when the
+            // camera magnifies: its texels kept, or the four nearest blended.
+            target.TextureFilter = pack.PixelArt
+                ? CanvasItem.TextureFilterEnum.NearestWithMipmaps
+                : CanvasItem.TextureFilterEnum.LinearWithMipmaps;
         }
         finally { pending.Free(); }
     }

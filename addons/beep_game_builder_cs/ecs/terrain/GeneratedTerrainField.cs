@@ -173,6 +173,17 @@ namespace Beep.ECS
                 _sampleWater[(cell.Y * _samplesPerCell + y) * _fieldWidth
                     + cell.X * _samplesPerCell + x] != WaterBody.None);
 
+        /// <summary>
+        /// The water a BANK is drawn around. Lakes only - and that is a measured decision, not an
+        /// oversight, though it was tried the other way on 2026-09-18.
+        ///
+        /// Rivers were added here so they would stop meeting grass with nothing between them, and
+        /// the result was a sand desert several tiles across holding two small ponds. The reason is
+        /// resolution: a river at SAMPLE resolution is a dense network of threads, most of them too
+        /// thin to survive into the drawn waterline, and a 0.65-tile band grown from every thread
+        /// merges into one blob. A river's shore has to be drawn from the river as DRAWN, at a
+        /// riverbank's own width, not grown from every wet sample at a lake's width.
+        /// </summary>
         internal GridTerrainWaterPatch LakePatchAtCell(Vector2I cell)
             => GridTerrainWaterPatch.Create(_samplesPerCell, (x, y) =>
                 _sampleWater[(cell.Y * _samplesPerCell + y) * _fieldWidth

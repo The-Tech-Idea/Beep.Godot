@@ -184,8 +184,15 @@ namespace Beep.ECS
             ClearRebuildQueued();
             ResolveCells();
             ResolveGrid();
-            // The mipmaps built above are only used if the node asks for them.
-            TextureFilter = MapArt?.PixelArt == true ? TextureFilterEnum.NearestWithMipmaps : TextureFilterEnum.LinearWithMipmaps;
+            // Trees and bushes are authored sprite frames, and TerrainPropSizing.DrawnPixels
+            // refuses to draw one larger than its art - so this view only ever MINIFIES, and
+            // the mip chain the sheets are loaded with is what keeps a tree drawn a few pixels
+            // across from aliasing at map zoom.
+            //
+            // NEAREST above that chain: the only magnification left is the player's own zoom,
+            // and a linear filter there interpolates between the artist's pixels, turning a
+            // hard cartoon edge into a smear. Nearest keeps the drawn pixels the drawn pixels.
+            TextureFilter = TextureFilterEnum.NearestWithMipmaps;
 
             // Above all terrain, below the markers. Everything is drawn from
             // this one node in painter's order, so the whole batch shares the
@@ -243,11 +250,31 @@ namespace Beep.ECS
                 }
             }
 
-            // Painter's order: further up the map is drawn first, so a nearer
-            // tree overlaps one behind it.
-            _stamps.Sort((left, right) => left.SortY.CompareTo(right.SortY));
+            _stamps.Sort(ByLayerThenDepth);
             QueueRedraw();
         }
+
+        /// <summary>
+        /// The order this batch is drawn in: UNDERSTORY FIRST, then depth.
+        ///
+        /// Painter's order by itself - further up the map drawn first - is what makes a nearer tree
+        /// overlap one behind it, and that is still the second key. But it is the wrong ONLY key
+        /// across kinds: a bush is ground cover a few tenths of a tile high, and sorting it against
+        /// a tree by centre alone put any bush slightly down-screen of a trunk over the whole
+        /// canopy. The owner asked for the low things to sit under the tall ones (2026-09-18).
+        ///
+        /// A layer key rather than a z index because both kinds are drawn from this ONE node, in
+        /// list order; small rocks are a different node and take TerrainLayers.ZForClutter instead.
+        /// One comparator, used by the full rebuild and by the streaming merge alike - two copies
+        /// would let a streamed map and a built one stack their props differently.
+        /// </summary>
+        private static int ByLayerThenDepth(Stamp left, Stamp right)
+        {
+            int layer = Understory(left).CompareTo(Understory(right));
+            return layer != 0 ? layer : left.SortY.CompareTo(right.SortY);
+        }
+
+        private static int Understory(Stamp stamp) => stamp.Kind == "bush" ? 0 : 1;
 
         public override void _Draw()
         {
@@ -347,12 +374,10 @@ namespace Beep.ECS
                 tile = Mathf.Min(across.Length(), down.Length());
             }
 
-            // Scale so the sprite covers roughly one tile regardless of how
-            // large the source art is.
-            float fit = tile / Mathf.Max(1, Mathf.Max(frame.X, frame.Y));
+            // The size the prop covers in cells, capped at the art's own resolution: TerrainPropSizing
+            // owns both halves of that rule, so every view draws a sheet at the same size.
             float jitterScale = 1.0f + ((TerrainGeometry.Hash01(cell.X, cell.Y, Seed + 907 + (slot * 89)) - 0.5f) * 2.0f * ScaleJitter);
-            float scale = Sizing.SizeInCells(feature, jitterScale);
-            Vector2 drawn = (Vector2)frame * fit * scale;
+            Vector2 drawn = Sizing.DrawnPixels((Vector2)frame, tile, feature, jitterScale);
 
             centre += across * jitter.X + down * jitter.Y;
 

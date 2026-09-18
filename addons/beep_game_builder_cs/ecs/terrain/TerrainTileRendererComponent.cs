@@ -86,7 +86,14 @@ namespace Beep.ECS
         /// The transition atlas continues to own coverage and borders.</summary>
         [Export] public Godot.Collections.Dictionary<string, string> GroundTexturePaths { get; set; } = new();
         [Export(PropertyHint.Range, "1,32,0.5")] public float GroundRepeatCells { get; set; } = 6f;
-        [Export(PropertyHint.Range, "0,1,0.01")] public float GroundDetailStrength { get; set; } = 0.3f;
+        /// <summary>
+        /// Surface detail laid over the tiles from a repeating ground texture. OFF by default: it
+        /// multiplies by what the texture holds, so anything painted into that art - the shells and
+        /// starfish in the cartoon sand - appears through the tiles as an object-sized mark. Every
+        /// view that overlays a ground texture had this fault; only the isometric block view, which
+        /// draws authored block art and overlays nothing, escaped it (owner, 2026-09-18).
+        /// </summary>
+        [Export(PropertyHint.Range, "0,1,0.01")] public float GroundDetailStrength { get; set; }
         /// <summary>
         /// The sea, drawn by the SAME shader the isometric view uses.
         ///
@@ -300,6 +307,8 @@ namespace Beep.ECS
             display.ZIndex = TerrainLayers.ZFor(TerrainLayers.Ground);
             display.ZAsRelative = false;
             display.Visible = true;
+            // No texture filter here: TerrainLibraryPainter.Build states the pack's own answer on
+            // the layer it publishes, for this view and the isometric one alike.
             _publishedPack = LibraryPack;
             _publishedPackKey = LibraryPack.RenderKey();
             _publishedPackBounds = new Rect2I(BoundsOrigin, BoundsSize);

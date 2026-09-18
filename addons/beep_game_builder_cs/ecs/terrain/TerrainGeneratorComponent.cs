@@ -82,11 +82,20 @@ namespace Beep.ECS
         [Export(PropertyHint.Range, "0,0.35,0.01")] public float LakeCoverage { get; set; } = 0.05f;
         [Export(PropertyHint.Range, "0.02,1,0.01")] public float LakeFrequencyMultiplier { get; set; } = 0.10f;
         /// <summary>
-        /// Width of the sandy rim around a LAKE, in tiles. Zero by default: it
-        /// had no implementation at all until now, and turning it on for every
-        /// existing scene would change maps that were tuned without it.
+        /// Width of the sandy rim around a LAKE, in tiles.
+        ///
+        /// It shipped at zero, from when the rim had no implementation and turning it on would have
+        /// changed maps tuned without it. The implementation has existed and been guarded since
+        /// (terrain_lake_bank_probe drives 0, 0.25, 1 and 2), but the default stayed - so every
+        /// generated map had lakes with no shore at all. Measured on the painted demo, seed 31415:
+        /// seven lakes of 6 to 14 cells, and not one cell carrying a bank width. What that draws is
+        /// water stopping dead against grass, inside the shading of the basin it sits in - which the
+        /// owner reported on 2026-09-18 as a lake that "looks bad", a dark stain with a puddle in it.
+        ///
+        /// A lake reads as a lake because it has a shore. Two thirds of a tile is enough to draw one
+        /// at a 64-pixel cell and stays well inside the widths the probe covers.
         /// </summary>
-        [Export(PropertyHint.Range, "0,3,0.05")] public float LakeShoreWidth { get; set; }
+        [Export(PropertyHint.Range, "0,3,0.05")] public float LakeShoreWidth { get; set; } = 0.65f;
 
         [ExportGroup("River Features")]
         [Export(PropertyHint.Range, "0,4,0.05")] public float RiverDensity { get; set; } = 1.0f;

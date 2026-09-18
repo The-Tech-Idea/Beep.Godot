@@ -93,7 +93,7 @@ namespace Beep.ECS
 		/// A `MapArt` profile carries its own pair and overwrites both, because the grain's repeat
 		/// depends on the resolution of the art it samples.
 		/// </summary>
-		[Export(PropertyHint.Range, "0,1,0.01")] public float GroundDetailStrength { get; set; } = 0.5f;
+		[Export(PropertyHint.Range, "0,1,0.01")] public float GroundDetailStrength { get; set; }
 		[Export(PropertyHint.Range, "0,2,0.05")] public float ShadeStrength { get; set; } = 0.35f;
 		/// <summary>How many tiles of coast distance the shader can see.</summary>
 		[Export(PropertyHint.Range, "5,16,0.5")] public float CoastRangeTiles { get; set; } = TerrainCoastField.DefaultRangeTiles;
@@ -572,6 +572,10 @@ namespace Beep.ECS
 			// goes at the floor of the shared stack.
 			_surface.ZIndex = TerrainLayers.ZForFloor();
 			_surface.ZAsRelative = false;
+			// Every sampler in terrain_splat.gdshader states its own filter - ids nearest so
+			// they never interpolate, shade linear, the materials linear over their own mip
+			// chains - so this setting covers only the blank tile the surface is built from.
+			// How sharp the GROUND is belongs to the shader and to MapArt's grain, not here.
 			_surface.TextureFilter = TextureFilterEnum.Linear;
 
 			if (_material is null || _surface.Material != _material)

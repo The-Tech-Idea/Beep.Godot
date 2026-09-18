@@ -20,6 +20,7 @@ namespace Beep.ECS
     ///     hills             one step up
     ///     mountains         the flanks of a range
     ///     summits           its crest
+    ///     clutter           the small things LYING on the ground
     ///     props             by the level they stand on
     ///     markers           icons that are not part of the world
     ///
@@ -69,6 +70,22 @@ namespace Beep.ECS
         /// just under the surface and each one further out draws behind the last.
         /// </summary>
         public static int ZForSeabed(int step) => ZFor(Sea) - 2 - step;
+
+        /// <summary>
+        /// Ground clutter: the small things LYING on the ground rather than standing on it - a
+        /// pebble, a tuft of grass - which every standing prop draws over.
+        ///
+        /// One slot, not one per level, because clutter has no height to order by: it is on the
+        /// ground wherever it is. It sits directly above the topmost terrain level and directly
+        /// below the first prop slot, so a pebble covers the ground it lies on and a tree covers
+        /// the pebble.
+        ///
+        /// Without it there was nowhere to put a small rock except a prop slot, and the relief
+        /// renderer took the MOUNTAINS one for everything it drew - so a pebble on flat grass
+        /// carried a mountain peak's z and drew over the canopy of every tree near it. Reported
+        /// 2026-09-18: "rocks and small grass should be a below layer than tree".
+        /// </summary>
+        public static int ZForClutter() => ZFor(Count - 1) + 1;
 
         /// <summary>
         /// Z index for the props standing on a level. ALL terrain draws first,

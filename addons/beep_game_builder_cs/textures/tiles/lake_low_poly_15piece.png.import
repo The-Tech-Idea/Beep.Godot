@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://5b6wa72504yp"
-path="res://.godot/imported/pixel_tree.png-a32e1de5c50758fd06f39424c5b5b9fa.ctex"
+uid="uid://df7srch858in8"
+path="res://.godot/imported/lake_low_poly_15piece.png-8fc756ef8b9a507f4b47ec80bd156ad7.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://addons/beep_game_builder_cs/textures/map_art/pixel_tree.png"
-dest_files=["res://.godot/imported/pixel_tree.png-a32e1de5c50758fd06f39424c5b5b9fa.ctex"]
+source_file="res://addons/beep_game_builder_cs/textures/tiles/lake_low_poly_15piece.png"
+dest_files=["res://.godot/imported/lake_low_poly_15piece.png-8fc756ef8b9a507f4b47ec80bd156ad7.ctex"]
 
 [params]
 
@@ -23,7 +23,7 @@ compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0
-mipmaps/generate=false
+mipmaps/generate=true
 mipmaps/limit=-1
 roughness/mode=0
 roughness/src_normal=""

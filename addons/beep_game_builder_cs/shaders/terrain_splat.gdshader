@@ -127,6 +127,24 @@ uniform vec3 tint_lava = vec3(1.0);
 uniform float saturation : hint_range(0.0, 2.0) = 1.0;
 uniform float contrast : hint_range(0.5, 2.0) = 1.0;
 
+// GROUND DETAIL: the material's own texture again, at a much finer repeat, as a
+// brightness modulation only.
+//
+// A ground texture is authored at a pattern scale that has to read right beside
+// the buildings and vehicles standing on it, and at that scale its source is
+// minified - the meadow's 1254 px over six tiles is 3.3 texels a pixel, the
+// cartoon atlas's 310 px over 1.6 tiles is 3.0 - so mipmapping averages the grain
+// away and the ground reads as a flat wash. Spreading the pattern out instead
+// buys sharpness by making the pattern itself bigger, which is the thing that
+// looked wrong against the vehicles.
+//
+// This is the standard answer: keep the base pattern where the artist put it and
+// add a second, high-frequency sample near one texel a pixel. It carries no
+// colour of its own - only luminance, measured against the material's own average
+// - so a material's colour stays the artist's while its surface stops being flat.
+uniform float ground_detail_tiles : hint_range(0.0, 40.0) = 0.0;
+uniform float ground_detail_strength : hint_range(0.0, 1.0) = 0.0;
+
 // Zero preserves the original painted presentation, including its materials.
 uniform int art_style = 0;
 uniform int art_pixels_per_cell = 64;
@@ -153,8 +171,8 @@ float material_repeat_tiles(int id) {
 	return repeat_tiles > 0.0 ? max(0.25, repeat_tiles) : max(1.0, ground_texture_tiles);
 }
 
-vec3 source_material(int id, vec2 world_uv, vec2 uv_dx, vec2 uv_dy) {
-	float scale = ground_texture_tiles / material_repeat_tiles(id);
+vec3 source_material_at(int id, vec2 world_uv, vec2 uv_dx, vec2 uv_dy, float repeat_tiles) {
+	float scale = ground_texture_tiles / repeat_tiles;
 	world_uv *= scale;
 	uv_dx *= scale;
 	uv_dy *= scale;
@@ -180,6 +198,26 @@ vec3 source_material(int id, vec2 world_uv, vec2 uv_dx, vec2 uv_dy) {
 	if (id == 13) { return sample_ground(tex_lava, world_uv, uv_dx, uv_dy) * tint_lava; }
 	if (id == 11) { return textureGrad(tex_shallow, world_uv, uv_dx, uv_dy).rgb * tint_shallow; }
 	return textureGrad(tex_deep, world_uv, uv_dx, uv_dy).rgb * tint_deep;
+}
+
+vec3 source_material(int id, vec2 world_uv, vec2 uv_dx, vec2 uv_dy) {
+	return source_material_at(id, world_uv, uv_dx, uv_dy, material_repeat_tiles(id));
+}
+
+// The ground's own grain, sampled near one texel a pixel and returned as a
+// multiplier around one.
+//
+// It is measured against the MATERIAL'S OWN AVERAGE, not against mid-grey: the
+// second sample takes gradients wide enough to land on the texture's smallest
+// mip, which is that average. Centring on mid-grey instead darkens every
+// material brighter than it and lightens every darker one - sand lost a fifth of
+// its brightness, which terrain_painted_blend_probe caught as lost coverage.
+float ground_grain(int id, vec2 world_uv, vec2 uv_dx, vec2 uv_dy) {
+	if (ground_detail_strength <= 0.0 || ground_detail_tiles <= 0.0) { return 1.0; }
+	vec3 grain = source_material_at(id, world_uv, uv_dx, uv_dy, ground_detail_tiles);
+	vec3 average = source_material_at(id, world_uv, vec2(8.0), vec2(8.0), ground_detail_tiles);
+	float difference = dot(grain - average, vec3(0.299, 0.587, 0.114));
+	return 1.0 + difference * 2.0 * ground_detail_strength;
 }
 
 vec3 material(int id, vec2 world_uv, vec2 uv_dx, vec2 uv_dy) {
@@ -344,6 +382,10 @@ void fragment() {
     float lake_bank = lake_width > 0.0 ? 1.0 - smoothstep(lake_width - lake_aa, lake_width + lake_aa, lake_inland) : 0.0;
     beach = max(beach, lake_bank);
     land_col = mix(land_col, material(3, world_uv, uv_dx, uv_dy), beach);
+
+	// The ground's grain, once per pixel, from the material the pixel actually shows:
+	// sand where the beach covers it, otherwise the nearest land material the blend chose.
+	land_col *= ground_grain(beach > 0.5 ? 3 : nearest_land, world_uv, uv_dx, uv_dy);
 
 	// How far the wash has run up the sand right now. Cosine, so it surges and
 	// drains rather than scrolling in one direction.

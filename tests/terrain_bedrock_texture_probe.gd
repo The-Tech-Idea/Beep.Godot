@@ -55,6 +55,10 @@ func check_repeat_pixels() -> void:
 	view.set("BoundsSize", Vector2i(8, 8))
 	view.set("RockTexturePath", ART + "bedrock_ground.png")
 	view.set("ShadeStrength", 0.0)
+	# What is measured here is the seam correction at a texture repeat, so everything else that varies
+	# a pixel is off: the hillshade above, and the ground grain, whose own high-frequency variation
+	# (FIX-17) sits at a different repeat and would be counted as leftover seam.
+	view.set("GroundDetailStrength", 0.0)
 	var look: Resource = load(BASE + "terrain/TerrainWaterLook.cs").new()
 	look.set("WaveIntensity", 0.0)
 	look.set("FoamStrength", 0.0)

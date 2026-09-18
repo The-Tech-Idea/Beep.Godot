@@ -13,6 +13,18 @@ public partial class TerrainMapArt : Resource
     [Export(PropertyHint.Range, "32,128,1")] public int PixelsPerCell { get; set; } = 64;
     [Export(PropertyHint.Range, "1,32,0.5")] public float TextureRepeatCells { get; set; } = 6f;
     [Export(PropertyHint.Range, "0,1,0.01")] public float GroundDetail { get; set; } = 0.12f;
+
+    /// <summary>
+    /// Repeat, in tiles, of this art's ground GRAIN: its own ground texture sampled a second time
+    /// near one texel a pixel, so the ground keeps a surface at the pattern scale the art was drawn
+    /// for. A profile states it because it depends on the art's own resolution - the cartoon atlas
+    /// holds 310-pixel regions, which is 4.8 tiles at a 64-pixel tile.
+    /// </summary>
+    [Export(PropertyHint.Range, "0,40,0.1")] public float GroundGrainTiles { get; set; } = 4.8f;
+
+    /// <summary>How much of that grain reaches the ground. Zero is off, which is what pixel art wants.</summary>
+    [Export(PropertyHint.Range, "0,1,0.01")] public float GroundGrainStrength { get; set; } = 0.35f;
+
     [Export(PropertyHint.Range, "0,0.9,0.01")] public float BlendWidth { get; set; } = 0.22f;
     [Export] public Color GrassColor { get; set; } = new(0.36f, 0.64f, 0.22f);
     [Export] public Color DryGrassColor { get; set; } = new(0.55f, 0.67f, 0.27f);
@@ -53,6 +65,10 @@ public partial class TerrainMapArt : Resource
             if (GodotObject.IsInstanceValid(GroundTextures[i]))
                 material.SetShaderParameter("tex_" + slots[i], GroundTexture(GroundTextures[i]));
         material.SetShaderParameter("art_repeat_cells", Mathf.Clamp(TextureRepeatCells, 1f, 32f));
+        // The grain is the art's own, so the profile owns it too - the renderer's values are the
+        // painted view's own materials, which are ten times the size of an atlas region.
+        material.SetShaderParameter("ground_detail_tiles", Mathf.Clamp(GroundGrainTiles, 0f, 40f));
+        material.SetShaderParameter("ground_detail_strength", Mathf.Clamp(GroundGrainStrength, 0f, 1f));
     }
 
     // Shader samplers need isolated repeating images, not an atlas's backing texture.

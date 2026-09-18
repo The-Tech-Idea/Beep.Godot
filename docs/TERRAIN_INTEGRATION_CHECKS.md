@@ -281,6 +281,13 @@ transitions or elevated props. Captures: `tests/output/lab_styles/`.
 - Actual rendered water alpha, lab screenshots and playground screenshots.
 - Painted material coverage at zero/narrow/wide blend widths and extreme noise
   displacement, measured sharpness response, and unchanged terrain-ID/coast data.
+- The ground's grain (FIX-17, `terrain_painted_blend_probe`'s `verify_ground_grain`): one material over
+  the whole fixture, a 512-pixel one-pixel checker squeezed into a single tile so the base sample mips
+  flat, and the grain sampling that same texture over eight tiles at one texel a pixel. The interior's
+  variation must rise more than threefold (0.0000 flat against 0.1255) while its mean stays put (0.4980
+  either way). **Mutation:** the grain multiplied by zero — 0.0000 against 0.0000. The probe's older
+  coverage checks guard the other half: a grain centred on mid-grey instead of on the material's own
+  average darkened solid sand and failed as 61,504 uncovered pixels.
 - Texture-driven material transitions: bright/dark detail moves the edge in
   opposite directions, with unchanged interiors and ID/shade/coast data at
   0.5x, 1x and 2x zoom. This is not proof of overall artwork quality.

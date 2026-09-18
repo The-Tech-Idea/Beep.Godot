@@ -75,6 +75,7 @@ DisplayName = "Pixel Art"
 PixelArt = true
 TextureRepeatCells = 4.8
 GroundDetail = 0.24
+GroundGrainStrength = 0.0
 BlendWidth = 0.08
 GrassColor = Color(0.43, 0.53, 0.29, 1)
 DryGrassColor = Color(0.56, 0.59, 0.33, 1)

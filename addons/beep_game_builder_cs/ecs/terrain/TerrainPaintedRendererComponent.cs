@@ -76,6 +76,24 @@ namespace Beep.ECS
 		[Export(PropertyHint.Range, "0,1,0.05")] public float MaterialEdgeDetail { get; set; } = 0.75f;
 		[Export(PropertyHint.Range, "0,1,0.01")] public float EdgeNoise { get; set; } = 0.55f;
 		[Export(PropertyHint.Range, "0.5,24,0.5")] public float NoiseScale { get; set; } = 5.0f;
+
+		/// <summary>
+		/// Repeat, in tiles, of the ground's grain - the second, high-frequency sample of a
+		/// material's own texture that keeps the ground from reading as a flat wash.
+		///
+		/// A ground texture is authored at a pattern scale that has to sit right beside the
+		/// vehicles and buildings on it, and at that scale the source is minified about three
+		/// times, so mipmapping averages its grain away. Twenty tiles puts a 1254-pixel source
+		/// near one texel a pixel at a 64-pixel tile. Zero turns the grain off.
+		/// </summary>
+		[Export(PropertyHint.Range, "0,40,0.5")] public float GroundDetailTiles { get; set; } = 20.0f;
+
+		/// <summary>
+		/// How much of that grain reaches the ground, as brightness around the material's own colour.
+		/// A `MapArt` profile carries its own pair and overwrites both, because the grain's repeat
+		/// depends on the resolution of the art it samples.
+		/// </summary>
+		[Export(PropertyHint.Range, "0,1,0.01")] public float GroundDetailStrength { get; set; } = 0.5f;
 		[Export(PropertyHint.Range, "0,2,0.05")] public float ShadeStrength { get; set; } = 0.35f;
 		/// <summary>How many tiles of coast distance the shader can see.</summary>
 		[Export(PropertyHint.Range, "5,16,0.5")] public float CoastRangeTiles { get; set; } = TerrainCoastField.DefaultRangeTiles;
@@ -352,6 +370,8 @@ namespace Beep.ECS
 			_material.SetShaderParameter("edge_noise", EdgeNoise);
 			_material.SetShaderParameter("noise_scale", NoiseScale);
 			_material.SetShaderParameter("shade_strength", ShadeStrength);
+			_material.SetShaderParameter("ground_detail_tiles", Mathf.Clamp(GroundDetailTiles, 0.0f, 40.0f));
+			_material.SetShaderParameter("ground_detail_strength", Mathf.Clamp(GroundDetailStrength, 0.0f, 1.0f));
 
 			// Everything water_common.gdshaderinc declares, through its one writer.
 			// The coast range keeps this view's own floor: it must agree with the range

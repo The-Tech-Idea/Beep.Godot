@@ -235,6 +235,20 @@ Found while measuring FIX-15's climate, in a stage FIX-15 does not touch.
 |---|---|---|---|---|
 | FIX-16 | [A wet world has more lakes](FIX-16-a-wet-world-has-more-lakes.md) | a wet map delivers 0–2% lake coverage against a normal map's 5%, because `LakeCoverage` is one flood budget that grows ONE lake and `DrainOversizedLakes` then deletes whole lakes once a landmass passes 30% water — rivers, which also rise with Rainfall, are what tip it over | S–M | proposed 2026-09-18 |
 
+### Raised from the owner's renders (1)
+
+The owner, 2026-09-18: "original and cartoon renders is showing a blury terrain !!! they should look
+like sharp", then "the terrain looks very bad", then — of the props — "they become blury now when you
+zoom".
+
+| Id | Plan | Headline | Effort | Status |
+|---|---|---|---|---|
+| FIX-17 | [The ground has a surface](FIX-17-the-ground-has-a-surface.md) | a ground texture authored at the vehicles' pattern scale is minified about three times, so mipmapping averages its grain away and the ground reads as a flat wash; the shader now samples the same texture again at one texel a pixel, as brightness against the material's own average | S | **implemented 2026-09-18**, guarded, awaiting acceptance |
+
+The props are art, not code: a cartoon tree frame is 64x128 pixels drawn at up to 120x143, so it is
+magnified before the camera zooms at all. The owner is redrawing the sheets against
+[`docs/terrain-engine/PROP_ART_BRIEF.md`](../../docs/terrain-engine/PROP_ART_BRIEF.md).
+
 ### Suggested order
 
 VIEW-14 → VIEW-01 → VIEW-02 → VIEW-13 → **FEAT-09** → FEAT-12 → VIEW-04 → VIEW-05 → VIEW-07 →

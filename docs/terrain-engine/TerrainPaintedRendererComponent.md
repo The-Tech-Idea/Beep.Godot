@@ -58,6 +58,30 @@ their own authored transition art; this shader does not manufacture atlas pieces
 preservation at three zoom levels and rounded inland corners in all three styles.
 The large lab probe captures the same seed at overview and close-up scale.
 
+### The ground's grain
+
+A ground texture is authored at the pattern scale it has to sit at beside the vehicles
+and buildings standing on it, and at that scale its source is minified about three times
+— the meadow's 1254 pixels over six tiles, the cartoon atlas's 310-pixel regions over
+1.6 — so mipmapping averages its grain away and the ground reads as a flat wash. The
+owner reported exactly that on 2026-09-18: "original and cartoon renders is showing a
+blury terrain".
+
+`GroundDetailTiles` and `GroundDetailStrength` sample the same material texture a second
+time, near one texel a pixel, and apply it as **brightness only, measured against that
+material's own average** (the second sample takes gradients wide enough to land on the
+texture's smallest mip, which is that average). The pattern scale does not move, so
+nothing grows against the vehicles; the ground simply stops being flat. Centring the
+grain on mid-grey instead darkens every material brighter than it — sand lost a fifth of
+its brightness, which the blend probe caught as lost coverage.
+
+A `TerrainMapArt` profile carries its own pair (`GroundGrainTiles`, `GroundGrainStrength`)
+and overwrites both, because the repeat depends on the resolution of the art being
+sampled: Original 20 tiles at 0.5, Cartoon 4.8 at 0.35, Pixel Art off — its quantised
+look wants no second frequency. `terrain_painted_blend_probe.gd` guards it: one material,
+a fine checker squeezed into one tile so the base sample is flat, must gain variation
+(0.000 → 0.126) without its mean moving (0.498 either way).
+
 ### Material bindings
 
 Assign material texture paths for every terrain the scene can display. Snow and ice

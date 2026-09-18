@@ -120,9 +120,67 @@ func run() -> void:
 		var reference := rendered.get_pixel(220, 220)
 		assert(interior.g > interior.r and absf(interior.g - reference.g) < 0.02,
 			"Rounded corner erased terrain interior")
+	await verify_ground_grain(view, material)
 	viewport.free()
 	print("[terrain-painted-blend] OK")
 	quit()
+
+# The ground keeps a surface of its own. A ground texture is authored at a pattern scale that has to sit
+# right beside the vehicles standing on it, and at that scale its source is minified about three times, so
+# mipmapping averages the grain away and the ground reads as a flat wash. The grain pass samples the same
+# texture again near one texel a pixel, as brightness only: the INTERIOR of one material must gain
+# variation without its average colour moving.
+func verify_ground_grain(view: Node, material: ShaderMaterial) -> void:
+	viewport.size = Vector2i(256, 256)
+	view.scale = Vector2.ONE
+	for y in 4:
+		for x in 4:
+			view.get_node("../Cells").call("SetTerrainKind", Vector2i(x, y), "desert")
+	# A one-pixel checker in a 512-pixel texture. The base sample squeezes the whole thing into one
+	# 64-pixel tile - eight times minified, so its mips average it to flat grey, exactly what a ground
+	# texture authored for the vehicles' scale does. The grain samples it over eight tiles, one texel a
+	# pixel, where the checker survives. Same texture, same material: only the repeat differs.
+	var checks := Image.create(512, 512, false, Image.FORMAT_RGBA8)
+	for y in 512:
+		for x in 512:
+			var bright: bool = (x + y) % 2 == 0
+			checks.set_pixel(x, y, Color(0.75, 0.75, 0.75) if bright else Color(0.25, 0.25, 0.25))
+	checks.generate_mipmaps()
+	view.set("BlendWidth", 0.0)
+	view.set("EdgeNoise", 0.0)
+	view.set("ShadeStrength", 0.0)
+	view.set("GroundDetailTiles", 8.0)
+	var look: Resource = load(BASE + "terrain/TerrainWaterLook.cs").new()
+	look.set("GroundTextureTiles", 1.0)
+	view.set("WaterLook", look)
+	var readings := {}
+	for strength in [0.0, 0.5]:
+		view.set("GroundDetailStrength", strength)
+		view.call("Rebuild")
+		assert(is_equal_approx(float(material.get_shader_parameter("ground_detail_strength")), strength))
+		material.set_shader_parameter("tex_sand", ImageTexture.create_from_image(checks))
+		material.set_shader_parameter("tint_desert", Vector3.ONE)
+		material.set_shader_parameter("coast_wander", 0.0)
+		var rendered := await capture()
+		var total := 0.0
+		var squares := 0.0
+		var samples := 0
+		for y in range(96, 160):
+			for x in range(96, 160):
+				var luma := rendered.get_pixel(x, y).get_luminance()
+				total += luma
+				squares += luma * luma
+				samples += 1
+		var mean := total / samples
+		readings[strength] = {"mean": mean, "variation": sqrt(maxf(0.0, (squares / samples) - (mean * mean)))}
+	var flat: Dictionary = readings[0.0]
+	var grained: Dictionary = readings[0.5]
+	print("[terrain-painted-blend] ground grain: flat mean %.4f variation %.4f; grained mean %.4f variation %.4f"
+		% [flat["mean"], flat["variation"], grained["mean"], grained["variation"]])
+	assert(grained["variation"] > flat["variation"] * 3.0 + 0.01,
+		"The grain left the ground as flat as it found it: %.4f against %.4f" % [grained["variation"], flat["variation"]])
+	assert(absf(grained["mean"] - flat["mean"]) < 0.02,
+		"The grain moved the material's own colour: %.4f against %.4f" % [grained["mean"], flat["mean"]])
 
 func verify_texture_edges(view: Node, material: ShaderMaterial) -> void:
 	var stripes := Image.create(64, 64, false, Image.FORMAT_RGBA8)

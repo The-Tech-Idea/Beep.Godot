@@ -227,10 +227,19 @@ zoom (mipmapping, not a texture dial), and whether the crisper lake edge is want
 style. The item also carries a method note for whoever picks it up — two lab captures prove
 nothing unless the map is redrawn rather than regenerated and `wave_speed` is set to zero first.
 
+### Raised by FIX-15 (1)
+
+Found while measuring FIX-15's climate, in a stage FIX-15 does not touch.
+
+| Id | Plan | Headline | Effort | Status |
+|---|---|---|---|---|
+| FIX-16 | [A wet world has more lakes](FIX-16-a-wet-world-has-more-lakes.md) | a wet map delivers 0–2% lake coverage against a normal map's 5%, because `LakeCoverage` is one flood budget that grows ONE lake and `DrainOversizedLakes` then deletes whole lakes once a landmass passes 30% water — rivers, which also rise with Rainfall, are what tip it over | S–M | proposed 2026-09-18 |
+
 ### Suggested order
 
 VIEW-14 → VIEW-01 → VIEW-02 → VIEW-13 → **FEAT-09** → FEAT-12 → VIEW-04 → VIEW-05 → VIEW-07 →
 FEAT-10 → **FEAT-14** → **FIX-15** → **FEAT-15** (the owner moved these two ahead on 2026-09-16) →
+FIX-16 →
 VIEW-03 (before DUP-07) → VIEW-08 (before ENH-07) → VIEW-10 (before ENH-07;
 closes DUP-01) → VIEW-11 → FEAT-11 → VIEW-06 → VIEW-09 (with FEAT-05 and the library session) →
 VIEW-12 → FEAT-13.

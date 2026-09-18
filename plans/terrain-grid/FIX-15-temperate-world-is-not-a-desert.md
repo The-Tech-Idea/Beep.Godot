@@ -163,6 +163,6 @@ In `tmp/` (Painted, cartoon art):
 
 ### Still open
 
-- **Lakes at wet rainfall.** `ApplyMapSetup` asks for 9.5% lake coverage when wet, and the lake stage delivers less than at normal's 5%: 0.99% on the basin, 2.11% on the standard lab map, 0% on the large one. Rainfall has set lake coverage this way since before FIX-15, so the defect predates it. The probe checks that arid has fewer lakes than normal and deliberately does not claim wet has more.
+- **Lakes at wet rainfall** — now [FIX-16](FIX-16-a-wet-world-has-more-lakes.md). `ApplyMapSetup` asks for 9.5% lake coverage when wet and the stage delivers less than at normal's 5%: 0.99% on the basin, 2.11% on the standard lab map, 0% on the large one. The request is one flood budget, so it grows one lake instead of more, and `DrainOversizedLakes` then deletes whole lakes once a landmass passes 30% water; the rivers Rainfall also raises are what tip it over. It predates FIX-15. The probe checks that arid has fewer lakes than normal and deliberately does not claim wet has more.
 - **The rain shadow** still reaches four cells upwind, a distance in cells, and reads normalized elevation (see `TerrainClimateStage.md`).
 - **The scale rules' span** (`height / 240`, "a whole planet pole to pole at 240 tiles") and `Latitude`'s reading of a span below one (a fraction of equator to pole) differ by a factor of two. FIX-15 measures distance with `Latitude`'s reading, the one the climate bands use.

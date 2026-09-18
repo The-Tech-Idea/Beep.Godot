@@ -64,9 +64,11 @@ namespace Beep.ECS
                 Create(settings, 9719, Mathf.Max(0.004f, shapeFrequency * 1.25f * settings.MoistureFrequencyMultiplier)),
                 Create(settings, 19739, Mathf.Max(0.004f, shapeFrequency * 0.85f * settings.TemperatureFrequencyMultiplier)),
                 Create(settings, 51053, Mathf.Max(0.02f, shapeFrequency * 2.4f * settings.LakeFrequencyMultiplier)),
-                // Stands are a few tiles across, so this runs finer than the
-                // continental scale the channels above work at.
-                Create(settings, 33427, Mathf.Max(0.01f, shapeFrequency * 2.2f * settings.FeatureFrequencyMultiplier)));
+                // Stands are a few TILES across whatever the map's size, so this one is not
+                // scaled to the map like the channels above. It was, at 2.2 times the continental
+                // frequency and a multiplier of 0.18: coarser than the continents, and a hundred
+                // tiles a wavelength on a 144-tile map. See TerrainFeatureStage.StandWavelengthTiles.
+                Create(settings, 33427, settings.FeatureFrequencyMultiplier / TerrainFeatureStage.StandWavelengthTiles));
         }
 
         private static FastNoiseLite Create(TerrainGenerationSettings settings, int seedOffset, float frequency) => new()

@@ -45,7 +45,7 @@ flowchart TB
 
 `TerrainGenerationSettings` is an immutable record built from ~40 exported properties on `TerrainGeneratorComponent`. Two equal settings always produce an identical world, so the generator caches one `GeneratedTerrainField` and rebuilds it only when any setting changes. Renderers on a hot path call the internal `ResolveField()` once per rebuild and use the field's O(1) accessors, rather than paying the settings rebuild-and-compare per cell.
 
-**The ownership contract** (guarded by `tests/addon_contract_scan.ps1`): when a scene drives the generator through `TerrainWorldComponent`, seventeen generator settings are derived from the axes and overwritten on every `Build()` — the eleven `ApplyMapSetup` documents plus `BoundsSize`, `Seed`, `ResourceSet`, `StartAreaRadius`, `UseClimateBiomeMaps` and `UseScaleRules`. Set the **axes** on the world component, or drive the generator directly and set its exports — never both.
+**The ownership contract** (guarded by `tests/addon_contract_scan.ps1`): when a scene drives the generator through `TerrainWorldComponent`, nineteen generator settings are derived from the axes and overwritten on every `Build()` — the eleven `ApplyMapSetup` documents plus `BoundsSize`, `Seed`, `ResourceSet`, `StartAreaRadius`, `StartDistanceScaling`, `UseClimateBiomeMaps`, `UseScaleRules` and `UseCustomClimateSpan` — and `ClimateLatitudeSpan` as well while the world's custom span is on. Set the **axes** on the world component, or drive the generator directly and set its exports — never both.
 
 ## The stage pipeline
 

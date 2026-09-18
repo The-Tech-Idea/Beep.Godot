@@ -1,6 +1,6 @@
-# FIX-15 — A temperate world is not a desert: moisture follows the map's real size, and Rainfall reaches it
+# FIX-15 — A temperate world is not a desert: moisture follows the map's real size, and a hot one keeps its deserts
 
-**Type:** fix (generation calibration) · **Area:** `ecs/terrain/TerrainClimateStage.cs` (`Maritime`, the moisture sum), `TerrainGeneratorComponent.ApplyMapSetup` (the Rainfall axis), `TerrainMapSetup` · **Status:** proposed 2026-09-16, measured, not implemented · **Effort:** S–M · **Risk:** medium. It changes generated maps, so the generation baseline is re-recorded, and it is a look change that goes through the owner's before/after gate.
+**Type:** fix (generation calibration) · **Area:** `ecs/terrain/TerrainClimateStage.cs` (`Maritime`, `SubtropicalAridity`), `TerrainGeneratorComponent.ApplyMapSetup` (the Rainfall axis), `TerrainMapSetup`, and since 2026-09-17 the woodland stand scale and cover (`TerrainFeatureStage`, `TerrainNoiseSet`) · **Status:** implemented 2026-09-17 with the owner's decisions on stands, cover, Rainfall and the dry belt; guarded and baseline re-recorded; awaiting the owner's acceptance and commit (see "As landed") · **Effort:** S–M · **Risk:** medium. It changes generated maps, so the generation baseline is re-recorded, and it is a look change that goes through the owner's before/after gate.
 
 ## Evidence
 
@@ -71,3 +71,98 @@ Three facts come out of the table:
 - A full wind-transport moisture model.
 - Seasons (FEAT-07).
 - Per-biome art.
+
+## As landed (2026-09-17)
+
+### Code
+
+- **Coastal reach.** `TerrainClimateStage.Maritime` is `exp(-distance_km / 600)`. `distance_km` comes from `TerrainGenerationBuffer.KilometresPerSample(span)`, which uses `Latitude`'s own two cases: below span one, the height covers that fraction of 10,000 km; at span one, it runs pole to pole over 20,000 km.
+- **Rainfall is water and growth, not ground (owner decision, 2026-09-17).** Design step 2 was built first and then reversed. A flat moisture offset (arid −0.35, wet +0.20), tuned on the maritime basin, made every inland cell of both scale-rules lab maps desert when arid, because those maps are mostly dry grass to begin with. Civilization scopes the axes differently. Its map scripter, Sirian, says "Rainfall affects feature types: forest, jungle, marsh, oasis, etc." and "Temperature affects terrain types"; the owner's standing reference for world axes is the same. So:
+  - Rainfall scales lakes and rivers (`WaterScaleFor`, unchanged) and vegetation (`TerrainMapSetup.VegetationScaleFor` → `FeatureDensity`: 14/18, 1, 22/18).
+  - The offset, its export and its settings field are gone, and `ApplyMapSetup` derives eleven settings again.
+  - Evidence item 2 ("the Rainfall axis never reaches moisture") no longer holds as a defect. The desert it pointed at came from the coastal reach, and wet no longer adds jungle ground.
+- **The dry belt (owner decision, 2026-09-17).** The kilometre reach broke the genre's other rule. `tests/examples/biomes.gd` failed: a hot Continents map had no desert, and hot lab maps were greener than temperate ones. The belt's peak of 0.20 had been chosen while every interior past 6.5 cells was bone dry. It now sits where subtropical deserts are, 15–35° latitude (*ACC Physical Geology*, 2nd ed., §23.2): centre 0.28 (25°), width 0.13, peak 0.35. It had been centred on 31° and still at half strength at 43°.
+- **Woodland stands (owner decision, 2026-09-17: same change).** The desert had hidden an older defect.
+  - The vegetation noise was scaled to the landmasses at 2.2 × the continental frequency × `FeatureFrequencyMultiplier` 0.18, with a floor of 0.01. On the 144-cell basin that is about a hundred cells a wavelength.
+  - Against `TerrainFeatureStage`'s 8-cell percentile blocks, which each take the nearest block's threshold, every block took the high side of a flat slope. Once the map turned green, forests came out in straight bands.
+  - Now `StandWavelengthTiles` sets the field in tiles, and `FeatureFrequencyMultiplier` defaults to 1, relative to that standard stand. No scene set the old value.
+  - A block has to hold more than one wavelength, so the stand and the block are chosen together. A first cut was 6-cell stands on 8-cell blocks; shown small stands against large forests, the owner chose larger forests, Age of Empires style: **16-cell stands on 24-cell blocks**.
+- **Woodland cover (owner decision, 2026-09-17, after research).** With the map green, woods and forest covered 39–45% of the basin's land under the old curve, a slope of 2.6 on the map's average wetness. While Rainfall still shifted moisture, it grew 0% arid and 83% wet.
+  - What shipped games grow: Civilization VI caps forest at a share of land plots, `FeatureGenerator.lua`'s `iForestPercent` of 18 moved by −4 arid and +4 wet. Age of Empires II's standard land maps give forest 12–18% of the map, in clumps of about 60–225 tiles. Civilization V takes the top 31% of a forest noise field plus a 10% clump field.
+  - `TerrainFeatureStage.WoodsCapableShare` now decides the share of **all land**, `0.18 × FeatureDensity`, and divides it over the woods-capable cells. Civilization VI's caps, 14, 18 and 22%, come through `FeatureDensity` from Rainfall.
+- **Guards the change weakened.** On `tests/examples/vegetation.gd`'s 48x48 map a 24-cell block is a quadrant, so its "no bare quadrant" check could no longer fail: ranking the whole map at once still left every quadrant some woods. It gains a spread check: the thinnest quadrant must carry at least half the rate of the richest. The contract scan's `ApplyMapSetup` pin, which fired when the offset was added, is back to eleven names.
+- **Fixtures the change moved.** Two probes check that their own map still exercises what they test, and the greener map failed both preconditions.
+  - `terrain_start_area_probe` needs usable and unusable starts, and every area of 84 cells or more now held its wheat. Its minimum area goes from 80 to 120 cells: the areas are 189, 154, 138, 97 and 84, so three are usable and two too small.
+  - `terrain_start_distance_probe` compares mean richness near and far from the starts and needs ten deposits each way. Only 7 now lay within 10 cells. Near becomes 15 cells, which holds 29.
+
+### Measured (the game's recipe, seeds 31415 and 2027 unless noted; climate shares of inland cells)
+
+| Case | Before | After |
+|---|---|---|
+| Temperate/normal desert, 32 / 64 / 96 / 144 cells, share of land | 0 / 20–21 / 40–41 / 44–52% | 0% at every size |
+| Temperate/normal grass + dry grass, share of land | 72–73% at 32 cells (all of it dry grass), 41–49% at 144 | all of the inland cells, at every size |
+| Hot/normal desert on the lab maps (64x64 seed 2027, 96x60 seed 31415) | with the kilometre reach and the old belt: 0% | 29% and 36% |
+| `biomes.gd`'s hot 64x40 Continents map, desert tiles | 328 before FIX-15; 0 with the kilometre reach and the old belt | 231 |
+| Basin (seed 12345), desert + dry grass, temperate against hot | 12% against 10% with the old belt | 2% against 85% |
+| Temperate/arid desert on the lab maps | 100% and 98% with the Rainfall offset | 0%: 53–56% dry grass, 44–47% grass |
+| Whole world (span 1), dry share of interior against coast | 88–96% against 41–51% | 88–96% against 47–54% |
+| Woodland edges on a ranking-block boundary, basin at normal rainfall (seeds 12345 and 2027) | 24–31% on 8-cell blocks (chance 12.5%) | 3–7% on 24-cell blocks (chance 4%) |
+| Woodland, share of land, basin arid / normal / wet (seeds 12345 and 2027) | the old curve on the green map: 39–45% at normal | 13.3–13.6% / 17.3–17.5% / 21.2–21.4% |
+| Woodland, share of land, lab maps arid / normal / wet | — | 13.4–13.6% / 17.2–17.6% / 20.5–20.7% |
+| Stands on the basin at normal rainfall: count, median size, woodland in stands of 25+ cells | — | 56–60, 22–23 cells, 79–81% |
+
+### Guards
+
+`tests/terrain_climate_share_probe.gd` over `tests/TerrainClimateShareSmoke.cs` checks seven things:
+- size does not make desert;
+- temperature reaches the ground, through the dry belt;
+- rainfall reaches water, not the ground;
+- a whole world keeps an interior;
+- woods follow their own field;
+- woodland is what shipped strategy maps grow;
+- woodland comes in forests.
+
+It is registered in `run_terrain_integration.ps1`. Each check failed first:
+
+| Mutation | What failed |
+|---|---|
+| Fixed 6.5-cell reach restored | The size checks: 31% and 16% desert at 144 cells, "desert rose with map size" |
+| The pre-FIX-15 dry belt (31°, width 0.17, peak 0.20) | All five temperature checks: hot lab maps 0% desert, the hot basin 10% dry against 12% temperate |
+| Rainfall shifting moisture again (−0.35 when arid) | The ground check on all three maps: arid 100%, 98% and 33% desert |
+| Rainfall not scaling water | All six water checks: lakes and rivers did not move |
+| A 60,000 km coastal reach | The interior check for seed 31415: 18% dry against 11% on the coast |
+| The vegetation field scaled to the landmasses again | The edge checks: 16–25% of woodland edges on block boundaries, against at most 12.5% (three times chance) |
+| A 40-cell stand wavelength | The edge checks, 13–20%; it still made 30–40 stands, which is why the stand count is not a check |
+| A 6-cell stand wavelength | The stand checks: median 12–13 cells against at least 18, 37–47% in stands of 25+ against at least 70% |
+| Rainfall not scaling vegetation | The arid and wet bands and the gap: 17.2–17.5% at every rainfall |
+| A reference share of 0.08 | Every lower band (normal 7.3–7.4%), and the stand checks, since stands shrink with cover |
+| A reference share of 0.26 | Every upper band (normal 25.2–25.3%, wet 30.7–31.0%) |
+| `vegetation.gd`: the whole map ranked at once | Two bare islands (101 and 74 woods-capable tiles), and the new spread check (11% against 38%) |
+
+`tests/examples/biomes.gd`, which caught the dry-belt regression, passes again.
+
+### Baseline
+
+Re-recorded after a structural old-versus-new comparison of every case's layers, in three steps as the design settled.
+- **Against the fixture from before FIX-15, changed in every case:** terrain (cell, sample and inland), features, resources, underground resource and richness, and starts and shores. Underground depth changed in six of the ten cases. Start areas, reports, distance and neutral sites changed where a case has them.
+- **Unchanged in every case:** continent, elevation, relief, sample water, water source, liquid resources and shade.
+- **The steps:**
+  1. The reach with 6-cell stands.
+  2. The 16-cell stands and cover: features only, in all ten cases.
+  3. The dry belt with Rainfall taken off moisture: terrain, resources and features in nine cases, features alone in the tenth.
+
+  None of the steps moved the land, the water or the relief.
+
+### Renders
+
+In `tmp/` (Painted, cartoon art):
+- `fix15_oilfield_basin_before.png` against `fix15_oilfield_basin_final.png`: the game recipe, seed 12345.
+- `fix15_lab_large_before.png` against `fix15_lab_large_final.png`: a Large lab map on the scale rules, seed 31415.
+- `_final_arid.png`, `_final_hot.png` and `_final_wet.png`: the same maps at arid, hot and wet.
+- The steps between, same maps: `_after.png` (the banded forests of the old stand scale on the green map), `_after_stand6.png` (6-cell stands at the old cover), `_after_cover18_small_stands.png` (6-cell stands at the new cover), `_belt_arid.png` (what the Rainfall moisture offset did to an arid lab map before it was taken out).
+
+### Still open
+
+- **Lakes at wet rainfall.** `ApplyMapSetup` asks for 9.5% lake coverage when wet, and the lake stage delivers less than at normal's 5%: 0.99% on the basin, 2.11% on the standard lab map, 0% on the large one. Rainfall has set lake coverage this way since before FIX-15, so the defect predates it. The probe checks that arid has fewer lakes than normal and deliberately does not claim wet has more.
+- **The rain shadow** still reaches four cells upwind, a distance in cells, and reads normalized elevation (see `TerrainClimateStage.md`).
+- **The scale rules' span** (`height / 240`, "a whole planet pole to pole at 240 tiles") and `Latitude`'s reading of a span below one (a fraction of equator to pole) differ by a factor of two. FIX-15 measures distance with `Latitude`'s reading, the one the climate bands use.

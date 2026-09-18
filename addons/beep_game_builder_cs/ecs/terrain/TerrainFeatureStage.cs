@@ -19,21 +19,45 @@ namespace Beep.ECS
     {
 
 
-        /// <summary>Side of a ranking block, in tiles.</summary>
-        private const int BlockTiles = 8;
+        /// <summary>
+        /// Side of a ranking block, in tiles. A block has to hold more than one wavelength of the
+        /// stand field (<see cref="StandWavelengthTiles"/>): one narrower than that sees the field as
+        /// a single slope, its percentile takes the high side, and the block grid is drawn in
+        /// woodland. Twenty-four holds one and a half wavelengths.
+        /// </summary>
+        internal const int BlockTiles = 24;
 
         /// <summary>
-        /// Fewest eligible cells a padded block needs before it is ranked on its
-        /// own. Below this it takes the map-wide threshold: ranking four tiles
+        /// Wavelength, in tiles, of the vegetation field woodland is cut from, at a
+        /// FeatureFrequencyMultiplier of one. In tiles and not as a share of the map, because a
+        /// forest is so many tiles whatever the map's size - the rule TerrainScaleRules keeps for
+        /// every feature.
+        ///
+        /// Sixteen groups woodland into forests with open ground between them, the way Age of
+        /// Empires II's maps do, rather than scattering copses. Measured on Oilfield Days' temperate
+        /// 144-tile basin at normal rainfall, two seeds: 56-60 separate stands, a median of 22-23
+        /// tiles, and 79-81% of the woodland in stands of 25 tiles or more. At six tiles the same
+        /// woodland broke up: 110 stands, a median of 12-13 tiles, 37-47% in stands of 25 or more.
+        ///
+        /// It cannot grow much past sixteen without outgrowing the ranking blocks (BlockTiles). The
+        /// field used to be scaled to the landmasses, which put its wavelength near a hundred tiles
+        /// on that map; inside a block the field was then a flat slope, and the block grid came out
+        /// as straight bands of forest. Measured with 24-tile blocks at normal rainfall, 16-25% of
+        /// woodland edges lay on a block boundary, where chance puts one in 24; at forty tiles 13-20%
+        /// did, and at sixteen 3-7% do.
+        /// </summary>
+        internal const float StandWavelengthTiles = 16.0f;
+
+        /// <summary>
+        /// Fewest eligible cells a block needs before it is ranked on its own.
+        /// Below this it takes the map-wide threshold: ranking four tiles
         /// against each other would make woods of whichever happened to be
         /// highest.
         /// </summary>
         private const int MinBlockCells = 6;
 
         /// <summary>
-        /// A block's value at a tile, blended between the four nearest block
-        /// centres. Without this a threshold would step at every block edge and
-        /// the ranking grid would be visible as straight lines of woodland.
+        /// The value of the block whose centre is nearest a tile.
         /// </summary>
         private static float Blend(float[] blocks, int wide, int high, int cellX, int cellY)
         {
@@ -59,10 +83,11 @@ namespace Beep.ECS
             // than half wooded - still grew nothing. Without it the same map
             // came out 46%, 40%, 40% and 43% across its quadrants.
             //
-            // The seams it was guarding against do not appear, because the
-            // threshold is not what the eye sees: the noise still shapes every
-            // stand within a block, so the boundary falls inside woodland that
-            // is already irregular.
+            // The seams blending would guard against do not appear while the
+            // field varies within a block, because the threshold is not what the
+            // eye sees: the noise still shapes every stand, so the boundary falls
+            // inside woodland that is already irregular. A field too coarse to
+            // vary within a block does show them - see StandWavelengthTiles.
             int nearestX = tx < 0.5f ? x0 : x1;
             int nearestY = ty < 0.5f ? y0 : y1;
             return blocks[(nearestY * wide) + nearestX];
@@ -162,7 +187,7 @@ namespace Beep.ECS
             // of tiles rather than the fifteen it looks like. Ranking the field
             // makes the dial mean the coverage it claims, which is how the
             // landmass and hill stages already work.
-            float wanted = Mathf.Clamp(AverageWetness(world, settings), 0.0f, 0.95f);
+            float wanted = WoodsCapableShare(world, settings, eligible);
 
             // The threshold is ranked LOCALLY, block by block, not once over the
             // whole map or even once per landmass.
@@ -176,14 +201,11 @@ namespace Beep.ECS
             //
             // Ranking within a block makes the coverage dial mean what it says
             // everywhere: each part of the map competes with its own
-            // neighbourhood rather than with the whole. The thresholds are then
-            // INTERPOLATED between block centres, because a threshold that
-            // changed abruptly at a block edge would draw the block grid onto
-            // the map in woodland.
-            //
-            // Blocks are padded by a block in each direction when they are
-            // ranked, so a sparse block borrows its neighbours' cells rather
-            // than thresholding four tiles against each other.
+            // neighbourhood rather than with the whole. Each tile then takes the
+            // threshold of its nearest block (Blend says why not an interpolated
+            // one), and a block with fewer than MinBlockCells eligible cells takes
+            // the map-wide threshold rather than ranking a handful of tiles
+            // against each other.
             int blocksWide = Mathf.Max(1, Mathf.CeilToInt(wide / (float)BlockTiles));
             int blocksHigh = Mathf.Max(1, Mathf.CeilToInt(high / (float)BlockTiles));
             var blockThreshold = new float[blocksWide * blocksHigh];
@@ -250,49 +272,49 @@ namespace Beep.ECS
             }
         }
 
+        /// <summary>Woodland, as a share of all land, at a FeatureDensity of one.</summary>
+        /// <remarks>
+        /// What shipped strategy maps grow. Civilization VI caps forest at 18% of land plots at normal
+        /// rainfall, 14 arid and 22 wet (FeatureGenerator.lua; ApplyMapSetup carries the rainfall part
+        /// as FeatureDensity, TerrainMapSetup.VegetationScaleFor); Age of Empires II's standard land maps
+        /// give forest 12-18% of the map (Arabia 13, Mongolia 12, Highland 18). The curve this replaced
+        /// grew 39-45% on Oilfield Days' temperate basin, and while Rainfall still shifted moisture, 0% on
+        /// an arid map and 83% on a wet one.
+        /// </remarks>
+        private const float ReferenceWoodlandShare = 0.18f;
+
         /// <summary>
-        /// How much of the eligible land should carry vegetation, averaged over
-        /// the map. Per-cell moisture still decides WHERE within that budget,
-        /// but the budget itself has to be one number for a percentile to mean
-        /// anything.
-        /// </summary>
-        /// <summary>
-        /// How much of the woods-capable land should carry vegetation, from the
-        /// map's climate.
+        /// The share of the woods-capable cells that should carry woodland.
         ///
-        /// Measured over ALL LAND rather than over the eligible cells, and that
-        /// distinction is the whole point. These are two different questions -
-        /// how wet is this world, and where on it may a tree stand - and
-        /// answering the first over the answer to the second couples them:
-        /// widening eligibility then pulled dry cells into the average, dropped
-        /// the coverage, and left FEWER woods than before. Measured when that
-        /// happened: seven bare islands became eleven.
-        ///
-        /// The 0.26 anchor stays absolute here, because this is the question it
-        /// actually answers well - a wet world is greener than a dry one, and
-        /// that is a fact about the world, not about the map's own spread.
+        /// The budget is decided as a share of ALL LAND and only then divided over the eligible cells,
+        /// and that order is the whole point. How much of this world is wooded, and where on it may a
+        /// tree stand, are two different questions; answering the first over the answer to the second
+        /// couples them. When the budget was worked out over the eligible cells, widening eligibility
+        /// pulled dry cells into it, dropped the coverage, and left FEWER woods than before. Measured
+        /// when that happened: seven bare islands became eleven.
         /// </summary>
-        private static float AverageWetness(
-            TerrainGenerationBuffer world, TerrainGenerationSettings settings)
+        private static float WoodsCapableShare(
+            TerrainGenerationBuffer world, TerrainGenerationSettings settings, bool[] eligible)
         {
-            float total = 0.0f;
-            int seen = 0;
+            int land = 0;
+            int capable = 0;
             for (int cell = 0; cell < world.CellTerrain.Length; cell++)
             {
                 if (world.CellWater[cell] != WaterBody.None)
                     continue;
 
-                string kind = world.CellTerrain[cell];
-                if (!TerrainTileSets.IsLandKind(kind))
+                if (!TerrainTileSets.IsLandKind(world.CellTerrain[cell]))
                     continue;
 
-                float moisture = world.MoistureAtCell(cell);
-                total += Mathf.Clamp((moisture - 0.26f) * 2.6f, 0.0f, 0.85f);
-                seen++;
+                land++;
+                if (eligible[cell])
+                    capable++;
             }
-            if (seen == 0)
+            if (land == 0 || capable == 0)
                 return 0.0f;
-            return (total / seen) * Mathf.Clamp(settings.FeatureDensity, 0.0f, 4.0f);
+
+            float shareOfLand = ReferenceWoodlandShare * Mathf.Clamp(settings.FeatureDensity, 0.0f, 4.0f);
+            return Mathf.Clamp(shareOfLand * land / capable, 0.0f, 0.95f);
         }
 
         private static string Choose(

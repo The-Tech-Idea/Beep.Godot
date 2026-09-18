@@ -35,6 +35,8 @@ World-data model: the single mutable working set every generation stage in the t
 - `bool InBounds(int x, int y)` — sample-grid bounds check.
 - `Vector2 TileCentre(int x, int y)` — a sample's centre in tile-space (`(x+0.5)/SamplesPerCell`, `(y+0.5)/SamplesPerCell`).
 - `float Latitude(int y, float offsetSamples, float span, float centre)` — latitude at a row, 0 at equator / 1 at a pole. At `span >= 1` (a whole-world map) returns the full pole-to-equator-to-pole gradient; below that it returns a narrow window centred on `centre`, i.e. one climate band instead of the whole range — this is what stops a 50-tile-tall regional map from getting an ice cap, a desert and a jungle all at once.
+- `internal const float EquatorToPoleKilometres = 10000` — the distance one unit of latitude covers (FIX-15).
+- `float KilometresPerSample(float span)` — how far one sample row reaches on the ground. It reads the same span `Latitude` draws the bands from: below one, the height covers that fraction of the equator-to-pole distance; at one, it runs pole to pole (20,000 km). `TerrainClimateStage` measures the coastal moisture reach with it, because a reach stated in cells describes a different climate on every map. Oilfield Days draws 24 km across 144 cells (about 0.17 km a cell), and a scale-rules lab map about 42 km a cell (FIX-15).
 
 Also in this file: `internal enum WaterBody : byte { None, Ocean, Lake, River }` and `internal enum TerrainRelief : byte { Flat, Hills, Mountains }`.
 

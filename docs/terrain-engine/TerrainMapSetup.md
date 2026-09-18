@@ -8,7 +8,7 @@ Support utility: a static, stateless helper consumed by the generation stage and
 
 - `enum TerrainWorldAge { Young, Mature, Old }` — relief axis; young = little erosion (mountainous), old = worn down.
 - `enum TerrainTemperature { Cold, Temperate, Hot }` — latitude-window axis.
-- `enum TerrainRainfall { Arid, Normal, Wet }` — water/vegetation axis, independent of temperature.
+- `enum TerrainRainfall { Arid, Normal, Wet }` — water and growth axis (lakes, rivers, vegetation), independent of temperature. It does not reach the ground.
 - `enum TerrainSeaLevel { Low, Normal, High }` — land/water ratio trim.
 - `enum TerrainResourceLevel { Sparse, Normal, Abundant }` — resource density axis.
 - `enum TerrainMapSize { Tiny, Small, Standard, Large, Huge }` — named map dimensions.
@@ -19,12 +19,17 @@ Support utility: a static, stateless helper consumed by the generation stage and
 - `static float ReliefScaleFor(TerrainWorldAge age)` — Young→2.10, Old→0.35, Mature/default→1.0; multiplies relief (hills/mountains) intensity.
 - `static float LatitudeCentreFor(TerrainTemperature temperature)` — Cold→0.78, Hot→0.22, Temperate/default→0.52; a latitude-window position (0=pole, presumably 1=equator or vice versa per the comment) fed to climate generation.
 - `static float LandScaleFor(TerrainSeaLevel level)` — Low→1.12, High→0.88, Normal/default→1.0; small trim (±12%) on land coverage, deliberately narrow per the code comment (a wider swing was found to overpower the map-type shape it's meant to modify).
-- `static float WaterScaleFor(TerrainRainfall rainfall)` — Arid→0.30, Wet→1.90, Normal/default→1.0; scales lakes/rivers/vegetation together.
+- `static float WaterScaleFor(TerrainRainfall rainfall)` — Arid→0.30, Wet→1.90, Normal/default→1.0; scales lakes and rivers (`ApplyMapSetup`: `LakeCoverage` 0.05×, `RiverDensity` 1×). Until FIX-15 it scaled vegetation too, through `FeatureDensity`. At wet the lake stage delivers fewer lakes than at normal rather than more (0.99% against 5.00% on Oilfield Days' basin, 0% against 5% on the 96x60 lab map), which FIX-15 found and left open.
+- `static float VegetationScaleFor(TerrainRainfall rainfall)` — Arid→14/18, Wet→22/18, Normal/default→1.0; `ApplyMapSetup` writes it to `FeatureDensity`, which scales `TerrainFeatureStage`'s woodland share of land (18% at 1) and the oasis chance. These are Civilization VI's forest caps against normal: `FeatureGenerator.lua`'s `iForestPercent` of 18, moved by −4 arid and +4 wet. Measured on the basin, two seeds: 13.3–13.6%, 17.3–17.5% and 21.2–21.4% of land.
+
+**Rainfall does not reach the ground.** It is water and growth, as Civilization scopes it: Civilization V's map scripter, Sirian, puts it as "Rainfall affects feature types: forest, jungle, marsh, oasis, etc. More rain = more foliage" and "Temperature affects terrain types" ([CivFanatics](https://forums.civfanatics.com/threads/advanced-map-options-what-do-they-do.382737/)). Desert comes from the latitude (`TerrainClimateStage`'s dry belt), which `LatitudeCentreFor` moves.
+
+During FIX-15, Rainfall also shifted every tile's moisture (`MoistureOffsetFor`: arid −0.35, wet +0.20). Tuned on Oilfield Days' maritime basin, that one flat shift against the biome table's fixed bands made every inland cell of both scale-rules lab maps desert when arid, because those maps are mostly dry grass to begin with. The owner chose Civilization's scoping instead (2026-09-17), and the offset is gone. At arid those lab maps are now 53–56% dry grass and 44–47% grass.
 - `static float ResourceScaleFor(TerrainResourceLevel level)` — Sparse→0.45, Abundant→1.90, Normal/default→1.0.
 
 ## Dependencies
 
-None within `addons/beep_game_builder_cs/ecs/terrain/` — the file only uses `Godot.Vector2I`/`Mathf` and its own enums. It is consumed by, but does not itself read from, `TerrainGeneratorComponent.cs` (calls `LandScaleFor`, `ReliefScaleFor`, `LatitudeCentreFor`, `WaterScaleFor`, `ResourceScaleFor`), `TerrainWorldComponent.cs` and `TerrainWorldComponent.Drawing.cs` (`BoundsFor`), and `TerrainLabComponent.cs` (all the `*Names` arrays, to populate dropdowns).
+None within `addons/beep_game_builder_cs/ecs/terrain/` — the file only uses `Godot.Vector2I`/`Mathf` and its own enums. It is consumed by, but does not itself read from, `TerrainGeneratorComponent.cs` (calls `LandScaleFor`, `ReliefScaleFor`, `LatitudeCentreFor`, `WaterScaleFor`, `VegetationScaleFor`, `ResourceScaleFor`), `TerrainWorldComponent.cs` and `TerrainWorldComponent.Drawing.cs` (`BoundsFor`), and `TerrainLabComponent.cs` (all the `*Names` arrays, to populate dropdowns).
 
 ## Notes
 

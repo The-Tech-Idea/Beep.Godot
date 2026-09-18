@@ -7,7 +7,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tests/run_terrain_integratio
 ```
 
 Use -GodotCommand with a Godot mono executable path if it is not on PATH.
-The runner builds Beep.Godot.csproj, then runs 49 headless probes (47 registered in its
+The runner builds Beep.Godot.csproj, then runs 50 headless probes (48 registered in its
 `$probes` table, plus `examples/iso_layers` and `examples/landmass`) and twenty-four real
 OpenGL checks. -SkipRendering explicitly skips the latter; skipped is not passed.
 Each process has a configurable wall-clock timeout, default 120 seconds.
@@ -190,7 +190,7 @@ transitions or elevated props. Captures: `tests/output/lab_styles/`.
 - Placement revalidation after flooding, footprint bounds/relief, explicit ownership and demolition.
 - Player start areas (FEAT-09, `terrain_start_area_probe`, marker `[terrain-start-area] OK`): a
   48x48 Continents map, seed 31415, radius 10, a critical wheat entry on a one-cell distance band
-  and a minimum of 80 cells. Every area cell is dry, not mountainous, not lava and 4-connected to
+  and a minimum of 120 cells (80 until FIX-15 greened the map and every start became usable). Every area cell is dry, not mountainous, not lava and 4-connected to
   its start; no two areas are 8-adjacent; each headquarters footprint is level and inside its area;
   report cell counts match the map; usable starts have at least two exits and both wheat; the
   fixture holds usable and unusable starts; relaxation was used; diagnostics match the reports.
@@ -262,7 +262,8 @@ transitions or elevated props. Captures: `tests/output/lab_styles/`.
   the rounded Euclidean distance to the nearest start computed by brute force; every deposit keeps
   its kind and depth and carries exactly its scaling-0 richness times lerp(0.5, 1.5, d / farthest),
   clamped to [0.05, 1]; the surface resources do not move; and the near/far mean-richness ratio
-  (within 10 cells against beyond 30) falls relative to the same map unscaled. The plan's own guard -
+  (within 15 cells against beyond 30; near was 10 until FIX-15 left only 7 deposits that close) falls
+  relative to the same map unscaled. The plan's own guard -
   near mean below far mean - was dropped because it could not fail here: this map's deposits are
   richer far from its starts already, and it still passed with the curve inverted (0.169 near, 0.186
   far). **Crowded starts:** a 64x48 six-start map, radius 10, a kit of Neutral horses, iron and an id
@@ -467,13 +468,60 @@ Add `-- --edge-detail` for fixed-time texture-driven edge comparisons at three z
 Add `-- --meadow-art` for original/new grass artwork on the same generated map.
 Those swaps hide features and are texture diagnostics, not generated biome scenarios.
 
+## What the climate makes of the ground (FIX-15)
+
+`tests/terrain_climate_share_probe.gd` measures generated maps through
+`tests/TerrainClimateShareSmoke.cs`, which reads the field directly: a GDScript probe going through the
+generator's per-cell accessors rebuilds the settings record twice a cell. The recipe is Oilfield Days'
+shape (Continents, land 0.6, climate maps and scale rules on) with the game's span rule, kilometres /
+10000 at 6 cells a kilometre. The two lab maps keep the scale rules' own span: a standard 64x64 (seed
+2027) and a large 96x60 (seed 31415). Climate shares are of inland cells, which is land minus beach
+sand; beach width belongs to the beach setting, not to the climate. Woodland shares are of all land.
+
+- **Size does not make desert.** Temperate, normal rainfall, at 32, 64, 96 and 144 cells for seeds 31415
+  and 2027: at most 10% desert, at least 70% grass and dry grass, and no more desert at 144 cells than at
+  32. Measured 0% desert throughout. The mutation restoring the fixed 6.5-cell coastal reach fails it
+  (31% and 16% desert at 144 cells).
+- **Temperature reaches the ground, through the dry belt.** On both lab maps a hot, normal-rainfall
+  world is at least 15% desert and at least 15 points more desert than a temperate one; on the basin,
+  hot is at least 30 points more desert and dry grass than temperate. Measured 29% and 36% desert
+  against 0%, and 85% against 2% on the basin. The mutation restoring the pre-FIX-15 belt (centre 31°,
+  width 0.17, peak 0.20) fails all five: hot lab maps 0% desert, the hot basin 10% dry against 12%.
+- **Rainfall reaches water, not the ground.** Temperate, on both lab maps and the basin: arid is at most
+  5 points more desert than normal, arid has fewer lakes than normal, and rivers grow arid < normal <
+  wet. Measured 0% desert at every rainfall; rivers 0.07–0.24%, 0.52–0.97% and 1.41–1.90%. Mutations,
+  each failing its own checks: Rainfall shifting every tile's moisture again (−0.35 when arid) makes
+  arid 100% and 98% desert on the lab maps and 33% on the basin; Rainfall no longer scaling water leaves
+  lakes and rivers unmoved. Wet is deliberately not checked for more lakes: at wet the lake stage
+  delivers fewer than at normal (0–2.11% against 5%), a defect FIX-15 found and left open.
+- **A whole world keeps an interior.** At span one, land 12 or more cells from water is at least 15
+  points drier than land within 3 cells of it. Measured 88–96% against 47–54%. The mutation to a
+  60,000 km coastal reach fails it for seed 31415 (18% against 11%).
+- **Woods follow their own field.** At most three times chance of woodland edges lie on a
+  `TerrainFeatureStage` ranking block boundary, chance being one edge in `BlockTiles` (24, so 4%).
+  Checked at normal rainfall on the game's basin (seeds 12345 and 2027) and the standard lab map.
+  Measured 3–7% at `StandWavelengthTiles` 16. Mutations: the vegetation field scaled to the landmasses
+  again (a hundred cells a wavelength on the basin) puts 16–25% there; a 40-cell wavelength 13–20%.
+  This is the check on stands grown too coarse. The count of stands is not: every block ranks its own
+  share of woodland, which holds the count up — both coarse fields still made 30–40 stands against 56–60.
+- **Woodland is what shipped strategy maps grow.** Civilization VI's forest caps of 14, 18 and 22% of
+  land for arid, normal and wet rainfall. On the basin, both seeds: normal 15–21%, arid 11–17%, wet
+  19–25%, arid at least 2 points under normal and wet at least 2 over it. Measured 17.3–17.5%,
+  13.3–13.6% and 21.2–21.4%. Mutations, each failing: Rainfall not scaling vegetation (17.2–17.5% at
+  every rainfall); a reference share of 0.08 (normal 7.3–7.4%); a reference share of 0.26 (normal
+  25.2–25.3%, arid 19.6%, wet 30.7–31.0%).
+- **Woodland comes in forests.** On the basin at normal rainfall, both seeds: a median stand of at least
+  18 cells and at least 70% of the woodland in stands of 25 cells or more. Measured medians of 22–23 and
+  79–81%. A 6-cell wavelength gives medians of 12–13 and 37–47%, failing both. Stands also shrink with
+  coverage — the 0.08 reference share failed them too — which the share check bounds.
+
 ## The generation baseline, and why the fixture moved on 2026-09-16
 
 `tests/terrain_generation_baseline_probe.gd` hashes a generated world layer by layer against
 `tests/fixtures/terrain_generation_baseline.json`: eighteen layers — terrain, `inland_terrain`,
 relief, elevation, water source, continent, resources, features, start areas, `starts_and_shores`
-and the sample-resolution fields among them — over eight cases (three seeds at two sizes, plus two
-start-area cases at radius 8). It also holds a Huge build's managed allocation under a ceiling
+and the sample-resolution fields among them — over ten cases (three seeds at two sizes, two
+start-area cases at radius 8, and FEAT-14's two start-distance cases). It also holds a Huge build's managed allocation under a ceiling
 written as a literal in the probe, so re-recording the hashes cannot quietly move it. The fixture
 is rewritten only when the probe is run with `-- --record`, which prints as the deliberate act it
 is. It is not one of the 45 registered headless probes; it has its own runner:
@@ -494,6 +542,19 @@ Its job is to say whether a change touched generated maps, and it was used both 
   `terrain_beach_footprint_probe` and `terrain_lake_bank_probe` (which check band widths against
   independent analytic offsets rather than against stored hashes) pass on the new fixture and would
   have caught a band that moved for any other reason.
+
+- **FIX-15** (2026-09-17) measures the coastal moisture reach in kilometres, moves the dry belt to
+  15–35° latitude, and sets woodland stands in tiles and woodland cover as a share of land. That
+  **changes generated maps**, so the fixture was **re-recorded** after structurally comparing each
+  case's layers, old against new. Against the fixture from before FIX-15, these changed in every case:
+  terrain (cell, sample and inland), features, resources, underground resource and richness, and starts
+  and shores. Underground depth changed in six of the ten cases. Start areas, reports, distance and
+  neutral sites changed where the case has them. Continent, elevation, relief, sample water, water
+  source, liquid resources and shade did not change in any case: the land, the water and the relief
+  did not move. It was recorded in three steps as the design settled: the reach with 6-cell stands, then
+  the 16-cell stands and cover (features only, in all ten cases), then the dry belt with Rainfall taken
+  off moisture. None of the steps moved the land, the water or the relief. The intended differences are checked independently by
+  `terrain_climate_share_probe`.
 
 A re-recorded fixture is a new baseline, not a passing test: hashes taken after a change can only
 prove that nothing *else* moves afterwards.

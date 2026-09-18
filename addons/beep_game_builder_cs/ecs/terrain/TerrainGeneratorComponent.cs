@@ -70,7 +70,13 @@ namespace Beep.ECS
         [Export(PropertyHint.Range, "0,4,0.05")] public float BeachWidth { get; set; } = 1.0f;
 
         [ExportGroup("Feature Biome Coverage")]
-        [Export(PropertyHint.Range, "0.02,4,0.01")] public float FeatureFrequencyMultiplier { get; set; } = 0.18f;
+        /// <summary>
+        /// How fine woodland stands are, relative to the standard stand
+        /// (TerrainFeatureStage.StandWavelengthTiles): 1 is the standard, 2 halves a stand's
+        /// width, 0.5 doubles it. Stands are measured in tiles, so the same value makes woods
+        /// of the same size on every map.
+        /// </summary>
+        [Export(PropertyHint.Range, "0.02,4,0.01")] public float FeatureFrequencyMultiplier { get; set; } = 1.0f;
 
         [ExportGroup("Lake Features")]
         [Export(PropertyHint.Range, "0,0.35,0.01")] public float LakeCoverage { get; set; } = 0.05f;
@@ -125,6 +131,13 @@ namespace Beep.ECS
         /// worth. Left empty, ResourceSet picks a shipped catalog.
         /// </summary>
         [Export] public ResourceCatalog? Resources { get; set; }
+
+        /// <summary>
+        /// Multiplier on vegetation, 0 to 4. One grows the woodland share shipped strategy maps
+        /// grow at normal rainfall, 18% of land (TerrainFeatureStage), and the oasis chance scales
+        /// by the same factor. Zero grows no features at all, jungle and marsh included.
+        /// ApplyMapSetup derives it from Rainfall (TerrainMapSetup.VegetationScaleFor).
+        /// </summary>
         [Export(PropertyHint.Range, "0,4,0.05")] public float FeatureDensity { get; set; } = 1.0f;
 
         [ExportGroup("Relief")]
@@ -227,6 +240,7 @@ namespace Beep.ECS
         /// span is under one.
         /// </summary>
         [Export(PropertyHint.Range, "0,1,0.01")] public float ClimateLatitudeCentre { get; set; } = 0.55f;
+
         [Export(PropertyHint.Range, "0.1,4,0.01")] public float TemperatureFrequencyMultiplier { get; set; } = 0.72f;
         [Export(PropertyHint.Range, "0.1,4,0.01")] public float MoistureFrequencyMultiplier { get; set; } = 1.35f;
 
@@ -531,8 +545,7 @@ namespace Beep.ECS
         /// THESE ELEVEN SETTINGS ARE DERIVED, and a developer needs to know it:
         /// Landform, ArchipelagoIslandCount, StartPositionCount, LandmassScale,
         /// HillsFraction, MountainsFraction, ClimateLatitudeCentre, LakeCoverage,
-        /// RiverDensity, FeatureDensity and ResourceDensity are all overwritten
-        /// here. TerrainWorldComponent.Build calls this every time, so a value
+        /// RiverDensity, FeatureDensity and ResourceDensity are all overwritten here. TerrainWorldComponent.Build calls this every time, so a value
         /// typed into the Inspector for any of them is replaced before it is ever
         /// read - accepted, stored, and quietly discarded.
         ///
@@ -570,11 +583,14 @@ namespace Beep.ECS
             // snow on it, so a cold world is genuinely at a high latitude.
             ClimateLatitudeCentre = TerrainMapSetup.LatitudeCentreFor(warmth);
 
-            // Rainfall drives everything water and everything that grows.
+            // Rainfall is water and growth, the way Civilization scopes it: lakes,
+            // rivers and vegetation. It does not touch the ground - desert belongs to
+            // the latitude (TerrainClimateStage), and a flat moisture shift for
+            // Rainfall turned a map that was dry to begin with entirely to desert.
             float wet = TerrainMapSetup.WaterScaleFor(rain);
             LakeCoverage = Mathf.Clamp(0.05f * wet, 0.0f, 0.35f);
             RiverDensity = Mathf.Clamp(1.0f * wet, 0.0f, 4.0f);
-            FeatureDensity = Mathf.Clamp(1.0f * wet, 0.0f, 4.0f);
+            FeatureDensity = Mathf.Clamp(TerrainMapSetup.VegetationScaleFor(rain), 0.0f, 4.0f);
 
             ResourceDensity = Mathf.Clamp(
                 TerrainMapSetup.ResourceScaleFor(resourceLevel), 0.0f, 4.0f);

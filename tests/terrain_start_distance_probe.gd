@@ -15,9 +15,11 @@ extends SceneTree
 #     lerp(0.5, 1.5, d / farthest), clamped to [0.05, 1]; no deposit appears or disappears and the
 #     surface resources do not move - the pass scales, it never places;
 #   - the far country is richer RELATIVE TO THE SAME MAP UNSCALED: the ratio of mean richness within
-#     10 cells of a start to the mean beyond 30 falls. The plan's plain "near mean below far mean"
-#     cannot fail on this map - its deposits are already richer far from the starts, and the check
-#     still passed with the curve inverted - so the comparison is against the map's own baseline.
+#     NEAR_CELLS (15) of a start to the mean beyond FAR_CELLS (30) falls. The plan's plain "near mean
+#     below far mean" cannot fail on this map - its deposits are already richer far from the starts,
+#     and the check still passed with the curve inverted - so the comparison is against the map's own
+#     baseline. Near was 10 cells until FIX-15 greened the map and left 7 deposits that close, too few
+#     to compare a mean over.
 #
 # Crowded starts: a 64x48 Continents world with its six starts, radius 10 areas and a kit whose
 # Neutral entries are horses (surface), iron (underground) and an id no catalog holds. Six starts on
@@ -33,6 +35,8 @@ const FAR_SIZE := Vector2i(112, 80)
 const CROWDED_SIZE := Vector2i(64, 48)
 const RESOURCES_OIL_AND_GAS := 1
 const BAND_CELLS := 2.0
+const NEAR_CELLS := 15
+const FAR_CELLS := 30
 const AREA_GAP := 1
 const MINIMUM_RICHNESS := 0.05
 
@@ -142,17 +146,17 @@ func far_country() -> bool:
 			if wrong_richness <= 3:
 				check(false, "deposit at %s (%d cells out) has richness %f, expected %f from %f x %f"
 					% [cell, distance, scaled["richness"][cell], expected, unscaled["richness"][cell], factor])
-		if distance <= 10:
+		if distance <= NEAR_CELLS:
 			near_total += scaled["richness"][cell]
 			near_unscaled += unscaled["richness"][cell]
 			near_count += 1
-		elif distance > 30:
+		elif distance > FAR_CELLS:
 			far_total += scaled["richness"][cell]
 			far_unscaled += unscaled["richness"][cell]
 			far_count += 1
 	check(wrong_richness == 0, "%d of %d deposits carry the wrong richness" % [wrong_richness, deposits])
 	check(near_count >= 10 and far_count >= 10,
-		"the fixture needs deposits near and far from the starts (%d within 10, %d beyond 30)" % [near_count, far_count])
+		"the fixture needs deposits near and far from the starts (%d within %d, %d beyond %d)" % [near_count, NEAR_CELLS, far_count, FAR_CELLS])
 	if near_count > 0 and far_count > 0 and far_total > 0.0 and far_unscaled > 0.0:
 		var ratio_scaled := (near_total / near_count) / (far_total / far_count)
 		var ratio_unscaled := (near_unscaled / near_count) / (far_unscaled / far_count)

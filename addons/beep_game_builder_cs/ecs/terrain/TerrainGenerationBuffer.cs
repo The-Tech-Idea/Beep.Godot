@@ -393,6 +393,23 @@ namespace Beep.ECS
 
             return Mathf.Clamp(centre + ((down - 0.5f) * span), 0.0f, 1.0f);
         }
+
+        /// <summary>Kilometres from the equator to a pole: the distance one unit of latitude covers.</summary>
+        internal const float EquatorToPoleKilometres = 10000.0f;
+
+        /// <summary>
+        /// How far one sample row reaches on the ground, in kilometres, read from the same span
+        /// <see cref="Latitude"/> draws the climate bands from: below one, the height covers that
+        /// fraction of the equator-to-pole distance; at one, it runs pole to equator to pole.
+        ///
+        /// Distances that shape climate are measured with this rather than in cells. A cell has
+        /// no size of its own - Oilfield Days draws 24 km across 144 of them, and a scale-rules
+        /// lab map about 42 km into each - so a reach stated in cells describes a different
+        /// climate on every map.
+        /// </summary>
+        /// <param name="span">Latitude range; one covers both hemispheres.</param>
+        public float KilometresPerSample(float span)
+            => (span >= 1.0f ? 2.0f : span) * EquatorToPoleKilometres / Height;
     }
 
     internal enum TerrainRelief : byte

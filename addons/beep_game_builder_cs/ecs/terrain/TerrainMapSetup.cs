@@ -21,8 +21,10 @@ namespace Beep.ECS
     ///   and "Great Plains" were map types in the old list, which is why they
     ///   could not be combined with anything - they were this axis wearing a
     ///   shape's clothes.
-    /// - TEMPERATURE and RAINFALL are separate. Hot and dry is a desert, hot and
-    ///   wet is a jungle, and a single "climate" dial cannot say both.
+    /// - TEMPERATURE and RAINFALL are separate, and scoped the way Civilization
+    ///   scopes them. Temperature places the map on the globe, so it decides the
+    ///   ground: desert in the dry belt, tundra toward a pole. Rainfall decides
+    ///   what grows and flows on that ground: lakes, rivers and woodland.
     ///
     /// Every level is a MULTIPLIER on the shape's own values rather than a
     /// replacement, so "Archipelago, high seas" is still recognisably an
@@ -153,11 +155,36 @@ namespace Beep.ECS
             _ => 1.0f,
         };
 
-        /// <summary>Lakes, rivers and vegetation all follow rainfall.</summary>
+        /// <summary>
+        /// Lakes and rivers follow rainfall by this scale; vegetation by
+        /// <see cref="VegetationScaleFor"/>. Rainfall does not reach the ground at all: which land is
+        /// desert is the latitude's decision (TerrainClimateStage), as Civilization scopes the axes.
+        /// </summary>
         public static float WaterScaleFor(TerrainRainfall rainfall) => rainfall switch
         {
             TerrainRainfall.Arid => 0.30f,
             TerrainRainfall.Wet => 1.90f,
+            _ => 1.0f,
+        };
+
+        /// <summary>
+        /// Vegetation against normal rainfall: the generator's FeatureDensity, which scales
+        /// TerrainFeatureStage's woodland share of land and the oasis chance.
+        ///
+        /// Civilization VI caps forest at a share of land plots: FeatureGenerator.lua's iForestPercent
+        /// of 18, moved by -4 for arid rainfall and +4 for wet, so 14, 18 and 22%. These are those
+        /// caps against normal. Civilization V's map scripter describes the axis the same way:
+        /// "Rainfall affects feature types: forest, jungle, marsh, oasis, etc. More rain = more
+        /// foliage."
+        ///
+        /// Rainfall once also shifted every tile's moisture, -0.35 arid and +0.20 wet. Tuned on
+        /// Oilfield Days' maritime basin, that turned every inland cell of a scale-rules lab map to
+        /// desert when arid, because those maps are mostly dry grass to begin with.
+        /// </summary>
+        public static float VegetationScaleFor(TerrainRainfall rainfall) => rainfall switch
+        {
+            TerrainRainfall.Arid => 14.0f / 18.0f,
+            TerrainRainfall.Wet => 22.0f / 18.0f,
             _ => 1.0f,
         };
 

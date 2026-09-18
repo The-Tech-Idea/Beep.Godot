@@ -31,6 +31,7 @@ $probes = [ordered]@{
     terrain_ground_cover_probe = "[terrain-ground-cover] OK"
     terrain_prop_sizing_probe = "[terrain-prop-sizing] OK"
     terrain_understory_probe = "[terrain-understory] OK"
+    terrain_climate_share_probe = "[terrain-climate-share] OK"
     terrain_meadow_texture_probe = "[terrain-meadow-texture] OK"
     terrain_bedrock_texture_probe = "[terrain-bedrock-texture] OK"
     terrain_lava_material_probe = "[terrain-lava-material] OK"

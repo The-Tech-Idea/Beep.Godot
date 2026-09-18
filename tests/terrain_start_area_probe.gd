@@ -16,7 +16,7 @@ extends SceneTree
 const BASE := "res://addons/beep_game_builder_cs/ecs/terrain/"
 const SIZE := Vector2i(48, 48)
 const RADIUS := 10
-const MIN_CELLS := 80
+const MIN_CELLS := 120
 const LAYER_ORIGIN := Vector2i(5, 3)
 
 var failures: Array[String] = []
@@ -46,7 +46,9 @@ func run() -> void:
 	wheat.set("Critical", true)
 	kit.get("Entries").append(wheat)
 	# The default minimum (60% of the radius disc, 189 cells) is more than six starts on a 48x48
-	# map have room for. 80 leaves this map with usable AND too-small areas, so both are measured.
+	# map have room for. 120 leaves this map with usable AND too-small areas, so both are measured:
+	# its areas are 189, 154, 138, 97 and 84 cells. It was 80 until FIX-15 greened the map and every
+	# area of 84 cells or more held its wheat, which left no unusable start to measure.
 	kit.set("MinAreaCells", MIN_CELLS)
 	generator.set("StartKit", kit)
 	generator.set("StartAreaRadius", RADIUS)

@@ -11,8 +11,9 @@ extends SceneTree
 # reached that ground.
 #
 # Ranking per landmass improved it - nine bare islands became seven - but did
-# not close it, and the rest is an OPEN QUESTION rather than a bug to squash
-# quietly, which is why this reports and does not assert.
+# not close it, and the rest was an OPEN QUESTION rather than a bug to squash
+# quietly. Ranking per block closed it, and this asserts: a bare island or
+# quadrant, or an uneven spread, fails the run.
 #
 # The remainder comes from a disagreement between two systems. Biome bands are
 # PERCENTILES of the map's own moisture when quotas are on, so a dry map still
@@ -26,6 +27,10 @@ extends SceneTree
 # 0.26 as its anchor and dry cells then drag the average down. The anchor there
 # is doing something right - it is what makes a wet map greener than a dry one -
 # so the two uses are not the same fact and cannot both be made relative.
+# (Both have gone since. The biome table decides dryness once, and FIX-15 made
+# the coverage a share of ALL land - 18% at normal rainfall, Civilization VI's
+# forest cap - divided over the woods-capable cells:
+# TerrainFeatureStage.WoodsCapableShare.)
 #
 # WITHIN one landmass, the spread came down to one detail: the local thresholds
 # must NOT be blended between blocks. Interpolating them pulls a low-lying
@@ -36,6 +41,10 @@ extends SceneTree
 #   one ranking for the whole landmass     57  0 42 57   3 bare islands
 #   local blocks, thresholds blended       62  0 12 63   2 bare islands
 #   local blocks, nearest block            46 40 40 43   0 bare islands
+#
+# (Measured with 8-tile blocks and the field scaled to the landmasses. Since
+# FIX-15 blocks are 24 tiles, so on this 48x48 map a quadrant is one block, and
+# stands are 16 tiles: 26-29% by quadrant.)
 #
 # The bare quadrant was not climate: it held 103 woods-capable tiles at a mean
 # moisture of 0.42, WETTER than two quadrants that were more than half wooded.
@@ -165,6 +174,26 @@ func _initialize() -> void:
 	for q in range(4):
 		if quad_land[q] >= 40 and quad_woods[q] == 0:
 			print("  quadrant %d: %d woods-capable tiles and NO woods  FAIL" % [q, quad_land[q]])
+			failed += 1
+
+	# Nor far thinner than the rest. The bare-quadrant check above was written when the vegetation field was
+	# scaled to the landmasses, a hundred tiles a wavelength; since FIX-15 a stand is StandWavelengthTiles
+	# across, every quadrant holds several, and ranking the whole map at once no longer leaves one bare. It
+	# leaves them uneven: measured 11-38% woods per woods-capable tile by quadrant, against 26-29% ranked per
+	# block. Only the spread shows that.
+	var rates: Array = []
+	for q in range(4):
+		if quad_land[q] >= 40:
+			rates.append(float(quad_woods[q]) / float(quad_land[q]))
+	if rates.size() < 2:
+		print("  quadrant spread: only %d quadrants hold 40+ woods-capable tiles, too few to compare  FAIL" % rates.size())
+		failed += 1
+	else:
+		var least: float = rates.min()
+		var most: float = rates.max()
+		var even := least >= most * 0.5
+		print("  quadrant spread: the thinnest %.0f%% against the richest %.0f%%  %s" % [least * 100.0, most * 100.0, "ok" if even else "FAIL"])
+		if not even:
 			failed += 1
 
 	print("RESULT: ", "all checks passed" if failed == 0 else "%d FAILED" % failed)

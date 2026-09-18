@@ -43,6 +43,7 @@
     <Compile Include="tests/TerrainShorelineContourSmoke.cs" />
     <Compile Include="tests/TerrainGenerationBaselineSmoke.cs" />
     <Compile Include="tests/TerrainStartKitSmoke.cs" />
+    <Compile Include="tests/TerrainClimateShareSmoke.cs" />
     <Compile Include="tests/TerrainChangeKindSmoke.cs" />
     <Compile Include="tests/GridIdsSmoke.cs" />
     <Compile Include="tests/GridProjectionSmoke.cs" />

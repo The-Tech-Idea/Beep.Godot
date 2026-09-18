@@ -28,7 +28,7 @@ world and asserts something about the result, then exits non-zero if any check f
 | `beach.gd` | `BeachWidth` is enforced, and a wider beach is a deeper one |
 | `erosion.gd` | erosion strength actually changes the terrain, in both directions |
 | `relief.gd` | peak materials land on peaks, not on flat ground |
-| `vegetation.gd` | woods are ranked per landmass and appear on ground that can carry them |
+| `vegetation.gd` | woods reach every landmass and every part of a map that can carry them, evenly |
 | `views.gd` | the projections agree about where the water is |
 | `tile_layers.gd` | re-layering keeps the cells it had |
 | `iso_layers.gd` | sea → ground → hills → peaks → props draw in level order |

@@ -98,6 +98,22 @@ namespace Beep.ECS
         /// </summary>
         private readonly record struct Stamp(Texture2D Sheet, Rect2 Region, Rect2 Target, float SortY, Vector2 Anchor, string Kind);
 
+        /// <summary>
+        /// Above this many cells a rebuild is spread over frames instead of blocking one.
+        ///
+        /// DERIVED FROM COST, not from a round number. Measured on this renderer, 2026-09-19: the
+        /// largest map the lab offers - Huge, 128x80, wet and young, the heaviest it can make -
+        /// builds 2,083 stamps in 48.3 ms. That is 4.7 microseconds a cell, so a 16.7 ms frame is
+        /// about 3,500 cells, and past that one rebuild visibly drops frames.
+        ///
+        /// It was 65,536 - a 256x256 map. The size ladder stops at Huge's 10,240, so NOTHING this
+        /// game can generate ever reached it: the streaming path, its residency, its per-frame
+        /// budget and its preload were configurable, guarded, and unreachable, while the biggest
+        /// map blocked the main thread for three frames doing the work they exist to spread. The
+        /// owner found it by looking for the chunking and not finding it (2026-09-19).
+        /// </summary>
+        private const int StreamAboveCells = 3500;
+
         /// <summary>Salt that keeps a cell's bush draws off the hash its trees drew from.</summary>
         private const int UnderstorySeedSalt = 6151;
 
@@ -232,7 +248,7 @@ namespace Beep.ECS
             Vector2I sourceOrigin = _cells is null ? Vector2I.Zero : BoundsOrigin;
             Vector2I size = new(Mathf.Max(1, BoundsSize.X), Mathf.Max(1, BoundsSize.Y));
             float tile = Mathf.Max(1, TileSize);
-            if (StreamLargeMaps && !Engine.IsEditorHint() && IsInsideTree() && (long)size.X * size.Y > 65536)
+            if (StreamLargeMaps && !Engine.IsEditorHint() && IsInsideTree() && (long)size.X * size.Y > StreamAboveCells)
             {
                 BeginStreaming(source, sourceOrigin, size, tile);
                 QueueRedraw();

@@ -49,6 +49,8 @@ namespace Beep.ECS
         // Null unless StartDistanceScaling asked for the distance to be measured (FEAT-14).
         private readonly ushort[]? _startDistance;
 
+        private readonly float[] _shoreWidth;
+
         // Sub-tile sample resolution, for painting.
         private readonly TerrainSampleKinds _sampleTerrain;
         private readonly TerrainSampleValues<WaterBody> _sampleWater;
@@ -68,6 +70,7 @@ namespace Beep.ECS
             _inlandTerrain = world.CellInlandTerrain;
             BeachWidth = world.BeachWidth;
             LakeShoreWidth = world.LakeShoreWidth;
+            _shoreWidth = world.CellShoreWidth;
             _water = world.CellWater;
             _continent = world.CellContinent;
             _resource = world.Resource;
@@ -119,6 +122,16 @@ namespace Beep.ECS
         /// a start, and a game spawning raids by distance would put them on a player.
         /// </summary>
         public int StartDistanceAtCell(Vector2I cell) => _startDistance is null ? -1 : _startDistance[CellIndex(cell.X, cell.Y)];
+
+        /// <summary>
+        /// How wide this tile's INLAND shore band is, in tiles: a river's own bank width where a
+        /// river made one, the map's lake width elsewhere.
+        ///
+        /// LakeShoreWidth is still the lake answer and still one number - a lake's shore is the same
+        /// all round it. This exists because a river's is not: the carve sizes each river from its
+        /// flow, so its bank has to be sized from the same thing or every stream gets a trunk's.
+        /// </summary>
+        public float ShoreWidthAtCell(Vector2I cell) => _shoreWidth[CellIndex(cell.X, cell.Y)];
 
         public string TerrainAtCell(Vector2I cell) => _terrain[CellIndex(cell.X, cell.Y)];
         public string InlandTerrainAtCell(Vector2I cell) => _inlandTerrain[CellIndex(cell.X, cell.Y)];
@@ -174,15 +187,20 @@ namespace Beep.ECS
                     + cell.X * _samplesPerCell + x] != WaterBody.None);
 
         /// <summary>
-        /// The water a BANK is drawn around. Lakes only - and that is a measured decision, not an
-        /// oversight, though it was tried the other way on 2026-09-18.
+        /// The water this field's BAND is drawn around. Lakes only, and that is a limitation of the
+        /// band rather than a decision about rivers - it was tried twice on 2026-09-18/19 and gave
+        /// a sand desert both times.
         ///
-        /// Rivers were added here so they would stop meeting grass with nothing between them, and
-        /// the result was a sand desert several tiles across holding two small ponds. The reason is
-        /// resolution: a river at SAMPLE resolution is a dense network of threads, most of them too
-        /// thin to survive into the drawn waterline, and a 0.65-tile band grown from every thread
-        /// merges into one blob. A river's shore has to be drawn from the river as DRAWN, at a
-        /// riverbank's own width, not grown from every wet sample at a lake's width.
+        /// The band is "distance to this water is within WIDTH", and width is sampled per cell. A
+        /// per-cell width cannot answer a question that varies inside a cell: where a lake and a
+        /// river share one, the cell carries the lake's width and applies it to the river too, so
+        /// the river gets a lake's bank however narrow its own is. Making the width per-cell fixed
+        /// the constant but not this.
+        ///
+        /// A river's bank needs its SHAPE carried to the renderer, not its width - the carve
+        /// already marks the ring exactly (TerrainGenerationBuffer.RiverBank), so what is missing
+        /// is a sub-cell field of that mask for the shader to draw directly, with no width compare.
+        /// That is FEAT-20's design and it is not done.
         /// </summary>
         internal GridTerrainWaterPatch LakePatchAtCell(Vector2I cell)
             => GridTerrainWaterPatch.Create(_samplesPerCell, (x, y) =>

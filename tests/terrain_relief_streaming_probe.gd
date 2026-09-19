@@ -8,10 +8,16 @@ func check(ok: bool, message: String) -> void:
 
 func _initialize() -> void: run.call_deferred()
 
-func make_view(host: Node, size: Vector2i) -> Node2D:
+# `stream` is stated, never inferred from the size. This probe compares a STREAMED renderer against
+# a FULL one, and it used to get the second by making it small enough to fall under the streaming
+# threshold - so when that threshold moved down to where real maps are (2026-09-19, it was 65,536
+# cells and no map this game generates reached it), the 128x128 reference quietly began streaming
+# too and the comparison became a streamed map against itself.
+func make_view(host: Node, size: Vector2i, stream: bool = true) -> Node2D:
 	var view: Node2D = load("res://addons/beep_game_builder_cs/ecs/terrain/TerrainReliefRendererComponent.cs").new()
 	view.CellDataPath = NodePath("../Cells")
 	view.RefreshOnReady = false
+	view.StreamLargeMaps = stream
 	view.BoundsSize = size
 	view.MapArt = load("res://addons/beep_game_builder_cs/textures/map_art/cartoon.tres")
 	view.HillsSheetPath = "res://addons/beep_game_builder_cs/textures/rocks/rock_debris.png"
@@ -51,7 +57,9 @@ func run() -> void:
 	check(view.StampCount == 0 and view.ResidentReliefCellCount == 0, "Relief rebuilt entire map eagerly")
 	settle(view)
 	check(view.ResidentReliefCellCount > 0 and view.ResidentReliefCellCount < 20000, "Relief residency not bounded")
-	var reference := make_view(host, Vector2i(128, 128))
+	# The control: the same map built in one pass, so "streamed placement matches full placement"
+	# compares two different things.
+	var reference := make_view(host, Vector2i(128, 128), false)
 	var expected: Array = Array(reference.GetStampBounds())
 	var actual: Array = Array(view.GetStampBounds())
 	check(not actual.is_empty() and actual.size() == expected.size(), "Relief count differs from full renderer")

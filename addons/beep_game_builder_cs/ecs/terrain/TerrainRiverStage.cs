@@ -56,6 +56,7 @@ namespace Beep.ECS
             float density = Mathf.Clamp(settings.RiverDensity, 0.0f, 4.0f);
             if (density <= 0.0f)
                 return;
+            float bankScale = Mathf.Clamp(settings.RiverBankScale, 0.0f, 3.0f);
 
             int[] flowsTo = world.IntScratchA;
             int[] order = world.IntScratchB;
@@ -85,7 +86,11 @@ namespace Beep.ECS
                 // across is thinner than a pixel at map zoom and reads as a
                 // seam rather than as water.
                 int radius = Mathf.Clamp(1 + Mathf.FloorToInt(Mathf.Log(flow[index] / threshold + 1.0f) * 1.6f), 1, 3);
-                Carve(world, index, radius);
+                // A river's bank is as wide as the river's own radius, scaled. Proportional, so a
+                // trunk gets a broad bank and a headwater stream a thin one from the same rule -
+                // the width already varies and nothing new has to measure it. Zero draws no bank,
+                // the way every optional layer here is a dial rather than a flag.
+                Carve(world, index, radius, Mathf.Max(0, Mathf.RoundToInt(radius * bankScale)));
             }
         }
 
@@ -106,16 +111,33 @@ namespace Beep.ECS
             return values[at];
         }
 
-        private static void Carve(TerrainGenerationBuffer world, int index, int radius)
+        /// <summary>
+        /// Cuts the channel, and marks the ring just outside it as bank.
+        ///
+        /// ONE loop for both, because they are one shape: the channel is this disc and the bank is
+        /// the same disc grown by <paramref name="bank"/>. Growing it here rather than measuring a
+        /// distance afterwards is what gives every river a bank at ITS OWN width - dilation
+        /// distributes over union, so a union of discs grown by k is exactly the river offset by k.
+        ///
+        /// The bank is a MARK, never a move: it does not carve water, does not set terrain, and
+        /// does not care whether the sample is land right now. A later river may cut through it, and
+        /// a reader asks for land and bank together (TerrainShorelineStage) rather than trusting the
+        /// mask alone.
+        /// </summary>
+        private static void Carve(TerrainGenerationBuffer world, int index, int radius, int bank)
         {
             int cx = index % world.Width;
             int cy = index / world.Width;
+            int reach = radius + Mathf.Max(0, bank);
+            byte[]? banks = bank > 0 ? world.RiverBank : null;
+            var thickness = (byte)Mathf.Clamp(bank, 0, 255);
 
-            for (int offsetY = -radius; offsetY <= radius; offsetY++)
+            for (int offsetY = -reach; offsetY <= reach; offsetY++)
             {
-                for (int offsetX = -radius; offsetX <= radius; offsetX++)
+                for (int offsetX = -reach; offsetX <= reach; offsetX++)
                 {
-                    if ((offsetX * offsetX) + (offsetY * offsetY) > radius * radius)
+                    int away = (offsetX * offsetX) + (offsetY * offsetY);
+                    if (away > reach * reach)
                         continue;
 
                     int atX = cx + offsetX;
@@ -124,6 +146,14 @@ namespace Beep.ECS
                         continue;
 
                     int at = world.Index(atX, atY);
+                    if (away > radius * radius)
+                    {
+                        // The WIDEST river wins where two banks overlap: a stream joining a trunk
+                        // should not narrow the trunk's bank where they meet.
+                        if (banks is not null && banks[at] < thickness) banks[at] = thickness;
+                        continue;
+                    }
+
                     if (!world.Land[at])
                         continue;
 

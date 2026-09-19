@@ -55,6 +55,39 @@ namespace Beep.ECS
         /// <summary>Ocean reaches the map border; a lake never does.</summary>
         public WaterBody[] Water => _water ?? throw new InvalidOperationException("Water samples have been packed and released.");
 
+        /// <summary>
+        /// The BANK of a river: the ring the river carve painted just outside its own water.
+        ///
+        /// Written by <see cref="TerrainRiverStage"/> and read by <see cref="TerrainShorelineStage"/>,
+        /// so it is a named array rather than one of the shared scratch buffers below - those
+        /// explicitly may not be read across a stage boundary.
+        ///
+        /// It is the carve's own shape dilated, which is what makes a trunk's bank wider than a
+        /// stream's for free: a river is a union of discs of radius r along its path, and dilation
+        /// distributes over union, so painting r + bank(r) in the same loop is EXACTLY that river
+        /// offset by bank(r). Measuring it afterwards instead would need the width of the nearest
+        /// river at every land sample - a feature transform - to reach the same answer.
+        ///
+        /// Holds the bank's THICKNESS in samples, not a flag: the width has to survive to the
+        /// renderer or every river's bank is drawn at one width, which is the whole fault this
+        /// exists to fix. Zero is "not a bank".
+        ///
+        /// Lazy: a map with no rivers, or with river banks dialled to zero, never allocates it.
+        /// </summary>
+        public byte[] RiverBank
+        {
+            get
+            {
+                // Throws rather than re-allocating. A bare `??= new byte[Count]` would hand a reader
+                // after release a silently EMPTY mask - every bank forgotten, and nothing to say so.
+                if (_riverBankReleased) throw new InvalidOperationException("River bank samples have been released.");
+                return _riverBank ??= new byte[Count];
+            }
+        }
+
+        /// <summary>Whether any river bank was marked, without walking the mask or allocating one.</summary>
+        public bool HasRiverBank => !_riverBankReleased && _riverBank is not null;
+
         /// <summary>Normalized 0..1 height above sea level on land.</summary>
         public float[] Elevation => Scratch(ref _elevation);
 
@@ -100,6 +133,8 @@ namespace Beep.ECS
 
         private float[]? _elevation, _temperature, _moisture, _shade;
         private bool[]? _land, _footprint;
+        private byte[]? _riverBank;
+        private bool _riverBankReleased;
         private WaterBody[]? _water;
         private string[]? _terrain;
         private bool _shadeReleased;
@@ -111,7 +146,7 @@ namespace Beep.ECS
         private string[]? _resource, _cellTerrain, _cellInlandTerrain, _feature, _cellLiquidResource, _cellUndergroundResource;
         private WaterBody[]? _cellWater;
         private TerrainRelief[]? _cellRelief;
-        private float[]? _cellElevation, _cellShade, _cellUndergroundRichness;
+        private float[]? _cellElevation, _cellShade, _cellUndergroundRichness, _cellShoreWidth;
         private int[]? _cellContinent;
         private byte[]? _cellUndergroundDepth, _cellStartArea;
         private ushort[]? _cellStartDistance;
@@ -217,6 +252,10 @@ namespace Beep.ECS
             _elevation = null;
             _relief = null;
             _land = _footprint = null;
+            // The shoreline stage has already named the bank by now, and this runs while the output
+            // packing allocates - a Huge map's mask is another 1.2 MB rooted for no reader.
+            _riverBank = null;
+            _riverBankReleased = true;
             _intScratchA = _intScratchB = null;
             _floatScratchA = _floatScratchB = null;
             _boolScratch = null;
@@ -286,6 +325,21 @@ namespace Beep.ECS
         // paths and builds on. The sample arrays above exist to decide these
         // well, not to be consumed directly.
 
+        /// <summary>
+        /// How wide the INLAND shore band is at each tile, in tiles - the width the painted view
+        /// draws its bank with.
+        ///
+        /// Per cell because a river has no single width: the carve sizes each one from its flow, so
+        /// a trunk's bank is broader than a headwater stream's. This used to be one number for the
+        /// whole map (TerrainGeneratorComponent.LakeShoreWidth), and handing a lake's 0.65 tiles to
+        /// every river on 2026-09-18 buried the map in sand - five times the width of the water it
+        /// was edging. The per-cell channel that carries it to the shader already existed; only the
+        /// value was constant.
+        ///
+        /// Zero where there is no inland shore, which is also what switches the band off.
+        /// </summary>
+        public float[] CellShoreWidth => CellValues(ref _cellShoreWidth);
+
         /// <summary>Terrain kind per gameplay tile.</summary>
         public string[] CellTerrain => CellValues(ref _cellTerrain, "grass");
 
@@ -345,6 +399,18 @@ namespace Beep.ECS
         public byte[] CellUndergroundDepth => CellValues(ref _cellUndergroundDepth);
 
         public int CellIndex(int cellX, int cellY) => (cellY * CellsWide) + cellX;
+
+        /// <summary>
+        /// The gameplay tile a SAMPLE belongs to. The reverse of CellCentreIndex, for a stage that
+        /// walks samples and records something about the tile they fall in.
+        /// </summary>
+        public int CellOf(int sample)
+        {
+            int samples = Mathf.Max(1, SamplesPerCell);
+            return CellIndex(
+                Mathf.Min((sample % Width) / samples, CellsWide - 1),
+                Mathf.Min((sample / Width) / samples, CellsHigh - 1));
+        }
 
         public bool CellInBounds(int cellX, int cellY)
             => cellX >= 0 && cellY >= 0 && cellX < CellsWide && cellY < CellsHigh;

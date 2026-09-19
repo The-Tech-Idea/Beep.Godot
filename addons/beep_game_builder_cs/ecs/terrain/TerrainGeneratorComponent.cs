@@ -99,6 +99,21 @@ namespace Beep.ECS
 
         [ExportGroup("River Features")]
         [Export(PropertyHint.Range, "0,4,0.05")] public float RiverDensity { get; set; } = 1.0f;
+        /// <summary>
+        /// A river's bank, as a multiple of that river's OWN width. Zero draws none.
+        ///
+        /// Not a width in tiles, because a river does not have one width: the carve already sizes
+        /// every river from its flow accumulation (radius 1 to 3 samples - about 0.125 to 0.375
+        /// tiles at eight samples a cell), so a proportion gives a trunk a broad bank and a
+        /// headwater stream a thin one from a single number.
+        ///
+        /// Scale matters more than it looks. The ocean's BeachWidth is 1.0 TILE against a sea with
+        /// no far side; a stream is a quarter of a tile across. Banking rivers at a lake's 0.65
+        /// tiles - tried on 2026-09-18 - put five times the river's own width of sand around every
+        /// thread of a dense network, and the map came out a desert holding two ponds. At 1.0 here a
+        /// stream's bank is an eighth of the ocean's beach, which is the proportion its water is.
+        /// </summary>
+        [Export(PropertyHint.Range, "0,3,0.05")] public float RiverBankScale { get; set; } = 1.0f;
 
         [ExportGroup("Gameplay")]
         // Every optional layer is a dial rather than a separate on/off flag, so
@@ -322,10 +337,14 @@ namespace Beep.ECS
                         field.WaterPatchAtCell(new Vector2I(x, y)),
                         field.InlandTerrainAtCell(new Vector2I(x, y)), field.BeachWidth,
                         field.LakeShoreWidth > 0f ? field.LakePatchAtCell(new Vector2I(x, y)) : null,
-                        // Every shore, not only the flat ones: the shoreline stage banks a lake
-                        // whatever the ground behind it does, and this width is what the painted
-                        // view draws that bank with.
-                        field.LakeShoreWidth,
+                        // Every shore, not only the flat ones: the shoreline stage banks inland
+                        // water whatever the ground behind it does, and this width is what the
+                        // painted view draws that bank with.
+                        //
+                        // PER CELL, not the map-wide LakeShoreWidth it used to send: a river's bank
+                        // is sized from that river's own flow, so a trunk edges wider than the
+                        // stream feeding it, and a lake keeps the single width a lake shore has.
+                        field.ShoreWidthAtCell(new Vector2I(x, y)),
                         field.StartAreaAtCell(new Vector2I(x, y)));
                 }
             }
@@ -703,7 +722,8 @@ namespace Beep.ECS
                 Mathf.Clamp(ErosionStrength, 0.0f, 4.0f), Mathf.Clamp(BeachWidth, 0.0f, 4.0f),
                 Mathf.Max(0.02f, FeatureFrequencyMultiplier),
                 Mathf.Clamp(LakeCoverage, 0.0f, 0.35f), Mathf.Max(0.02f, LakeFrequencyMultiplier), Mathf.Clamp(LakeShoreWidth, 0.0f, 3.0f),
-                Mathf.Clamp(RiverDensity, 0.0f, 4.0f), Mathf.Clamp(StartPositionCount, 0, 24),
+                Mathf.Clamp(RiverDensity, 0.0f, 4.0f), Mathf.Clamp(RiverBankScale, 0.0f, 3.0f),
+                Mathf.Clamp(StartPositionCount, 0, 24),
                 Mathf.Clamp(StartAreaRadius, 0, 32), StartKit, Mathf.Clamp(StartDistanceScaling, 0.0f, 2.0f),
                 Mathf.Clamp(ResourceDensity, 0.0f, 4.0f), ResourceSet, Resources, Mathf.Clamp(HillsFraction, 0.0f, 0.9f),
                 Mathf.Clamp(MountainsFraction, 0.0f, 0.9f), Mathf.Clamp(HillshadeStrength, 0.0f, 3.0f),

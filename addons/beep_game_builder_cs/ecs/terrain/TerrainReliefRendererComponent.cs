@@ -81,6 +81,20 @@ namespace Beep.ECS
         private readonly record struct Stamp(Texture2D Sheet, Rect2 Region, Rect2 Target, float SortY, bool Clutter);
 
         /// <summary>
+        /// Above this many cells a rebuild is spread over frames instead of blocking one.
+        ///
+        /// Its own number, not the feature renderer's, because relief is cheaper per cell: measured
+        /// 2026-09-19 on Huge (128x80, young), 443 stamps in 18.5 ms - 1.8 microseconds a cell
+        /// against the features' 4.7 - so a 16.7 ms frame is about 9,000 cells here and about 3,500
+        /// there. One shared number would either stream this renderer earlier than it needs or let
+        /// the other block a frame.
+        ///
+        /// It was 65,536, which no map this game generates reaches - see the same constant on
+        /// TerrainFeatureRendererComponent for what that cost.
+        /// </summary>
+        private const int StreamAboveCells = 9000;
+
+        /// <summary>
         /// The CLUTTER half of this renderer's batch, drawn from its own node.
         ///
         /// A node has exactly one z index, and the two things this renderer draws do not belong on
@@ -189,7 +203,7 @@ namespace Beep.ECS
                 ? new LiveTerrainSurfaceData(_cells) : _generator!.ResolveField();
             Vector2I size = new(Mathf.Max(1, BoundsSize.X), Mathf.Max(1, BoundsSize.Y));
             float tile = Mathf.Max(1, TileSize);
-            if (StreamLargeMaps && !Engine.IsEditorHint() && IsInsideTree() && (long)size.X * size.Y > 65536)
+            if (StreamLargeMaps && !Engine.IsEditorHint() && IsInsideTree() && (long)size.X * size.Y > StreamAboveCells)
             {
                 BeginStreaming(field, size, tile);
                 RedrawAll();

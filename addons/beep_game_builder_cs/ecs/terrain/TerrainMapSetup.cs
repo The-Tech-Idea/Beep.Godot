@@ -77,6 +77,15 @@ namespace Beep.ECS
         Standard,
         Large,
         Huge,
+        /// <summary>
+        /// A map big enough to need the prop streaming, and the reason it was added: every other
+        /// size fits on screen at a sensible zoom, so nothing exercised chunk residency by being
+        /// genuinely large (owner, 2026-09-19).
+        ///
+        /// APPENDED, never inserted. A world's recipe stores this enum by value, so putting a size
+        /// in the middle would silently reinterpret every saved map above it.
+        /// </summary>
+        Massive,
     }
 
     public static class TerrainMapSetup
@@ -102,6 +111,7 @@ namespace Beep.ECS
         public static readonly string[] MapSizeNames =
         {
             "Tiny  32x32", "Small  48x48", "Standard  64x64", "Large  96x60", "Huge  128x80",
+            "Massive  256x256",
         };
 
         public static Vector2I BoundsFor(TerrainMapSize size) => size switch
@@ -110,6 +120,12 @@ namespace Beep.ECS
             TerrainMapSize.Small => new Vector2I(48, 48),
             TerrainMapSize.Large => new Vector2I(96, 60),
             TerrainMapSize.Huge => new Vector2I(128, 80),
+            // 65,536 cells - six times Huge. Generation does not cost six times as much: the field
+            // budget is in SAMPLES, and EffectiveSamplesPerCell steps sub-cell detail down to fit,
+            // so this builds at 4 samples a cell against Huge's 11 and is actually the smaller
+            // field (1,048,576 samples against 1,239,040). What does grow is the CELL store and the
+            // prop count, which is exactly what the chunk residency is for.
+            TerrainMapSize.Massive => new Vector2I(256, 256),
             _ => new Vector2I(64, 64),
         };
 

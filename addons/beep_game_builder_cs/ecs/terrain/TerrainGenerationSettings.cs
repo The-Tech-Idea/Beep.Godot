@@ -55,6 +55,10 @@ namespace Beep.ECS
         float LakeFrequencyMultiplier,
         float LakeShoreWidth,
         float RiverDensity,
+        // A river's bank, as a multiple of that river's OWN carve radius, 0..3. Proportional on
+        // purpose: the carve already sizes each river from its flow, so a trunk earns a broader bank
+        // than a headwater stream without a second rule measuring anything. Zero generates no bank.
+        float RiverBankScale,
         int StartPositionCount,
         // Cells reserved around each start, 0..32; zero generates no start areas and leaves
         // start selection exactly as it was.

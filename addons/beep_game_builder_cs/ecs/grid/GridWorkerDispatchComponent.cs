@@ -66,7 +66,15 @@ public partial class GridWorkerDispatchComponent : Node, ISaveable
         RequestReady();
     }
 
-    private bool Ready => GodotObject.IsInstanceValid(this) && IsInsideTree()
+    /// <summary>
+    /// Everything this service needs is present, in the tree, and bound to the same sources.
+    /// </summary>
+    /// <remarks>
+    /// Named <c>IsWired</c> and not <c>Ready</c>. <c>Node</c> already raises a <c>Ready</c> signal, so
+    /// a member of that name hid it and made that signal unreachable from C# inside this class -
+    /// and a reader seeing <c>Ready</c> would reasonably take it for the framework's.
+    /// </remarks>
+    private bool IsWired => GodotObject.IsInstanceValid(this) && IsInsideTree()
         && GodotObject.IsInstanceValid(_registry) && _registry!.IsInsideTree()
         && GodotObject.IsInstanceValid(_queue) && _queue!.IsInsideTree()
         && GodotObject.IsInstanceValid(_grid) && _grid!.IsInsideTree()
@@ -78,7 +86,7 @@ public partial class GridWorkerDispatchComponent : Node, ISaveable
 
     public bool RegisterWorker(string actorId, float worldUnitsPerTurn, float workSpeed = 1)
     {
-        if (!Ready || _workers.ContainsKey(actorId) || !_registry!.GetActorPosition(actorId).IsFinite()
+        if (!IsWired || _workers.ContainsKey(actorId) || !_registry!.GetActorPosition(actorId).IsFinite()
             || !_queue!.CanWorkerClaim(actorId) || !float.IsFinite(worldUnitsPerTurn) || worldUnitsPerTurn <= 0
             || !float.IsFinite(workSpeed) || workSpeed <= 0) return false;
         _workers.Add(actorId, new(worldUnitsPerTurn, workSpeed));
@@ -95,7 +103,7 @@ public partial class GridWorkerDispatchComponent : Node, ISaveable
     private void ActorDestroyed(string id) => UnregisterWorker(id);
     private void Tick(float turns)
     {
-        if (!float.IsFinite(turns) || turns <= 0 || !Ready) return;
+        if (!float.IsFinite(turns) || turns <= 0 || !IsWired) return;
         foreach (var worker in _workers.Values)
             foreach (var job in worker.RetryDeadlines.Keys.ToArray())
             {
@@ -107,13 +115,13 @@ public partial class GridWorkerDispatchComponent : Node, ISaveable
 
     public void DispatchJobs()
     {
-        if (!Ready || _dispatching) return;
+        if (!IsWired || _dispatching) return;
         _dispatching = true;
         try
         {
             foreach (var (id, worker) in _workers.ToArray())
             {
-                if (!Ready) return;
+                if (!IsWired) return;
                 if (!_workers.TryGetValue(id, out var current) || current != worker) continue;
                 if (worker.Job.Length > 0)
                 {
@@ -130,7 +138,7 @@ public partial class GridWorkerDispatchComponent : Node, ISaveable
                     AllowedJobKinds, worker.RetryDeadlines.Keys.ToHashSet(StringComparer.Ordinal));
                 if (job.Length == 0) continue;
                 // Claim signals may remove this worker or the dispatcher.
-                if (!Ready || !_workers.TryGetValue(id, out current) || current != worker)
+                if (!IsWired || !_workers.TryGetValue(id, out current) || current != worker)
                 {
                     if (GodotObject.IsInstanceValid(_queue)) _queue!.ReleaseJob(job, id);
                     continue;
@@ -148,7 +156,7 @@ public partial class GridWorkerDispatchComponent : Node, ISaveable
     private void TravelFinished(string id, bool arrived, string reason)
     {
         if (!_workers.TryGetValue(id, out var worker) || worker.Job.Length == 0 || worker.Working) return;
-        if (!arrived || !Ready) { Finish(id, worker, false, reason); return; }
+        if (!arrived || !IsWired) { Finish(id, worker, false, reason); return; }
         worker.Working = true;
         if (!_execution!.BeginWork(id, worker.Job, worker.WorkSpeed)) Finish(id, worker, false, "work_rejected");
     }

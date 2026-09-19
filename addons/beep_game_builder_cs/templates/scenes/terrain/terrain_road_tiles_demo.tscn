@@ -536,70 +536,70 @@ terrain_set_0/terrain_2/name = "Mud track"
 terrain_set_0/terrain_2/color = Color(0.46875, 0.5, 0.25, 1)
 sources/0 = SubResource("TileSetAtlasSource_6rarn")
 
-[node name="RoadTileCatalog" type="Node2D" unique_id=864530872]
+[node name="RoadTileCatalog" type="Node2D" unique_id=945230974]
 
-[node name="PixelTitle" type="Label" parent="." unique_id=293216945]
+[node name="PixelTitle" type="Label" parent="." unique_id=164869507]
 offset_left = 35.0
 offset_top = 10.0
 offset_right = 35.0
 offset_bottom = 10.0
 text = "Pixel Art"
 
-[node name="PixelRoads" type="TileMapLayer" parent="." unique_id=766525308]
+[node name="PixelRoads" type="TileMapLayer" parent="." unique_id=669701272]
 texture_filter = 3
 position = Vector2(66, 94)
 tile_map_data = PackedByteArray("AAAEAP//AAAEAAAAAAAGAAEAAAABAAAAAAAEAAEAAAABAAAAAAACAAEAAAABAAAAAAAAAAEAAAABAAAAAAAGAAAAAAAMAAAAAAAFAAAAAAAKAAAAAAAEAAAAAAAPAAAAAAADAAAAAAAKAAAAAAACAAAAAAAOAAAAAAABAAAAAAAKAAAAAAAAAAAAAAAGAAAAAAAEAAIAAAAEAAEAAAAGAAQAAAABAAEAAAAEAAQAAAABAAEAAAACAAQAAAABAAEAAAAAAAQAAAABAAEAAAAGAAMAAAAMAAEAAAAFAAMAAAAKAAEAAAAEAAMAAAAPAAEAAAADAAMAAAAKAAEAAAACAAMAAAAOAAEAAAABAAMAAAAKAAEAAAAAAAMAAAAGAAEAAAAEAAUAAAAEAAIAAAAGAAcAAAABAAIAAAAEAAcAAAABAAIAAAACAAcAAAABAAIAAAAAAAcAAAABAAIAAAAGAAYAAAAMAAIAAAAFAAYAAAAKAAIAAAAEAAYAAAAPAAIAAAADAAYAAAAKAAIAAAACAAYAAAAOAAIAAAABAAYAAAAKAAIAAAAAAAYAAAAGAAIAAAA=")
 tile_set = SubResource("TileSet_wmagf")
 
-[node name="Material00" type="Label" parent="." unique_id=232951920]
+[node name="Material00" type="Label" parent="." unique_id=1381493377]
 offset_left = 35.0
 offset_top = 62.0
 offset_right = 35.0
 offset_bottom = 62.0
 text = "Brick paving"
 
-[node name="Material01" type="Label" parent="." unique_id=637385937]
+[node name="Material01" type="Label" parent="." unique_id=1828647277]
 offset_left = 35.0
 offset_top = 254.0
 offset_right = 35.0
 offset_bottom = 254.0
 text = "Sand path"
 
-[node name="Material02" type="Label" parent="." unique_id=985347697]
+[node name="Material02" type="Label" parent="." unique_id=1481174173]
 offset_left = 35.0
 offset_top = 446.0
 offset_right = 35.0
 offset_bottom = 446.0
 text = "Mud track"
 
-[node name="CartoonTitle" type="Label" parent="." unique_id=786915340]
+[node name="CartoonTitle" type="Label" parent="." unique_id=486411737]
 offset_left = 635.0
 offset_top = 10.0
 offset_right = 635.0
 offset_bottom = 10.0
 text = "Cartoon"
 
-[node name="CartoonRoads" type="TileMapLayer" parent="." unique_id=208177271]
+[node name="CartoonRoads" type="TileMapLayer" parent="." unique_id=619584262]
 texture_filter = 4
 position = Vector2(666, 94)
 tile_map_data = PackedByteArray("AAAEAP//AAAEAAAAAAAGAAEAAAABAAAAAAAEAAEAAAABAAAAAAACAAEAAAABAAAAAAAAAAEAAAABAAAAAAAGAAAAAAAMAAAAAAAFAAAAAAAKAAAAAAAEAAAAAAAPAAAAAAADAAAAAAAKAAAAAAACAAAAAAAOAAAAAAABAAAAAAAKAAAAAAAAAAAAAAAGAAAAAAAEAAIAAAAEAAEAAAAGAAQAAAABAAEAAAAEAAQAAAABAAEAAAACAAQAAAABAAEAAAAAAAQAAAABAAEAAAAGAAMAAAAMAAEAAAAFAAMAAAAKAAEAAAAEAAMAAAAPAAEAAAADAAMAAAAKAAEAAAACAAMAAAAOAAEAAAABAAMAAAAKAAEAAAAAAAMAAAAGAAEAAAAEAAUAAAAEAAIAAAAGAAcAAAABAAIAAAAEAAcAAAABAAIAAAACAAcAAAABAAIAAAAAAAcAAAABAAIAAAAGAAYAAAAMAAIAAAAFAAYAAAAKAAIAAAAEAAYAAAAPAAIAAAADAAYAAAAKAAIAAAACAAYAAAAOAAIAAAABAAYAAAAKAAIAAAAAAAYAAAAGAAIAAAA=")
 tile_set = SubResource("TileSet_xl3vj")
 
-[node name="Material10" type="Label" parent="." unique_id=334542942]
+[node name="Material10" type="Label" parent="." unique_id=1054208951]
 offset_left = 635.0
 offset_top = 62.0
 offset_right = 635.0
 offset_bottom = 62.0
 text = "Brick paving"
 
-[node name="Material11" type="Label" parent="." unique_id=1355942542]
+[node name="Material11" type="Label" parent="." unique_id=2065181617]
 offset_left = 635.0
 offset_top = 254.0
 offset_right = 635.0
 offset_bottom = 254.0
 text = "Sand path"
 
-[node name="Material12" type="Label" parent="." unique_id=853922193]
+[node name="Material12" type="Label" parent="." unique_id=1563573458]
 offset_left = 635.0
 offset_top = 446.0
 offset_right = 635.0

@@ -33,7 +33,7 @@ public partial class GridWorkerDispatchComponent
     /// <summary>Restore registry, queue (retaining claims), travel and execution first, while the clock is paused.</summary>
     public bool RestoreState(Godot.Collections.Dictionary state)
     {
-        if (!Ready || _dispatching || !state.TryGetValue("workers", out var records)
+        if (!IsWired || _dispatching || !state.TryGetValue("workers", out var records)
             || !GridVariantReader.TryDictionary(records, out var savedWorkers)
             || !state.TryGetValue("allowed_kinds", out var kinds) || kinds.VariantType != Variant.Type.Array) return false;
         float retryTurns = GridVariantReader.Float(state, "retry_turns", float.NaN);

@@ -337,14 +337,19 @@ namespace Beep.ECS.UI
             if (EffectiveInitialDelay > 0f)
             {
                 // Use a one-shot timer for delay
-                var timer = new Timer { OneShot = true, WaitTime = EffectiveInitialDelay };
+                // AUTOSTART, NOT Start(). A Timer must be inside the scene tree before it can be
+                // started, and this component is a [Tool] script the editor runs before it is ever
+                // added to a tree - so the explicit Start() failed with "Unable to start the timer
+                // because it's not inside the scene tree" and the delay never elapsed. Autostart
+                // starts the timer when it ENTERS the tree, which AddChild does immediately when this
+                // component is already in one, and defers correctly when it is not.
+                var timer = new Timer { OneShot = true, WaitTime = EffectiveInitialDelay, Autostart = true };
                 timer.Timeout += () =>
                 {
                     timer.QueueFree();
                     if (_isPlaying) ExecuteEffect();   // a Stop() during the delay must cancel it
                 };
                 AddChild(timer);
-                timer.Start();
             }
             else
             {
@@ -437,10 +442,10 @@ namespace Beep.ECS.UI
 
                 if (EffectiveLoopDelay > 0f)
                 {
-                    var timer = new Timer { OneShot = true, WaitTime = EffectiveLoopDelay };
+                    // Autostart, for the same reason as the initial delay above.
+                    var timer = new Timer { OneShot = true, WaitTime = EffectiveLoopDelay, Autostart = true };
                     timer.Timeout += () => { timer.QueueFree(); if (_isPlaying) ExecuteEffect(); };
                     AddChild(timer);
-                    timer.Start();
                 }
                 else
                 {

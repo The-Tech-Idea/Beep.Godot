@@ -277,26 +277,116 @@ namespace Beep.ECS
             QueueRedraw();
         }
 
+        /// <summary>The cells a road connects through, in the order its joins are drawn.</summary>
+        private static readonly Vector2I[] Neighbours =
+        {
+            new(-1, 0), new(1, 0), new(0, -1), new(0, 1),
+        };
+
+        /// <summary>
+        /// One road cell: its own body, and a join out to every neighbour that is also road.
+        /// </summary>
+        /// <remarks>
+        /// <para><b>A ROAD IS A PATH, AND A PATH IS THE THING ITS CELLS MAKE TOGETHER.</b> This drew
+        /// each cell as its own polygon shrunk towards its own centre — half the tile — so a run of
+        /// road came out as a row of separate marks with ground between them: legible as "something
+        /// is here" and not legible as a road at all. Walking the route is what the player did when
+        /// they drew it; drawing it one cell at a time throws that away.</para>
+        ///
+        /// <para>Each join is drawn from the side two cells share to those same points pulled in
+        /// towards this cell's centre, so the two cells meet in the middle of their shared edge
+        /// whichever way the projection has bent it. <see cref="TerrainOverlayEdges.SharedSide"/> is
+        /// the same walk a start-area border uses, because it is the same question: which edge do
+        /// these two cells have in common.</para>
+        ///
+        /// <para>The outline is the same shapes drawn a little wider UNDERNEATH rather than a line
+        /// traced around them. A traced line would run down the middle of every straight run — the
+        /// exact seam this exists to remove — because two overlapping quads have no single outline
+        /// to trace.</para>
+        /// </remarks>
         private void DrawRoadCell(Vector2I cell)
         {
             if (_grid == null)
                 return;
 
-            Vector2 center = ToLocal(_grid.ToGlobal(_grid.CellToWorld(cell)));
+            Vector2[] own = CellPolygon(cell);
+            if (own.Length < 3)
+                return;
+
+            Vector2 centre = ToLocal(_grid.ToGlobal(_grid.CellToWorld(cell)));
+            float reach = Reach(own, centre);
+            float width = EffectiveRoadWidthRatio;
+
+            if (EffectiveOutlineWidth > 0f && reach > 0.0f)
+                PaintCell(cell, own, centre, width + (EffectiveOutlineWidth / reach), OutlineColor);
+
+            PaintCell(cell, own, centre, width, RoadColor);
+        }
+
+        /// <summary>One pass of the road in one colour: the cell's body, then a join per neighbour.</summary>
+        private void PaintCell(Vector2I cell, Vector2[] own, Vector2 centre, float ratio, Color colour)
+        {
+            DrawColoredPolygon(Shrunk(own, centre, ratio), colour);
+
+            foreach (Vector2I step in Neighbours)
+            {
+                if (!_roads.ContainsKey(cell + step))
+                    continue;
+
+                Vector2[] other = CellPolygon(cell + step);
+
+                if (other.Length < 3
+                    || !TerrainOverlayEdges.SharedSide(own, other, out Vector2 from, out Vector2 to))
+                    continue;
+
+                DrawColoredPolygon(
+                    new[] { from, to, centre + ((to - centre) * ratio), centre + ((from - centre) * ratio) },
+                    colour);
+            }
+        }
+
+        /// <summary>A cell's own polygon in this node's space, or nothing when it has none.</summary>
+        private Vector2[] CellPolygon(Vector2I cell)
+        {
+            if (_grid == null)
+                return Array.Empty<Vector2>();
+
             System.Span<Vector2> corners = stackalloc Vector2[4];
             int n = _grid.CellCorners(cell, corners);
-            if (n < 3)
-                return;
-            var points = new Vector2[n];
-            for (int i = 0; i < n; i++)
-            {
-                Vector2 corner = ToLocal(_grid.ToGlobal(corners[i]));
-                points[i] = center + (corner - center) * EffectiveRoadWidthRatio;
-            }
 
-            DrawColoredPolygon(points, RoadColor);
-            if (EffectiveOutlineWidth > 0f)
-                DrawPolyline(points, OutlineColor, EffectiveOutlineWidth, true);
+            if (n < 3)
+                return Array.Empty<Vector2>();
+
+            var points = new Vector2[n];
+
+            for (int i = 0; i < n; i++)
+                points[i] = ToLocal(_grid.ToGlobal(corners[i]));
+
+            return points;
+        }
+
+        private static Vector2[] Shrunk(Vector2[] points, Vector2 centre, float ratio)
+        {
+            var shrunk = new Vector2[points.Length];
+
+            for (int i = 0; i < points.Length; i++)
+                shrunk[i] = centre + ((points[i] - centre) * ratio);
+
+            return shrunk;
+        }
+
+        /// <summary>How far a cell's corners sit from its centre, on average — its on-screen size.</summary>
+        private static float Reach(Vector2[] points, Vector2 centre)
+        {
+            if (points.Length == 0)
+                return 0.0f;
+
+            float total = 0.0f;
+
+            for (int i = 0; i < points.Length; i++)
+                total += points[i].DistanceTo(centre);
+
+            return total / points.Length;
         }
 
         private void ResolveReferences()
